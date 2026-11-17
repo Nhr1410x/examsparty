@@ -1083,7 +1083,7 @@ export function createApp(db, config) {
     });
   });
   app.delete("/api/admin/exams", async (req, res) => {
-    const { ids } = z
+    const { ids, permanent = true } = z
       .strictObject({
         ids: z
           .array(uuid)
@@ -1094,6 +1094,7 @@ export function createApp(db, config) {
               new Set(ids.map((id) => id.toLowerCase())).size === ids.length,
             "Không chọn trùng đề.",
           ),
+        permanent: z.boolean().optional().default(true),
       })
       .parse(req.body);
     const deleted = await transaction(db, async (client) => {

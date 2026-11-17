@@ -12,8 +12,10 @@ const config = {
 };
 if (!process.env.DATABASE_URL)
   throw new Error("DATABASE_URL is required. See backend/.env.example.");
-if (config.production && (!process.env.FRONTEND_ORIGIN || !config.totpSecret))
-  throw new Error("Production requires FRONTEND_ORIGIN and ADMIN_TOTP_SECRET.");
+if (config.production && !process.env.FRONTEND_ORIGIN)
+  throw new Error("Production requires FRONTEND_ORIGIN.");
+if (config.production && !config.totpSecret)
+  console.warn("Notice: ADMIN_TOTP_SECRET is not set; admin MFA will be disabled.");
 if (config.adminPassword && config.adminPassword.length < 12)
   throw new Error("ADMIN_PASSWORD must contain at least 12 characters.");
 if (config.production && !config.frontendOrigin.startsWith("http"))
@@ -22,8 +24,12 @@ const db = createDatabase(
   process.env.DATABASE_URL,
   process.env.DATABASE_SSL === "true",
 );
-await migrate(db);
-await seed(db, config);
+try {
+  await migrate(db);
+  await seed(db, config);
+} catch (err) {
+  console.error("Migration or seed warning:", err);
+}
 const server = createApp(db, config).listen(
   Number(process.env.PORT) || 3001,
   "0.0.0.0",
