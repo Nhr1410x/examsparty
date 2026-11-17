@@ -1299,19 +1299,68 @@ export function QuestionLivePreview({
   );
 }
 
+export const QUESTION_VIEW_MODE_KEY = "ep_question_editor_view_mode";
+export const QUESTION_VIEW_MODE_EVENT = "ep_question_editor_view_mode_change";
+
+export function getQuestionViewModePreference(
+  fallback: "split" | "edit" | "preview" = "split",
+): "split" | "edit" | "preview" {
+  try {
+    const val = localStorage.getItem(QUESTION_VIEW_MODE_KEY);
+    if (val === "split" || val === "edit" || val === "preview") return val;
+  } catch {}
+  return fallback;
+}
+
+export function setQuestionViewModePreference(mode: "split" | "edit" | "preview") {
+  try {
+    localStorage.setItem(QUESTION_VIEW_MODE_KEY, mode);
+  } catch {}
+  window.dispatchEvent(new CustomEvent(QUESTION_VIEW_MODE_EVENT, { detail: mode }));
+}
+
 export function QuestionEditor({
   q,
   onChange,
   onRemove,
   defaultViewMode = "split",
+  viewMode: controlledViewMode,
+  onViewModeChange,
 }: {
   q: Question;
   onChange: (q: Question) => void;
   onRemove: () => void;
   defaultViewMode?: "split" | "edit" | "preview";
+  viewMode?: "split" | "edit" | "preview";
+  onViewModeChange?: (mode: "split" | "edit" | "preview") => void;
 }) {
-  const [viewMode, setViewMode] = useState<"split" | "edit" | "preview">(defaultViewMode),
-    [showGuide, setShowGuide] = useState(false);
+  const [internalViewMode, setInternalViewMode] = useState<"split" | "edit" | "preview">(() =>
+    getQuestionViewModePreference(defaultViewMode),
+  );
+  const [showGuide, setShowGuide] = useState(false);
+
+  const viewMode = controlledViewMode ?? internalViewMode;
+
+  useEffect(() => {
+    if (controlledViewMode !== undefined) return;
+    const handleSync = (e: Event) => {
+      const custom = e as CustomEvent<"split" | "edit" | "preview">;
+      if (
+        custom.detail &&
+        (custom.detail === "split" || custom.detail === "edit" || custom.detail === "preview")
+      ) {
+        setInternalViewMode(custom.detail);
+      }
+    };
+    window.addEventListener(QUESTION_VIEW_MODE_EVENT, handleSync);
+    return () => window.removeEventListener(QUESTION_VIEW_MODE_EVENT, handleSync);
+  }, [controlledViewMode]);
+
+  const changeViewMode = (mode: "split" | "edit" | "preview") => {
+    setQuestionViewModePreference(mode);
+    setInternalViewMode(mode);
+    onViewModeChange?.(mode);
+  };
 
   const update = (patch: Partial<Question>) => onChange({ ...q, ...patch });
 
@@ -1711,8 +1760,8 @@ export function QuestionEditor({
             <button
               type="button"
               className={viewMode === "split" ? "active" : ""}
-              onClick={() => setViewMode("split")}
-              title="Chia đôi màn hình: Soạn thảo bên trái, Xem trước đầy đủ bên phải"
+              onClick={() => changeViewMode("split")}
+              title="Chia đôi màn hình: Soạn thảo bên trái, Xem trước đầy đủ bên phải (áp dụng cho tất cả câu hỏi)"
             >
               <Columns size={13} />
               <span>Chia đôi</span>
@@ -1720,8 +1769,8 @@ export function QuestionEditor({
             <button
               type="button"
               className={viewMode === "edit" ? "active" : ""}
-              onClick={() => setViewMode("edit")}
-              title="Chỉ hiển thị khung soạn thảo"
+              onClick={() => changeViewMode("edit")}
+              title="Chỉ hiển thị khung soạn thảo (áp dụng cho tất cả câu hỏi)"
             >
               <Pencil size={13} />
               <span>Chỉ soạn</span>
@@ -1729,8 +1778,8 @@ export function QuestionEditor({
             <button
               type="button"
               className={viewMode === "preview" ? "active" : ""}
-              onClick={() => setViewMode("preview")}
-              title="Chỉ hiển thị bản xem trước hoàn chỉnh"
+              onClick={() => changeViewMode("preview")}
+              title="Chỉ hiển thị bản xem trước hoàn chỉnh (áp dụng cho tất cả câu hỏi)"
             >
               <Eye size={13} />
               <span>Chỉ xem</span>

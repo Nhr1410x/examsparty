@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   CheckCircle2,
+  Columns,
   Download,
   Eye,
   FileJson,
@@ -28,6 +29,9 @@ import {
   QuestionEditor,
   Feedback,
   Loading,
+  QUESTION_VIEW_MODE_EVENT,
+  getQuestionViewModePreference,
+  setQuestionViewModePreference,
 } from "./components";
 import {
   emptyExam,
@@ -56,6 +60,9 @@ export function ExamEditor({
 }) {
   const [mode, setMode] = useState<"preview" | "form" | "json">(defaultMode),
     [editingQuestionIdx, setEditingQuestionIdx] = useState<number | null>(null),
+    [globalViewMode, setGlobalViewMode] = useState<"split" | "edit" | "preview">(() =>
+      getQuestionViewModePreference("split"),
+    ),
     [form, setForm] = useState<ExamContent>(() => {
       try {
         return JSON.parse(raw);
@@ -66,6 +73,20 @@ export function ExamEditor({
     [issue, setIssue] = useState<unknown>(null),
     [savedNotice, setSavedNotice] = useState<string>(""),
     [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const handleSync = (e: Event) => {
+      const custom = e as CustomEvent<"split" | "edit" | "preview">;
+      if (
+        custom.detail &&
+        (custom.detail === "split" || custom.detail === "edit" || custom.detail === "preview")
+      ) {
+        setGlobalViewMode(custom.detail);
+      }
+    };
+    window.addEventListener(QUESTION_VIEW_MODE_EVENT, handleSync);
+    return () => window.removeEventListener(QUESTION_VIEW_MODE_EVENT, handleSync);
+  }, []);
 
   useEffect(() => {
     try {
@@ -130,7 +151,37 @@ export function ExamEditor({
               <ArrowLeft size={15} />
               Quay lại xem toàn bộ đề
             </button>
-            <div className="row" style={{ gap: 8, alignItems: "center" }}>
+            <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
+              <div className="segmented-control" role="tablist">
+                <button
+                  type="button"
+                  className={globalViewMode === "split" ? "active" : ""}
+                  onClick={() => setQuestionViewModePreference("split")}
+                  title="Chia đôi màn hình (áp dụng cho tất cả câu hỏi)"
+                >
+                  <Columns size={13} />
+                  <span>Chia đôi</span>
+                </button>
+                <button
+                  type="button"
+                  className={globalViewMode === "edit" ? "active" : ""}
+                  onClick={() => setQuestionViewModePreference("edit")}
+                  title="Chỉ hiển thị khung soạn thảo (áp dụng cho tất cả câu hỏi)"
+                >
+                  <Pencil size={13} />
+                  <span>Chỉ soạn</span>
+                </button>
+                <button
+                  type="button"
+                  className={globalViewMode === "preview" ? "active" : ""}
+                  onClick={() => setQuestionViewModePreference("preview")}
+                  title="Chỉ hiển thị bản xem trước (áp dụng cho tất cả câu hỏi)"
+                >
+                  <Eye size={13} />
+                  <span>Chỉ xem</span>
+                </button>
+              </div>
+
               <span
                 className="question-number-pill"
                 style={{ fontSize: "13px", padding: "5px 12px" }}
@@ -595,6 +646,58 @@ export function ExamEditor({
               </label>
             </div>
           </div>
+
+          <div
+            className="card mb-4"
+            style={{
+              padding: "14px 18px",
+              marginTop: 20,
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius, 12px)",
+            }}
+          >
+            <div className="row wrap between center" style={{ gap: 12 }}>
+              <div>
+                <strong style={{ fontSize: "15px", fontWeight: 700 }}>
+                  Danh sách câu hỏi ({form.questions.length})
+                </strong>
+                <p className="small text-muted" style={{ margin: "2px 0 0", fontSize: "12px" }}>
+                  Chế độ xem được áp dụng đồng bộ cho tất cả các câu hỏi
+                </p>
+              </div>
+              <div className="segmented-control" role="tablist">
+                <button
+                  type="button"
+                  className={globalViewMode === "split" ? "active" : ""}
+                  onClick={() => setQuestionViewModePreference("split")}
+                  title="Chia đôi màn hình cho toàn bộ câu hỏi"
+                >
+                  <Columns size={13} />
+                  <span>Chia đôi</span>
+                </button>
+                <button
+                  type="button"
+                  className={globalViewMode === "edit" ? "active" : ""}
+                  onClick={() => setQuestionViewModePreference("edit")}
+                  title="Chỉ hiển thị khung soạn thảo cho toàn bộ câu hỏi"
+                >
+                  <Pencil size={13} />
+                  <span>Chỉ soạn</span>
+                </button>
+                <button
+                  type="button"
+                  className={globalViewMode === "preview" ? "active" : ""}
+                  onClick={() => setQuestionViewModePreference("preview")}
+                  title="Chỉ hiển thị bản xem trước cho toàn bộ câu hỏi"
+                >
+                  <Eye size={13} />
+                  <span>Chỉ xem</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           {form.questions.map((q, i) => (
             <div key={`${i}-${q.client_id}`}>
               <div className="row">
