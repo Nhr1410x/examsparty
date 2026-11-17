@@ -1271,6 +1271,21 @@ export function createApp(db, config) {
         values.push(value);
         where += ` AND ${key === "type" ? "content->>'type'" : key === "difficulty" ? "content->>'difficulty'" : "status"}=$${values.length}`;
       }
+    if (req.query.subject) {
+      const subject = String(req.query.subject).trim();
+      if (subject) {
+        values.push(subject);
+        where += ` AND (
+          content->>'subject' = $${values.length}
+          OR id IN (
+            SELECT eq.question_id 
+            FROM exam_questions eq 
+            JOIN exams e ON eq.exam_id = e.id 
+            WHERE e.status <> 'deleted' AND e.subject = $${values.length}
+          )
+        )`;
+      }
+    }
     if (req.query.ids_only === "true") {
       const rows = (
         await db.query(
@@ -1288,17 +1303,57 @@ export function createApp(db, config) {
         )
       ).rows[0].count,
     );
-    res.json({
-      items: (
+    const questionsRows = (
+      await db.query(
+        `SELECT * FROM questions WHERE ${where} ORDER BY updated_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+        [...values, limit, (page - 1) * limit],
+      )
+    ).rows;
+
+    const qIds = questionsRows.map((q) => q.id);
+    const subjectsMap = new Map();
+    if (qIds.length > 0) {
+      const qPlaceholders = qIds.map((_, i) => `$${i + 1}`).join(",");
+      const linkRows = (
         await db.query(
-          `SELECT * FROM questions WHERE ${where} ORDER BY updated_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
-          [...values, limit, (page - 1) * limit],
+          `SELECT eq.question_id, e.subject 
+           FROM exam_questions eq 
+           JOIN exams e ON eq.exam_id = e.id 
+           WHERE eq.question_id IN (${qPlaceholders}) AND e.status <> 'deleted' AND e.subject IS NOT NULL`,
+          qIds,
         )
-      ).rows,
+      ).rows;
+      for (const r of linkRows) {
+        if (!subjectsMap.has(r.question_id)) {
+          subjectsMap.set(r.question_id, r.subject);
+        }
+      }
+    }
+    const items = questionsRows.map((q) => ({
+      ...q,
+      subject: q.content?.subject || subjectsMap.get(q.id) || null,
+    }));
+
+    res.json({
+      items,
       total: count,
       page,
       limit,
     });
+  });
+  app.get("/api/admin/questions/subjects", async (req, res) => {
+    const qSubjects = (
+      await db.query(
+        "SELECT DISTINCT content->>'subject' as subject FROM questions WHERE status <> 'deleted' AND content->>'subject' IS NOT NULL",
+      )
+    ).rows.map((r) => r.subject);
+    const examSubjects = (
+      await db.query(
+        "SELECT DISTINCT subject FROM exams WHERE status <> 'deleted' AND subject IS NOT NULL",
+      )
+    ).rows.map((r) => r.subject);
+    const set = new Set([...qSubjects, ...examSubjects].filter(Boolean));
+    res.json({ subjects: Array.from(set).sort((a, b) => a.localeCompare(b)) });
   });
   app.delete("/api/admin/questions", async (req, res) => {
     const { ids, permanent = true } = z

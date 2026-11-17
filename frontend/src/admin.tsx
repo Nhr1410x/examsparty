@@ -929,6 +929,7 @@ function ManageExams() {
 function ManageQuestions() {
   const [page, setPage] = useState(1),
     [query, setQuery] = useState(""),
+    [filterSubject, setFilterSubject] = useState(""),
     [kind, setKind] = useState(""),
     [difficulty, setDifficulty] = useState(""),
     [filterStatus, setFilterStatus] = useState(""),
@@ -948,13 +949,18 @@ function ManageQuestions() {
     [busy, setBusy] = useState(false);
   const selectMenuRef = useRef<HTMLDivElement>(null);
 
+  const { data: subjectsData } = useLoad<{ subjects: string[] }>(
+    "/admin/questions/subjects",
+    revision,
+  );
+
   const { data, error, loading } = useLoad<{
-    items: { id: string; content: Question; status: string; version: number }[];
+    items: { id: string; content: Question; status: string; version: number; subject?: string }[];
     total: number;
     page: number;
     limit: number;
   }>(
-    `/admin/questions?page=${page}&q=${encodeURIComponent(query)}${kind ? `&type=${kind}` : ""}${difficulty ? `&difficulty=${difficulty}` : ""}${filterStatus ? `&status=${filterStatus}` : ""}`,
+    `/admin/questions?page=${page}&q=${encodeURIComponent(query)}${filterSubject ? `&subject=${encodeURIComponent(filterSubject)}` : ""}${kind ? `&type=${kind}` : ""}${difficulty ? `&difficulty=${difficulty}` : ""}${filterStatus ? `&status=${filterStatus}` : ""}`,
     revision,
   );
 
@@ -962,7 +968,7 @@ function ManageQuestions() {
     setBusy(true);
     try {
       const res = await api<{ ids: string[]; total: number }>(
-        `/admin/questions?ids_only=true&q=${encodeURIComponent(query)}${kind ? `&type=${kind}` : ""}${difficulty ? `&difficulty=${difficulty}` : ""}${filterStatus ? `&status=${filterStatus}` : ""}`,
+        `/admin/questions?ids_only=true&q=${encodeURIComponent(query)}${filterSubject ? `&subject=${encodeURIComponent(filterSubject)}` : ""}${kind ? `&type=${kind}` : ""}${difficulty ? `&difficulty=${difficulty}` : ""}${filterStatus ? `&status=${filterStatus}` : ""}`,
       );
       setSelected(Array.isArray(res?.ids) ? res.ids : []);
       setSelectMenuOpen(false);
@@ -1079,6 +1085,35 @@ function ManageQuestions() {
         hàng và giữ lại nội dung trong đề đã dùng.
       </Notice>
       <div className="panel form-grid">
+        <label className="field">
+          Môn học
+          <select
+            value={filterSubject}
+            onChange={(e) => {
+              setFilterSubject(e.target.value);
+              setPage(1);
+              setSelected([]);
+            }}
+          >
+            <option value="">Tất cả các môn</option>
+            {(subjectsData?.subjects || [
+              "Toán học",
+              "Ngữ văn",
+              "Tiếng Anh",
+              "Vật lý",
+              "Hóa học",
+              "Sinh học",
+              "Tin học",
+              "Lịch sử",
+              "Địa lý",
+              "GDCD",
+            ]).map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="field">
           Tìm nội dung
           <input
@@ -1205,7 +1240,28 @@ function ManageQuestions() {
                   disabled={busy}
                   aria-expanded={selectMenuOpen}
                 >
-                  <CheckSquare size={15} />
+                  <input
+                    type="checkbox"
+                    aria-label="Chọn tất cả câu hỏi trong trang"
+                    checked={
+                      Boolean(data?.items?.length) &&
+                      data!.items.every((q) => safeSelected.includes(q.id))
+                    }
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      const pageIds = (data?.items || []).map((q) => q.id);
+                      if (e.target.checked) {
+                        setSelected((prev) =>
+                          Array.from(new Set([...(prev || []), ...pageIds])),
+                        );
+                      } else {
+                        setSelected((prev) =>
+                          (prev || []).filter((id) => !pageIds.includes(id)),
+                        );
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
                   <span>Chọn mục</span>
                   <ChevronDown
                     size={13}
@@ -1216,26 +1272,35 @@ function ManageQuestions() {
                   className={`admin-select-dropdown ${selectMenuOpen ? "open" : ""}`}
                   role="menu"
                 >
-                  <button
-                    type="button"
-                    className="admin-select-dropdown-item"
-                    onClick={() => {
-                      const pageIds = (data?.items || []).map((q) => q.id);
-                      setSelected((prev) =>
-                        Array.from(new Set([...(prev || []), ...pageIds])),
-                      );
-                      setSelectMenuOpen(false);
-                    }}
-                  >
-                    <span>Trang hiện tại</span>
-                    <span className="select-item-tag">{data?.items?.length ?? 0} câu</span>
-                  </button>
+                  <label className="admin-select-dropdown-item">
+                    <input
+                      type="checkbox"
+                      aria-label="Chọn tất cả câu trong trang"
+                      checked={
+                        Boolean(data?.items?.length) &&
+                        data!.items.every((q) => safeSelected.includes(q.id))
+                      }
+                      onChange={(e) => {
+                        const pageIds = (data?.items || []).map((q) => q.id);
+                        if (e.target.checked) {
+                          setSelected((prev) =>
+                            Array.from(new Set([...(prev || []), ...pageIds])),
+                          );
+                        } else {
+                          setSelected((prev) =>
+                            (prev || []).filter((id) => !pageIds.includes(id)),
+                          );
+                        }
+                      }}
+                    />
+                    <span>Chọn tất cả trong trang ({data?.items?.length ?? 0})</span>
+                  </label>
                   <button
                     type="button"
                     className="admin-select-dropdown-item featured"
                     onClick={() => void selectAllQuestions()}
                   >
-                    <span>Toàn bộ ngân hàng</span>
+                    <span>Toàn bộ ngân hàng {filterSubject ? `môn ${filterSubject}` : ""}</span>
                     <span className="select-item-tag featured">{data?.total ?? data?.items?.length ?? 0} câu</span>
                   </button>
                   {safeSelected.length > 0 && (
@@ -1264,16 +1329,16 @@ function ManageQuestions() {
                   </span>
                   {Boolean(
                     data?.total &&
-                      data.total > (data?.items?.length ?? 0) &&
-                      safeSelected.length < data.total,
+                      data.total > safeSelected.length,
                   ) && (
                     <button
                       type="button"
                       className="admin-select-all-btn"
                       onClick={() => void selectAllQuestions()}
+                      title={`Chọn tất cả ${data?.total} câu hỏi`}
                     >
                       <Check size={13} />
-                      Chọn tất cả {data?.total} câu hỏi
+                      Chọn toàn bộ {data?.total} câu hỏi {filterSubject ? `môn ${filterSubject}` : ""}
                     </button>
                   )}
                   <button
@@ -1305,6 +1370,46 @@ function ManageQuestions() {
               </button>
             </div>
           </div>
+
+          {/* Banner notification when page items are selected but bank has more */}
+          {Boolean(
+            data?.total &&
+              data.total > (data?.items?.length ?? 0) &&
+              safeSelected.length > 0 &&
+              safeSelected.length < data.total &&
+              data.items.every((q) => safeSelected.includes(q.id)),
+          ) && (
+            <div
+              className="admin-selection-callout"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "10px 16px",
+                background: "var(--subtle)",
+                borderRadius: 12,
+                border: "1px solid var(--line)",
+                marginBottom: 14,
+                fontSize: 13.5,
+              }}
+            >
+              <span>
+                Đang chọn tất cả <strong>{data.items.length}</strong> câu hỏi trên trang này.
+              </span>
+              <button
+                type="button"
+                className="button small primary"
+                onClick={() => void selectAllQuestions()}
+                disabled={busy}
+              >
+                <Check size={14} />
+                <span>
+                  Chọn tất cả <strong>{data.total}</strong> câu hỏi {filterSubject ? `môn ${filterSubject}` : "trong toàn bộ ngân hàng"}
+                </span>
+              </button>
+            </div>
+          )}
+
           <div className="admin-list">
             {(data?.items || []).map((q) => (
               <div
@@ -1336,6 +1441,20 @@ function ManageQuestions() {
                         ? ` · ${q.content.difficulty === "easy" ? "Dễ" : q.content.difficulty === "hard" ? "Khó" : "Trung bình"}`
                         : ""}
                     </span>
+                    {q.subject && (
+                      <span
+                        className={`subject-pill ${getSubjectTone(q.subject)}`}
+                        style={{ cursor: "pointer", marginLeft: 4 }}
+                        title={`Lọc theo môn ${q.subject}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFilterSubject(q.subject || "");
+                          setPage(1);
+                        }}
+                      >
+                        {q.subject}
+                      </span>
+                    )}
                   </div>
                   <div className="row" style={{ gap: 8, alignItems: "center" }}>
                     <Badge status={q.status} />
@@ -1372,7 +1491,6 @@ function ManageQuestions() {
             page={page}
             hasNext={data.items.length === 12}
             onChange={(next) => {
-              setSelected([]);
               setPage(next);
             }}
           />

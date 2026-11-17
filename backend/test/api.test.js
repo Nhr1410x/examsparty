@@ -709,6 +709,16 @@ test("admin search and filters narrow questions and accounts", async () => {
     0,
   );
 
+  // Test question subjects endpoint and filtering
+  const subjectsRes = await guest.get("/api/admin/questions/subjects");
+  assert.equal(subjectsRes.status, 200);
+  assert.ok(Array.isArray(subjectsRes.body.subjects));
+
+  const mathQuestions = await guest.get("/api/admin/questions?subject=Toán học");
+  assert.equal(mathQuestions.status, 200);
+  assert.ok(mathQuestions.body.items.length > 0);
+  assert.ok(mathQuestions.body.items.every((q) => !q.subject || q.subject === "Toán học"));
+
   // Test question archiving vs permanent deletion
   const qList = (await guest.get("/api/admin/questions")).body.items;
   const toArchive = qList[0];

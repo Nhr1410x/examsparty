@@ -347,6 +347,12 @@ test("admin chooses between archiving and permanently deleting questions", async
     );
     await act(async () => button("Câu hỏi").click());
 
+    // Check subject filter is present
+    const subjectSelect = Array.from(document.querySelectorAll("label")).find(
+      (l) => l.textContent?.includes("Môn học"),
+    )?.querySelector("select");
+    assert.ok(subjectSelect, "Subject filter dropdown exists in questions tab");
+
     // Click single question delete button
     const deleteBtn = Array.from(document.querySelectorAll("button")).find(
       (b) => b.textContent?.trim() === "Xóa" && b.className.includes("danger"),
