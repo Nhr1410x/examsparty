@@ -405,11 +405,75 @@ export function ExamEditor({
               </div>
             </div>
           </div>
+          <div className="panel" style={{ marginBottom: 16 }}>
+            <div className="row between wrap" style={{ marginBottom: 12 }}>
+              <span className="eyebrow green-text">THÔNG TIN ĐỀ THI</span>
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                Tiêu đề đề thi
+                <input
+                  value={form.title}
+                  placeholder="Ví dụ: Đề kiểm tra học kỳ 1 Toán 12..."
+                  onChange={(e) => update({ ...form, title: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                Môn học
+                <input
+                  value={form.subject}
+                  placeholder="Toán học, Vật lý, Tin học..."
+                  onChange={(e) => update({ ...form, subject: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                Khối lớp
+                <input
+                  value={form.grade}
+                  placeholder="10, 11, 12, Đại học..."
+                  onChange={(e) => update({ ...form, grade: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                Thời gian (phút)
+                <input
+                  type="number"
+                  value={form.settings?.time_limit_minutes || 45}
+                  onChange={(e) =>
+                    update({
+                      ...form,
+                      settings: {
+                        ...form.settings,
+                        time_limit_minutes: Number(e.target.value) || 45,
+                      },
+                    })
+                  }
+                />
+              </label>
+            </div>
+          </div>
           <ExamPreview
             content={parsedContent}
             showAnswers={true}
+            showHeader={false}
             onEditQuestion={(idx) => setEditingQuestionIdx(idx)}
           />
+          <div style={{ marginTop: 20, textAlign: "center" }}>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => {
+                let n = form.questions.length + 1;
+                while (form.questions.some((q) => q.client_id === `q${n}`)) n++;
+                const nextQuestions = [...form.questions, emptyQuestion(n)];
+                update({ ...form, questions: nextQuestions });
+                setEditingQuestionIdx(nextQuestions.length - 1);
+              }}
+            >
+              <Plus size={16} />
+              Thêm câu hỏi mới (Câu {form.questions.length + 1})
+            </button>
+          </div>
         </div>
       ) : mode === "json" ? (
         <label className="field">
@@ -598,23 +662,27 @@ export function ExamEditor({
 export function ExamPreview({
   content,
   showAnswers = true,
+  showHeader = true,
   onEditQuestion,
 }: {
   content: ExamContent;
   showAnswers?: boolean;
+  showHeader?: boolean;
   onEditQuestion?: (index: number) => void;
 }) {
   return (
     <div className="preview-exam">
-      <div className="panel">
-        <span className="eyebrow green-text">BẢN XEM TRƯỚC</span>
-        <h2>{content.title}</h2>
-        <p>
-          {content.subject} · {content.questions.length} câu ·{" "}
-          {content.settings.time_limit_minutes} phút
-        </p>
-        <p>{content.description}</p>
-      </div>
+      {showHeader && (
+        <div className="panel">
+          <span className="eyebrow green-text">BẢN XEM TRƯỚC</span>
+          <h2>{content.title}</h2>
+          <p>
+            {content.subject} · {content.questions.length} câu ·{" "}
+            {content.settings.time_limit_minutes} phút
+          </p>
+          <p>{content.description}</p>
+        </div>
+      )}
       {content.questions.map((q, i) => (
         <article className="panel" key={q.client_id || i}>
           <div
@@ -1366,7 +1434,9 @@ export function Contribution() {
               </div>
             ) : (
               <div className="empty-state-card">
-                <BookOpen size={48} />
+                <div className="empty-icon-wrap">
+                  <BookOpen size={36} />
+                </div>
                 <h3>Bạn chưa gửi đề thi đóng góp nào</h3>
                 <p>
                   Hãy cùng cộng đồng xây dựng kho đề phong phú và chuẩn mực. Bạn có thể soạn đề trực tiếp hoặc nạp từ file JSON mẫu có sẵn.
