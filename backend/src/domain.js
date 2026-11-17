@@ -58,7 +58,14 @@ export const questionSchema = z
       .max(20)
       .optional(),
     answer: answer.optional(),
-    explanation: z.array(block).max(30).default([]),
+    explanation: z.preprocess((val) => {
+      if (!Array.isArray(val)) return [];
+      return val.filter(
+        (b) =>
+          (b && typeof b.value === "string" && b.value.trim().length > 0) ||
+          b?.type === "image",
+      );
+    }, z.array(block).max(30).default([])),
     points: z.number().min(0).max(100).default(1),
     difficulty: z.enum(["easy", "medium", "hard"]).default("medium"),
     tags: z.array(z.string().min(1).max(80)).max(20).default([]),

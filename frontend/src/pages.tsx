@@ -737,11 +737,15 @@ export function RecentPage() {
 export function Questions() {
   const [query, setQuery] = useState(""),
     [search, setSearch] = useState(""),
+    [kind, setKind] = useState(""),
+    [difficulty, setDifficulty] = useState(""),
     [page, setPage] = useState(1),
     [answers, setAnswers] = useState<Record<string, Response>>({});
   const { data, error, loading } = useLoad<{
     items: (Question & { id: string })[];
-  }>(`/questions?q=${encodeURIComponent(search)}&page=${page}`);
+  }>(
+    `/questions?q=${encodeURIComponent(search)}&page=${page}${kind ? `&type=${kind}` : ""}${difficulty ? `&difficulty=${difficulty}` : ""}`,
+  );
   return (
     <>
       <div className="page-heading">
@@ -769,6 +773,40 @@ export function Questions() {
         />
         <button className="button">Tìm kiếm</button>
       </form>
+      <div className="panel form-grid" style={{ marginTop: 12 }}>
+        <label className="field">
+          Dạng câu hỏi
+          <select
+            value={kind}
+            onChange={(e) => {
+              setKind(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">Tất cả dạng câu</option>
+            {Object.entries(typeLabels).map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Mức độ
+          <select
+            value={difficulty}
+            onChange={(e) => {
+              setDifficulty(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">Mọi mức độ</option>
+            <option value="easy">Dễ</option>
+            <option value="medium">Trung bình</option>
+            <option value="hard">Khó</option>
+          </select>
+        </label>
+      </div>
       <ErrorMessage error={error} />
       {loading ? (
         <Loading />
@@ -781,7 +819,18 @@ export function Questions() {
                   <span className="question-label">
                     CÂU {(page - 1) * 12 + i + 1}
                   </span>
-                  <span className="badge">{typeLabels[q.type]}</span>
+                  <div className="row" style={{ gap: 6 }}>
+                    {q.difficulty && (
+                      <span className="badge">
+                        {q.difficulty === "easy"
+                          ? "Dễ"
+                          : q.difficulty === "hard"
+                          ? "Khó"
+                          : "Trung bình"}
+                      </span>
+                    )}
+                    <span className="badge">{typeLabels[q.type]}</span>
+                  </div>
                 </div>
                 <Blocks blocks={q.prompt} />
                 <AnswerInput
@@ -799,7 +848,7 @@ export function Questions() {
           />
         </>
       ) : (
-        <Empty />
+        <Empty text="Không tìm thấy câu hỏi phù hợp." />
       )}
     </>
   );

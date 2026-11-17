@@ -26,7 +26,9 @@ async function setup() {
     agent.post(url).set("Origin", config.frontendOrigin);
   const put = (agent, url) =>
     agent.put(url).set("Origin", config.frontendOrigin);
-  return { db, guest, other, exam, post, put };
+  const del = (agent, url) =>
+    agent.delete(url).set("Origin", config.frontendOrigin);
+  return { db, guest, other, exam, post, put, del };
 }
 
 test("admins delete multiple exams while keeping attempts and shared questions", async () => {
@@ -694,7 +696,7 @@ test("secret tracking code restores private image access in a different browser"
 });
 
 test("admin search and filters narrow questions and accounts", async () => {
-  const { db, guest, post } = await setup();
+  const { db, guest, post, del } = await setup();
   await post(guest, "/api/auth/login").send({
     email: "admin@example.com",
     password: "test-password-123",
@@ -713,5 +715,18 @@ test("admin search and filters narrow questions and accounts", async () => {
     (await guest.get("/api/admin/users?q=notexistingword")).body.items.length,
     0,
   );
+
+  // Test question deletion
+  const qList = (await guest.get("/api/admin/questions")).body.items;
+  const toDelete = qList[0];
+  const deleteRes = await del(guest, "/api/admin/questions").send({
+    ids: [toDelete.id],
+  });
+  assert.equal(deleteRes.status, 200);
+  assert.equal(deleteRes.body.deleted, 1);
+
+  const afterDelete = (await guest.get("/api/admin/questions")).body.items;
+  assert.ok(!afterDelete.some((q) => q.id === toDelete.id));
+
   await db.end();
 });

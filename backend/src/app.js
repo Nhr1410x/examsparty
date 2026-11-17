@@ -409,10 +409,32 @@ export function createApp(db, config) {
   app.get("/api/questions", async (req, res) => {
     const { page, limit } = pagination(req),
       q = `%${String(req.query.q || "").slice(0, 100)}%`;
+    const values = [q];
+    let where = "status='published' AND (content->'prompt')::text ILIKE $1";
+    if (req.query.type) {
+      const allowed = [
+        "single_choice",
+        "multiple_choice",
+        "true_false",
+        "short_answer",
+        "essay",
+      ];
+      if (allowed.includes(req.query.type)) {
+        values.push(req.query.type);
+        where += ` AND content->>'type'=$${values.length}`;
+      }
+    }
+    if (req.query.difficulty) {
+      const allowed = ["easy", "medium", "hard"];
+      if (allowed.includes(req.query.difficulty)) {
+        values.push(req.query.difficulty);
+        where += ` AND content->>'difficulty'=$${values.length}`;
+      }
+    }
     const rows = (
       await db.query(
-        "SELECT id,content FROM questions WHERE status='published' AND (content->'prompt')::text ILIKE $1 ORDER BY updated_at DESC LIMIT $2 OFFSET $3",
-        [q, limit, (page - 1) * limit],
+        `SELECT id,content FROM questions WHERE ${where} ORDER BY updated_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+        [...values, limit, (page - 1) * limit],
       )
     ).rows;
     res.json({
@@ -958,8 +980,8 @@ export function createApp(db, config) {
   app.get("/api/admin/questions", async (req, res) => {
     const { page, limit } = pagination(req);
     const values = [`%${String(req.query.q || "").slice(0, 100)}%`];
-    let where = "(content->'prompt')::text ILIKE $1";
-    for (const key of ["type", "status"])
+    let where = "status <> 'deleted' AND (content->'prompt')::text ILIKE $1";
+    for (const key of ["type", "status", "difficulty"])
       if (req.query[key]) {
         const allowed =
           key === "type"
@@ -970,10 +992,12 @@ export function createApp(db, config) {
                 "short_answer",
                 "essay",
               ]
+            : key === "difficulty"
+            ? ["easy", "medium", "hard"]
             : ["draft", "published", "archived"];
         const value = z.enum(allowed).parse(req.query[key]);
         values.push(value);
-        where += ` AND ${key === "type" ? "content->>'type'" : "status"}=$${values.length}`;
+        where += ` AND ${key === "type" ? "content->>'type'" : key === "difficulty" ? "content->>'difficulty'" : "status"}=$${values.length}`;
       }
     res.json({
       items: (
@@ -985,6 +1009,48 @@ export function createApp(db, config) {
       page,
       limit,
     });
+  });
+  app.delete("/api/admin/questions", async (req, res) => {
+    const { ids } = z
+      .strictObject({
+        ids: z
+          .array(uuid)
+          .min(1)
+          .max(100)
+          .refine(
+            (ids) =>
+              new Set(ids.map((id) => id.toLowerCase())).size === ids.length,
+            "Không chọn trùng câu hỏi.",
+          ),
+      })
+      .parse(req.body);
+    const deleted = await transaction(db, async (client) => {
+      const questions = (
+        await client.query(
+          `SELECT id, content FROM questions WHERE status <> 'deleted' AND id IN (${ids.map((_, i) => `$${i + 1}`).join(",")}) ORDER BY id FOR UPDATE`,
+          ids,
+        )
+      ).rows;
+      if (questions.length !== ids.length)
+        throw httpError(
+          404,
+          "Một số câu hỏi không tồn tại hoặc đã bị xóa. Vui lòng tải lại danh sách.",
+        );
+      for (const q of questions) {
+        await client.query(
+          "UPDATE questions SET status='deleted',updated_at=$1 WHERE id=$2",
+          [new Date(), q.id],
+        );
+        const title = (
+          q.content?.prompt?.[0]?.value ||
+          q.content?.client_id ||
+          q.id
+        ).slice(0, 50);
+        await audit(client, req, "delete", "question", q.id, title);
+      }
+      return questions.length;
+    });
+    res.json({ deleted });
   });
   app.post("/api/admin/questions", async (req, res) => {
     const { content: raw, status } = z

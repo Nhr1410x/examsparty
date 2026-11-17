@@ -862,19 +862,96 @@ function ManageQuestions() {
   const [page, setPage] = useState(1),
     [query, setQuery] = useState(""),
     [kind, setKind] = useState(""),
+    [difficulty, setDifficulty] = useState(""),
     [filterStatus, setFilterStatus] = useState(""),
     [revision, setRevision] = useState(0),
     [editing, setEditing] = useState<string | null>(null),
     [content, setContent] = useState<Question>(emptyQuestion()),
     [status, setStatus] = useState("draft"),
+    [selected, setSelected] = useState<string[]>([]),
+    [selectMenuOpen, setSelectMenuOpen] = useState(false),
     [issue, setIssue] = useState<unknown>(null),
+    [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
+  const selectMenuRef = useRef<HTMLDivElement>(null);
+
   const { data, error, loading } = useLoad<{
     items: { id: string; content: Question; status: string; version: number }[];
   }>(
-    `/admin/questions?page=${page}&q=${encodeURIComponent(query)}${kind ? `&type=${kind}` : ""}${filterStatus ? `&status=${filterStatus}` : ""}`,
+    `/admin/questions?page=${page}&q=${encodeURIComponent(query)}${kind ? `&type=${kind}` : ""}${difficulty ? `&difficulty=${difficulty}` : ""}${filterStatus ? `&status=${filterStatus}` : ""}`,
     revision,
   );
+
+  useEffect(() => {
+    if (!selectMenuOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (
+        selectMenuRef.current &&
+        !selectMenuRef.current.contains(e.target as Node)
+      ) {
+        setSelectMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [selectMenuOpen]);
+
+  async function deleteSelected() {
+    if (
+      busy ||
+      !selected.length ||
+      !window.confirm(
+        `Xóa ${selected.length} câu hỏi đã chọn khỏi ngân hàng? Các đề thi cũ đã dùng câu hỏi này vẫn giữ nguyên nội dung.`,
+      )
+    )
+      return;
+    setIssue(null);
+    setMessage("");
+    setBusy(true);
+    try {
+      const result = await api<{ deleted: number }>("/admin/questions", "DELETE", {
+        ids: selected,
+      });
+      setSelected([]);
+      setPage(1);
+      setRevision((n) => n + 1);
+      setMessage(`Đã xóa ${result.deleted} câu hỏi khỏi ngân hàng.`);
+    } catch (e) {
+      setIssue(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteSingle(id: string, qContent?: Question) {
+    const previewText = qContent?.prompt?.[0]?.value
+      ? `"${qContent.prompt[0].value.slice(0, 40)}..."`
+      : "câu hỏi này";
+    if (
+      busy ||
+      !window.confirm(
+        `Bạn có chắc chắn muốn xóa ${previewText} khỏi ngân hàng câu hỏi?`,
+      )
+    )
+      return;
+    setIssue(null);
+    setMessage("");
+    setBusy(true);
+    try {
+      await api<{ deleted: number }>("/admin/questions", "DELETE", {
+        ids: [id],
+      });
+      if (editing === id) setEditing(null);
+      setSelected((prev) => prev.filter((item) => item !== id));
+      setRevision((n) => n + 1);
+      setMessage(`Đã xóa câu hỏi thành công.`);
+    } catch (e) {
+      setIssue(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function save() {
     setBusy(true);
     setIssue(null);
@@ -886,6 +963,7 @@ function ManageQuestions() {
       );
       setEditing(null);
       setRevision((n) => n + 1);
+      setMessage("Đã lưu câu hỏi thành công.");
     } catch (e) {
       setIssue(e);
     } finally {
@@ -902,6 +980,7 @@ function ManageQuestions() {
             setEditing("new");
             setContent(emptyQuestion());
             setStatus("draft");
+            setMessage("");
           }}
         >
           <Plus size={16} />
@@ -910,8 +989,8 @@ function ManageQuestions() {
       </div>
       <Notice>
         Xuất bản bản sửa câu hỏi sẽ cập nhật các đề đang liên kết; bài làm đã
-        bắt đầu giữ nguyên nội dung cũ. Lưu trữ câu hỏi sẽ ẩn khỏi ngân hàng
-        công khai và giữ lại nội dung trong đề đã dùng.
+        bắt đầu giữ nguyên nội dung cũ. Xóa hoặc lưu trữ câu hỏi sẽ ẩn khỏi ngân
+        hàng và giữ lại nội dung trong đề đã dùng.
       </Notice>
       <div className="panel form-grid">
         <label className="field">
@@ -921,6 +1000,7 @@ function ManageQuestions() {
             onChange={(e) => {
               setQuery(e.target.value);
               setPage(1);
+              setSelected([]);
             }}
             placeholder="Nhập nội dung câu hỏi…"
           />
@@ -932,6 +1012,7 @@ function ManageQuestions() {
             onChange={(e) => {
               setKind(e.target.value);
               setPage(1);
+              setSelected([]);
             }}
           >
             <option value="">Tất cả dạng câu</option>
@@ -943,12 +1024,29 @@ function ManageQuestions() {
           </select>
         </label>
         <label className="field">
+          Mức độ
+          <select
+            value={difficulty}
+            onChange={(e) => {
+              setDifficulty(e.target.value);
+              setPage(1);
+              setSelected([]);
+            }}
+          >
+            <option value="">Mọi mức độ</option>
+            <option value="easy">Dễ</option>
+            <option value="medium">Trung bình</option>
+            <option value="hard">Khó</option>
+          </select>
+        </label>
+        <label className="field">
           Trạng thái lọc
           <select
             value={filterStatus}
             onChange={(e) => {
               setFilterStatus(e.target.value);
               setPage(1);
+              setSelected([]);
             }}
           >
             <option value="">Mọi trạng thái</option>
@@ -959,73 +1057,201 @@ function ManageQuestions() {
         </label>
       </div>
       <ErrorMessage error={error || issue} />
+      {message && <Notice>{message}</Notice>}
       {editing ? (
         <>
-          <label className="field">
-            Trạng thái
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="draft">Bản nháp</option>
-              <option value="published">Đã xuất bản</option>
-              <option value="archived">Lưu trữ</option>
-            </select>
-          </label>
+          <div className="panel">
+            <label className="field">
+              Trạng thái câu hỏi
+              <select value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="draft">Bản nháp</option>
+                <option value="published">Xuất bản</option>
+                <option value="archived">Lưu trữ</option>
+              </select>
+            </label>
+          </div>
           <QuestionEditor
             q={content}
             onChange={setContent}
             onRemove={() => setEditing(null)}
           />
-          <div className="row">
-            <button
-              className="button"
-              disabled={busy}
-              onClick={() => void save()}
-            >
-              <Save size={16} />
-              Lưu câu hỏi
-            </button>
-            <button
-              className="button secondary"
-              onClick={() => setEditing(null)}
-            >
-              Hủy
-            </button>
+          <div className="row wrap between" style={{ marginTop: 16 }}>
+            <div className="row" style={{ gap: 8 }}>
+              <button
+                className="button"
+                disabled={busy}
+                onClick={() => void save()}
+              >
+                <Save size={16} />
+                Lưu câu hỏi
+              </button>
+              <button
+                className="button secondary"
+                onClick={() => setEditing(null)}
+              >
+                Hủy
+              </button>
+            </div>
+            {editing !== "new" && (
+              <button
+                type="button"
+                className="button danger"
+                disabled={busy}
+                onClick={() => void deleteSingle(editing, content)}
+              >
+                <Trash2 size={16} />
+                Xóa câu hỏi
+              </button>
+            )}
           </div>
         </>
       ) : loading ? (
         <Loading />
       ) : data?.items.length ? (
-        <>
+        <fieldset disabled={busy} aria-label="Danh sách câu hỏi">
+          <div className="admin-batch-bar">
+            <div className="admin-batch-left" ref={selectMenuRef}>
+              <div className="admin-select-anchor">
+                <button
+                  type="button"
+                  className={`button secondary small admin-select-trigger ${selectMenuOpen ? "active" : ""}`}
+                  onClick={() => setSelectMenuOpen((v) => !v)}
+                  disabled={busy}
+                >
+                  <CheckSquare size={15} />
+                  <span>Chọn nhiều</span>
+                  <ChevronDown
+                    size={14}
+                    style={{
+                      transform: selectMenuOpen ? "rotate(180deg)" : "none",
+                      transition: "transform 0.15s ease",
+                    }}
+                  />
+                </button>
+                {selectMenuOpen && (
+                  <div className="admin-select-menu">
+                    <button
+                      type="button"
+                      className="admin-select-menu-item"
+                      onClick={() => {
+                        setSelected(data.items.map((q) => q.id));
+                        setSelectMenuOpen(false);
+                      }}
+                    >
+                      Chọn tất cả trong trang ({data.items.length})
+                    </button>
+                    {selected.length > 0 && (
+                      <button
+                        type="button"
+                        className="admin-select-menu-item"
+                        onClick={() => {
+                          setSelected([]);
+                          setSelectMenuOpen(false);
+                        }}
+                      >
+                        Bỏ chọn tất cả
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <span className="admin-batch-counter">
+                {selected.length > 0 ? (
+                  <>
+                    Đã chọn <strong>{selected.length}</strong> /{" "}
+                    {data.items.length} câu hỏi
+                  </>
+                ) : (
+                  "Chưa chọn câu hỏi nào"
+                )}
+              </span>
+            </div>
+            <div className="admin-batch-actions">
+              <button
+                type="button"
+                className="button danger small admin-delete-btn"
+                disabled={busy || selected.length === 0}
+                onClick={() => void deleteSelected()}
+                title="Xóa các câu hỏi đã chọn khỏi ngân hàng"
+              >
+                <Trash2 size={15} />
+                Xóa đã chọn ({selected.length})
+              </button>
+            </div>
+          </div>
           <div className="admin-list">
             {data.items.map((q) => (
-              <div className="panel" key={q.id}>
-                <div className="row between">
-                  <span className="small muted">
-                    {q.content.type} · v{q.version}
-                  </span>
-                  <Badge status={q.status} />
+              <div
+                className={`panel ${selected.includes(q.id) ? "selected" : ""}`}
+                key={q.id}
+              >
+                <div
+                  className="row between wrap"
+                  style={{ gap: 8, marginBottom: 10 }}
+                >
+                  <div className="row" style={{ gap: 10, alignItems: "center" }}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Chọn câu hỏi ${q.id}`}
+                      checked={selected.includes(q.id)}
+                      onChange={(e) => {
+                        setSelected((prev) =>
+                          e.target.checked
+                            ? [...prev, q.id]
+                            : prev.filter((id) => id !== q.id),
+                        );
+                      }}
+                    />
+                    <span className="small muted">
+                      {typeLabels[q.content.type] || q.content.type} · v
+                      {q.version}
+                      {q.content.difficulty
+                        ? ` · ${q.content.difficulty === "easy" ? "Dễ" : q.content.difficulty === "hard" ? "Khó" : "Trung bình"}`
+                        : ""}
+                    </span>
+                  </div>
+                  <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                    <Badge status={q.status} />
+                    <button
+                      type="button"
+                      className="button secondary small"
+                      onClick={() => {
+                        setEditing(q.id);
+                        setContent(q.content);
+                        setStatus(q.status);
+                        setMessage("");
+                      }}
+                    >
+                      <Pencil size={14} />
+                      Chỉnh sửa
+                    </button>
+                    <button
+                      type="button"
+                      className="button danger small"
+                      disabled={busy}
+                      onClick={() => void deleteSingle(q.id, q.content)}
+                      title="Xóa câu hỏi này"
+                    >
+                      <Trash2 size={14} />
+                      Xóa
+                    </button>
+                  </div>
                 </div>
                 <Blocks blocks={q.content.prompt} />
-                <button
-                  className="button secondary small"
-                  onClick={() => {
-                    setEditing(q.id);
-                    setContent(q.content);
-                    setStatus(q.status);
-                  }}
-                >
-                  Chỉnh sửa
-                </button>
               </div>
             ))}
           </div>
           <Pagination
             page={page}
             hasNext={data.items.length === 12}
-            onChange={setPage}
+            onChange={(next) => {
+              setSelected([]);
+              setPage(next);
+            }}
           />
-        </>
+        </fieldset>
       ) : (
-        <Empty />
+        <Empty text="Không tìm thấy câu hỏi phù hợp." />
       )}
     </>
   );

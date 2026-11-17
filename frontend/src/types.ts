@@ -204,9 +204,10 @@ export function normalizeExamPayload(data: any): ExamContent {
             ? q.type
             : "single_choice";
 
-          const normalizeBlocks = (val: any): Block[] => {
+          const normalizeBlocks = (val: any, allowEmptyArray = false): Block[] => {
+            let list: Block[] = [];
             if (Array.isArray(val)) {
-              return val.map((b) =>
+              list = val.map((b) =>
                 typeof b === "string"
                   ? { type: "text", value: b }
                   : {
@@ -217,24 +218,34 @@ export function normalizeExamPayload(data: any): ExamContent {
                       alt: b?.alt,
                     },
               );
+            } else if (typeof val === "string" && val.trim().length > 0) {
+              list = [{ type: "text", value: val }];
             }
-            if (typeof val === "string") {
-              return [{ type: "text", value: val }];
-            }
-            return [{ type: "text", value: "" }];
+
+            const valid = list.filter(
+              (b) =>
+                (typeof b.value === "string" && b.value.trim().length > 0) ||
+                b.type === "image",
+            );
+
+            if (valid.length > 0) return valid;
+            if (allowEmptyArray) return [];
+            return [{ type: "text", value: " " }];
           };
 
           const question: Question = {
             client_id: cid,
             type,
-            prompt: normalizeBlocks(q.prompt),
-            explanation: normalizeBlocks(q.explanation),
+            prompt: normalizeBlocks(q.prompt, false),
+            explanation: normalizeBlocks(q.explanation, true),
             points:
               typeof q.points === "number" && q.points > 0 ? q.points : 1,
             difficulty: ["easy", "medium", "hard"].includes(q.difficulty)
               ? q.difficulty
               : "medium",
-            tags: Array.isArray(q.tags) ? q.tags.map(String) : [],
+            tags: Array.isArray(q.tags)
+              ? q.tags.map(String).filter((t: string) => t.trim().length > 0)
+              : [],
           };
 
           if (type === "true_false" && Array.isArray(q.statements)) {

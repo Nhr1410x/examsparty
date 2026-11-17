@@ -549,10 +549,11 @@ export function Contribution() {
     setBusy(true);
     setIssue(null);
     try {
+      const payload = normalizeExamPayload(JSON.parse(raw));
       const response = await api<{ content: ExamContent }>(
         "/contributions/validate",
         "POST",
-        JSON.parse(raw),
+        payload,
       );
       setPreview(response.content);
     } catch (e) {
@@ -583,11 +584,11 @@ export function Contribution() {
     try {
       let contentToSend = contentOverride || preview;
       if (!contentToSend) {
-        const rawParsed = JSON.parse(raw);
+        const payload = normalizeExamPayload(JSON.parse(raw));
         const validated = await api<{ content: ExamContent }>(
           "/contributions/validate",
           "POST",
-          rawParsed,
+          payload,
         );
         contentToSend = validated.content;
       }
