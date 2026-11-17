@@ -63,13 +63,27 @@ export function Home() {
   } = useLoad<{ items: ExamCard[]; total: number }>("/exams?limit=6");
   const { data: catalog } = useLoad<Catalog>("/catalog");
   const { data: recent } = useLoad<{ items: Recent[] }>("/attempts");
-  const subjects = [
-    { name: "Toán học", icon: Calculator, tone: "green" },
-    { name: "Vật lý", icon: Atom, tone: "blue" },
-    { name: "Tiếng Anh", icon: Languages, tone: "purple" },
-    { name: "Ngữ văn", icon: Feather, tone: "amber" },
-    { name: "Tin học", icon: Code2, tone: "pink" },
-  ];
+
+  const SUBJECT_METAS: Record<string, { icon: typeof Calculator; tone: string }> = {
+    "Toán học": { icon: Calculator, tone: "green" },
+    "Vật lý": { icon: Atom, tone: "blue" },
+    "Hóa học": { icon: Atom, tone: "amber" },
+    "Tiếng Anh": { icon: Languages, tone: "purple" },
+    "Ngữ văn": { icon: Feather, tone: "amber" },
+    "Tin học": { icon: Code2, tone: "pink" },
+    "Sinh học": { icon: Feather, tone: "green" },
+    "Lịch sử": { icon: BookOpen, tone: "amber" },
+    "Địa lý": { icon: BookOpen, tone: "blue" },
+    "GDCD": { icon: BookOpen, tone: "purple" },
+  };
+
+  const currentSubjects = (catalog?.subjects || []).filter(Boolean);
+  const subjects = currentSubjects.map((name) => ({
+    name,
+    icon: SUBJECT_METAS[name]?.icon || BookOpen,
+    tone: SUBJECT_METAS[name]?.tone || getSubjectTone(name),
+  }));
+
   const completed = recent?.items.filter((r) => r.status === "submitted") || [];
   return (
     <>
@@ -99,14 +113,16 @@ export function Home() {
               Tìm đề <ArrowRight size={16} />
             </button>
           </form>
-          <div className="quick-tags">
-            <span className="quick-label">Môn học:</span>
-            {["Toán học", "Vật lý", "Hóa học", "Tiếng Anh", "Tin học"].map((s) => (
-              <Link key={s} to={`/exams?subject=${encodeURIComponent(s)}`} className="quick-tag">
-                {s}
-              </Link>
-            ))}
-          </div>
+          {currentSubjects.length > 0 && (
+            <div className="quick-tags">
+              <span className="quick-label">Môn học:</span>
+              {currentSubjects.map((s) => (
+                <Link key={s} to={`/exams?subject=${encodeURIComponent(s)}`} className="quick-tag">
+                  {s}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
         <div className="hero-visual" aria-hidden="true">
           <div className="craft-mockup card-hover-lift">
@@ -183,29 +199,31 @@ export function Home() {
           label="Bài đã làm"
         />
       </div>
-      <section className="subject-section">
-        <div className="section-heading">
-          <h2>Danh mục môn học</h2>
-          <Link className="text-link" to="/exams">
-            Tất cả môn học <ArrowRight size={15} />
-          </Link>
-        </div>
-        <div className="subject-grid">
-          {subjects.map((s) => (
-            <Link
-              to={`/exams?subject=${encodeURIComponent(s.name)}`}
-              className="subject-tile card-hover-lift"
-              key={s.name}
-            >
-              <span className={`subject-icon ${s.tone}`}>
-                <s.icon size={22} />
-              </span>
-              <strong>{s.name}</strong>
-              <ArrowRight size={15} />
+      {subjects.length > 0 && (
+        <section className="subject-section">
+          <div className="section-heading">
+            <h2>Danh mục môn học</h2>
+            <Link className="text-link" to="/exams">
+              Tất cả môn học <ArrowRight size={15} />
             </Link>
-          ))}
-        </div>
-      </section>
+          </div>
+          <div className="subject-grid">
+            {subjects.map((s) => (
+              <Link
+                to={`/exams?subject=${encodeURIComponent(s.name)}`}
+                className="subject-tile card-hover-lift"
+                key={s.name}
+              >
+                <span className={`subject-icon ${s.tone}`}>
+                  <s.icon size={22} />
+                </span>
+                <strong>{s.name}</strong>
+                <ArrowRight size={15} />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
       <section>
         <div className="section-heading">
           <h2>Đề thi mới nhất</h2>
@@ -556,9 +574,13 @@ export function Detail() {
           <div className="panel preview-list">
             {exam.content.questions.map((q, i) => (
               <div key={q.client_id}>
-                <span className="question-label">
-                  CÂU {i + 1} · {typeLabels[q.type]} · {q.points} điểm
-                </span>
+                <div className="row wrap" style={{ alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <span className="question-number-pill">
+                    CÂU {i + 1}
+                  </span>
+                  <span className="badge">{typeLabels[q.type]}</span>
+                  <span className="small muted">{q.points} điểm</span>
+                </div>
                 <Blocks blocks={q.prompt} />
               </div>
             ))}
@@ -815,11 +837,11 @@ export function Questions() {
           <div className="question-bank">
             {data.items.map((q, i) => (
               <article className="panel" key={q.id}>
-                <div className="row between">
-                  <span className="question-label">
+                <div className="row between wrap" style={{ alignItems: "center", marginBottom: 12 }}>
+                  <span className="question-number-pill">
                     CÂU {(page - 1) * 12 + i + 1}
                   </span>
-                  <div className="row" style={{ gap: 6 }}>
+                  <div className="row" style={{ gap: 6, alignItems: "center" }}>
                     {q.difficulty && (
                       <span className="badge">
                         {q.difficulty === "easy"

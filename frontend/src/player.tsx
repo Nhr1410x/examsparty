@@ -295,11 +295,16 @@ function PlayerSession({ initial }: { initial: Attempt }) {
       <div className="player-grid">
         <div>
           <article className="question-panel panel">
-            <div className="row between">
-              <span className="question-label">
-                CÂU {index + 1} / {attempt.snapshot.questions.length}
-              </span>
-              <div className="row">
+            <div className="row between wrap" style={{ alignItems: "center", marginBottom: 14 }}>
+              <div className="row" style={{ alignItems: "center", gap: 10 }}>
+                <span className="question-number-pill">
+                  CÂU {index + 1}
+                </span>
+                <span className="question-total-count">
+                  / {attempt.snapshot.questions.length} câu
+                </span>
+              </div>
+              <div className="row" style={{ alignItems: "center", gap: 8 }}>
                 <span className="badge">{typeLabels[q.type]}</span>
                 <span className="small muted">{q.points} điểm</span>
                 <button

@@ -1348,8 +1348,8 @@ export function Contribution() {
                     className={`contribution-card ${selectedIds.has(sub.id) ? "selected" : ""}`}
                     onClick={() => handleOpenExam(sub)}
                   >
-                    <div>
-                      <div className="contribution-card-header">
+                    <div className="contribution-card-main">
+                      <div className="contribution-card-top-row">
                         <div
                           className="row"
                           style={{ gap: 10, alignItems: "center" }}
@@ -1367,6 +1367,9 @@ export function Contribution() {
                           </span>
                         </div>
                         <Badge status={sub.status} />
+                        <span className="muted small">
+                          Ngày tạo: {date(sub.created_at)}
+                        </span>
                       </div>
                       <h3 className="contribution-card-title">
                         {sub.content?.title || "Đề thi không tên"}
@@ -1378,56 +1381,63 @@ export function Contribution() {
                           </strong>{" "}
                           câu hỏi
                         </span>
+                        <span>·</span>
                         <span>
                           {sub.content?.settings?.time_limit_minutes || 45} phút
                         </span>
-                        <span>{date(sub.created_at)}</span>
+                        {sub.content?.grade && (
+                          <>
+                            <span>·</span>
+                            <span>Khối {sub.content.grade}</span>
+                          </>
+                        )}
+                        {sub.content?.topics && sub.content.topics.length > 0 && (
+                          <>
+                            <span>·</span>
+                            <span className="muted">
+                              {sub.content.topics.slice(0, 3).join(", ")}
+                            </span>
+                          </>
+                        )}
                       </div>
                       {sub.review_note && (
-                        <div style={{ marginBottom: 12 }}>
+                        <div style={{ marginTop: 6 }}>
                           <Notice error={sub.status === "changes_requested"}>
                             {sub.review_note}
                           </Notice>
                         </div>
                       )}
                     </div>
-                    <div className="contribution-card-footer">
-                      <div className="row" style={{ gap: 6 }}>
+                    <div
+                      className="contribution-card-actions"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        className="button small secondary danger-text"
+                        title="Xóa đề này"
+                        onClick={(e) => void handleDeleteSingle(sub, e)}
+                      >
+                        <Trash2 size={13} />
+                        Xóa
+                      </button>
+                      {sub.status === "changes_requested" && (
                         <button
                           type="button"
-                          className="button small secondary danger-text"
-                          title="Xóa đề này"
-                          onClick={(e) => void handleDeleteSingle(sub, e)}
+                          className="button small"
+                          onClick={() => handleOpenExam(sub)}
                         >
-                          <Trash2 size={13} />
-                          Xóa
+                          <Send size={13} />
+                          Sửa & Gửi lại
                         </button>
-                      </div>
-                      <div className="row" style={{ gap: 8 }}>
-                        {sub.status === "changes_requested" && (
-                          <button
-                            type="button"
-                            className="button small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenExam(sub);
-                            }}
-                          >
-                            <Send size={13} />
-                            Sửa & Gửi lại
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="button small secondary"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenExam(sub);
-                          }}
-                        >
-                          Xem đề & Chỉnh sửa →
-                        </button>
-                      </div>
+                      )}
+                      <button
+                        type="button"
+                        className="button small secondary"
+                        onClick={() => handleOpenExam(sub)}
+                      >
+                        Xem đề & Chỉnh sửa →
+                      </button>
                     </div>
                   </div>
                 ))}
