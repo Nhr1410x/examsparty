@@ -1,0 +1,25 @@
+{
+  "name": "examsparty",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "demo": "concurrently -n demo,web -c green,blue \"npm run demo -w backend\" \"npm run dev -w frontend\"",
+    "dev": "concurrently -n api,web -c green,blue \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "build": "npm run build -w frontend",
+    "test": "npm test -w backend",
+    "test:proxy": "npm run build && node --test backend/test/proxy.smoke.js",
+    "check": "npm run check -w frontend && npm test && npm test -w frontend",
+    "start": "npm start -w frontend"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "prettier": "^3.10.1"
+  }
+}

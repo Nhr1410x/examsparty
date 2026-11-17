@@ -1,0 +1,57 @@
+# Both Node services are paid starter plans to support private networking.
+# Deploy explicitly from your Render account after reviewing current pricing.
+services:
+  - type: web
+    name: examsparty-api
+    runtime: node
+    region: singapore
+    plan: starter
+    buildCommand: npm ci --omit=dev --workspace backend
+    startCommand: npm start --workspace backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.11.1
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: examsparty-db
+          property: connectionString
+      - key: DATABASE_SSL
+        value: "false"
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_TOTP_SECRET
+        sync: false
+      - key: SEED_DEMO
+        value: "true"
+  - type: web
+    name: examsparty-web
+    runtime: node
+    region: singapore
+    plan: starter
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start --workspace frontend
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.11.1
+      - key: NODE_ENV
+        value: production
+      - key: API_PROXY_TARGET
+        fromService:
+          name: examsparty-api
+          type: web
+          property: hostport
+databases:
+  - name: examsparty-db
+    region: singapore
+    plan: basic-256mb
+    databaseName: examsparty
+    user: examsparty
+    ipAllowList: []
