@@ -108,6 +108,7 @@ test("exam form reorders questions and preserves stable identifiers", async () =
     IS_REACT_ACT_ENVIRONMENT: true,
   });
   const content = structuredClone(template);
+  content.questions = [content.questions[0]];
   content.questions.push({
     ...structuredClone(content.questions[0]),
     client_id: "q2",

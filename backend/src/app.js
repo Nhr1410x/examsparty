@@ -658,6 +658,15 @@ export function createApp(db, config) {
     );
     res.status(201).json({ id, tracking_code: code, status: "pending" });
   });
+  app.get("/api/contributions/my", limiter(60), async (req, res) => {
+    const rows = (
+      await db.query(
+        "SELECT id,contact,content,status,review_note,reviewed_at,created_at FROM submissions WHERE owner_id=$1 ORDER BY created_at DESC LIMIT 50",
+        [req.session.id],
+      )
+    ).rows;
+    res.json({ items: rows });
+  });
   app.post("/api/contributions/track", limiter(40), async (req, res) => {
     const { code } = z
       .object({ code: z.string().regex(/^[a-f0-9]{64}$/) })
@@ -695,6 +704,34 @@ export function createApp(db, config) {
         "Chỉ có thể gửi lại nội dung đang được yêu cầu chỉnh sửa.",
       );
     res.json({ status: "pending" });
+  });
+  app.delete("/api/contributions/:id", limiter(30), async (req, res) => {
+    uuid.parse(req.params.id);
+    const result = await db.query(
+      "DELETE FROM submissions WHERE id=$1 AND owner_id=$2",
+      [req.params.id, req.session.id],
+    );
+    res.json({ deleted: result.rowCount });
+  });
+  app.post("/api/contributions/batch-delete", limiter(30), async (req, res) => {
+    const { ids } = z
+      .object({ ids: z.array(z.string().uuid()).min(1).max(100) })
+      .parse(req.body);
+    const result = await db.query(
+      "DELETE FROM submissions WHERE id = ANY($1::uuid[]) AND owner_id=$2",
+      [ids, req.session.id],
+    );
+    res.json({ deleted: result.rowCount });
+  });
+  app.post("/api/contributions/delete-by-code", limiter(30), async (req, res) => {
+    const { code } = z
+      .object({ code: z.string().regex(/^[a-f0-9]{64}$/) })
+      .parse(req.body);
+    const result = await db.query(
+      "DELETE FROM submissions WHERE tracking_hash=$1",
+      [hash(code)],
+    );
+    res.json({ deleted: result.rowCount });
   });
   const upload = multer({
     storage: multer.memoryStorage(),

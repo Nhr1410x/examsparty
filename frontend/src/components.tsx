@@ -14,6 +14,10 @@ import {
   Trash2,
   Copy,
   Sparkles,
+  HelpCircle,
+  Columns,
+  Eye,
+  Pencil,
 } from "lucide-react";
 const MathContent = lazy(() => import("./math"));
 import { api, ApiError, download } from "./api";
@@ -338,7 +342,9 @@ export function Blocks({ blocks }: { blocks?: Block[] }) {
             loading="lazy"
           />
         ) : (
-          <p key={i}>{parseMathAndCode(b.value || "")}</p>
+          <div className="block-text-p" key={i}>
+            {parseMathAndCode(b.value || "")}
+          </div>
         ),
       )}
     </div>
@@ -734,13 +740,20 @@ export function BlockEditor({
   value,
   onChange,
   label,
+  allowSplit = false,
+  defaultViewMode = "split",
 }: {
   value: Block[];
   onChange: (blocks: Block[]) => void;
   label: string;
+  allowSplit?: boolean;
+  defaultViewMode?: "edit" | "split" | "preview";
 }) {
   const [error, setError] = useState<unknown>(null),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [viewMode, setViewMode] = useState<"edit" | "split" | "preview">(defaultViewMode),
+    [showGuide, setShowGuide] = useState(false);
+
   async function upload(file: File) {
     setBusy(true);
     setError(null);
@@ -758,20 +771,20 @@ export function BlockEditor({
       setBusy(false);
     }
   }
-  return (
-    <div className="block-editor">
-      <span className="field-label">{label}</span>
+
+  const renderEditControls = () => (
+    <div className={`block-edit-controls ${allowSplit ? "block-editor-large" : ""}`}>
       {value.map((b, i) => (
         <div className="block-row" key={i}>
           <div className="block-value">
             <span className="small muted">
               {b.type === "math"
-                ? "LaTeX"
+                ? "LaTeX (Công thức)"
                 : b.type === "code"
                   ? "Đoạn mã"
                   : b.type === "image"
-                    ? "Ảnh"
-                    : "Văn bản"}
+                    ? "Ảnh minh họa"
+                    : "Văn bản (Hỗ trợ Markdown, KaTeX $...$, Bảng)"}
             </span>
             {b.type === "image" ? (
               <>
@@ -796,8 +809,24 @@ export function BlockEditor({
             ) : (
               <>
                 <textarea
-                  rows={b.type === "code" ? 4 : 2}
+                  rows={b.type === "code" ? 6 : allowSplit ? 4 : 2}
+                  style={
+                    allowSplit
+                      ? {
+                          minHeight: b.type === "code" ? 140 : 120,
+                          fontSize: "14px",
+                          lineHeight: "1.6",
+                        }
+                      : undefined
+                  }
                   aria-label={`${label} — ${b.type}`}
+                  placeholder={
+                    b.type === "math"
+                      ? "Nhập công thức LaTeX, ví dụ: x = \\frac{-b \\pm \\sqrt{\\Delta}}{2a}"
+                      : b.type === "code"
+                        ? "Dán hoặc gõ mã nguồn tại đây..."
+                        : "Nhập nội dung văn bản. Có thể dùng $...$ cho toán, hoặc bảng | Cột 1 | Cột 2 |"
+                  }
                   value={b.value || ""}
                   onChange={(e) =>
                     onChange(
@@ -811,7 +840,7 @@ export function BlockEditor({
                   <input
                     aria-label="Ngôn ngữ mã"
                     value={b.language || ""}
-                    placeholder="Ngôn ngữ (python, js…)"
+                    placeholder="Ngôn ngữ (python, javascript, cpp, java, sql...)"
                     onChange={(e) =>
                       onChange(
                         value.map((v, n) =>
@@ -828,13 +857,14 @@ export function BlockEditor({
             type="button"
             className="icon-button"
             aria-label="Xóa khối"
+            title="Xóa khối này"
             onClick={() => onChange(value.filter((_, n) => n !== i))}
           >
             <X size={16} />
           </button>
         </div>
       ))}
-      <div className="row wrap">
+      <div className="row wrap" style={{ gap: 8, marginTop: 8 }}>
         {(["text", "math", "code"] as const).map((type) => (
           <button
             type="button"
@@ -843,12 +873,16 @@ export function BlockEditor({
             onClick={() => onChange([...value, { type, value: "" }])}
           >
             <Plus size={14} />
-            {type === "text" ? "Văn bản" : type === "math" ? "Công thức" : "Mã"}
+            {type === "text"
+              ? "Thêm Văn bản"
+              : type === "math"
+                ? "Thêm Công thức"
+                : "Thêm Mã nguồn"}
           </button>
         ))}
         <label className="button small secondary upload-label">
           <Upload size={14} />
-          {busy ? "Đang tải…" : "Ảnh (≤ 2 MB)"}
+          {busy ? "Đang tải…" : "Thêm Ảnh (≤ 2 MB)"}
           <input
             type="file"
             accept="image/png,image/jpeg,image/webp"
@@ -862,6 +896,172 @@ export function BlockEditor({
         </label>
       </div>
       <ErrorMessage error={error} />
+    </div>
+  );
+
+  const renderLivePreview = () => (
+    <div className="block-live-preview-box">
+      <div className="row between" style={{ marginBottom: 8, alignItems: "center" }}>
+        <span className="preview-label-tag">Xem trước trực quan (Live Preview)</span>
+      </div>
+      {value.length === 0 || value.every((b) => !b.value && !b.asset_id) ? (
+        <p className="muted small" style={{ fontStyle: "italic", margin: "16px 0" }}>
+          (Chưa có nội dung. Hãy nhập nội dung hoặc thêm khối ở phần soạn thảo)
+        </p>
+      ) : (
+        <Blocks blocks={value} />
+      )}
+    </div>
+  );
+
+  return (
+    <div className={`block-editor ${allowSplit ? "block-editor-featured" : ""}`}>
+      {allowSplit ? (
+        <div className="block-editor-header">
+          <span className="field-label" style={{ margin: 0, fontWeight: 600 }}>
+            {label}
+          </span>
+          <div className="block-editor-toolbar">
+            <button
+              type="button"
+              className={`guide-toggle-btn ${showGuide ? "active" : ""}`}
+              onClick={() => setShowGuide(!showGuide)}
+              title="Xem bảng hướng dẫn viết công thức Toán, Code, Bảng"
+            >
+              <HelpCircle size={14} />
+              <span>Hướng dẫn định dạng</span>
+            </button>
+            <div
+              className="segmented-control"
+              role="tablist"
+              aria-label="Chế độ hiển thị"
+            >
+              <button
+                type="button"
+                className={viewMode === "edit" ? "active" : ""}
+                onClick={() => setViewMode("edit")}
+                title="Chỉ hiển thị khung soạn thảo"
+              >
+                <Pencil size={13} />
+                <span>Soạn thảo</span>
+              </button>
+              <button
+                type="button"
+                className={viewMode === "split" ? "active" : ""}
+                onClick={() => setViewMode("split")}
+                title="Chia đôi màn hình: Soạn thảo bên trái, Xem trước bên phải"
+              >
+                <Columns size={13} />
+                <span>Chia đôi</span>
+              </button>
+              <button
+                type="button"
+                className={viewMode === "preview" ? "active" : ""}
+                onClick={() => setViewMode("preview")}
+                title="Chỉ hiển thị bản xem trước trực quan"
+              >
+                <Eye size={13} />
+                <span>Xem trước</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <span className="field-label">{label}</span>
+      )}
+
+      {allowSplit && showGuide && (
+        <div className="format-guide-panel">
+          <div className="format-guide-header">
+            <strong>
+              📖 Hướng dẫn định dạng đặc biệt (Toán KaTeX, Mã nguồn, Bảng Markdown)
+            </strong>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => setShowGuide(false)}
+              aria-label="Đóng hướng dẫn"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <div className="format-guide-grid">
+            <div className="format-guide-col">
+              <span className="format-guide-title">📐 Công thức Toán (KaTeX)</span>
+              <p className="format-guide-desc">
+                Kẹp giữa <code>$..$</code> (cùng dòng) hoặc <code>$$..$$</code> (khối riêng):
+              </p>
+              <ul className="format-guide-list">
+                <li>
+                  <code>$x^2 - 4x + 3 = 0$</code> &rarr; phương trình
+                </li>
+                <li>
+                  <code>$\frac&#123;a&#125;&#123;b&#125;$</code> &rarr; phân số
+                </li>
+                <li>
+                  <code>$\sqrt&#123;x&#125;$</code> &rarr; căn bậc hai
+                </li>
+                <li>
+                  <code>$\lim_&#123;x \to 0&#125; \frac&#123;\sin x&#125;&#123;x&#125;$</code> &rarr; giới hạn
+                </li>
+                <li>
+                  <code>\alpha, \beta, \pi, \le, \ge, \neq, \in, \vec&#123;AB&#125;</code>
+                </li>
+              </ul>
+            </div>
+            <div className="format-guide-col">
+              <span className="format-guide-title">💻 Mã nguồn (Code) & Bảng</span>
+              <p className="format-guide-desc">Đoạn code & Bảng dữ liệu:</p>
+              <ul className="format-guide-list">
+                <li>
+                  Nhấn nút <strong>Thêm Mã nguồn</strong> hoặc dùng cú pháp Markdown:{" "}
+                  <code>```python ... ```</code>
+                </li>
+                <li>
+                  Tạo bảng Markdown trong khối Văn bản:
+                  <pre>
+                    <code>
+                      {`| Cột 1 | Cột 2 |
+| :--- | :--- |
+| Dữ liệu 1 | Dữ liệu 2 |`}
+                    </code>
+                  </pre>
+                </li>
+              </ul>
+            </div>
+            <div className="format-guide-col">
+              <span className="format-guide-title">✨ Chữ nổi bật & Hình ảnh</span>
+              <p className="format-guide-desc">Định dạng đoạn văn:</p>
+              <ul className="format-guide-list">
+                <li>
+                  <code>**in đậm**</code>, <code>*in nghiêng*</code>, <code>`mã code`</code>
+                </li>
+                <li>
+                  Danh sách: gạch đầu dòng <code>- Mục 1</code>
+                </li>
+                <li>
+                  Ảnh minh họa: bấm nút <strong>Thêm Ảnh</strong> (chọn PNG, JPG &le; 2 MB)
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {allowSplit ? (
+        viewMode === "split" ? (
+          <div className="block-split-container">
+            <div className="block-split-edit-col">{renderEditControls()}</div>
+            <div className="block-split-preview-col">{renderLivePreview()}</div>
+          </div>
+        ) : viewMode === "preview" ? (
+          <div className="block-preview-only">{renderLivePreview()}</div>
+        ) : (
+          renderEditControls()
+        )
+      ) : (
+        renderEditControls()
+      )}
     </div>
   );
 }
@@ -898,15 +1098,28 @@ export function QuestionEditor({
   }
   return (
     <div className="question-editor panel">
-      <div className="row between">
-        <h3>Câu {q.client_id}</h3>
+      <div
+        className="row between wrap"
+        style={{ marginBottom: 16, alignItems: "center" }}
+      >
+        <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
+          <span
+            className="question-number-pill"
+            style={{ fontSize: "14px", padding: "5px 12px" }}
+          >
+            CÂU {q.client_id?.toUpperCase()}
+          </span>
+          <span className="question-type-tag">{typeLabels[q.type]}</span>
+        </div>
         <button
           type="button"
-          className="icon-button danger-text"
+          className="button small secondary danger-text"
           aria-label={`Xóa câu ${q.client_id}`}
           onClick={onRemove}
+          title="Xóa câu hỏi này"
         >
-          <Trash2 size={18} />
+          <Trash2 size={15} />
+          Xóa câu này
         </button>
       </div>
       <div className="form-grid">
@@ -952,6 +1165,8 @@ export function QuestionEditor({
         label="Nội dung câu hỏi"
         value={q.prompt}
         onChange={(prompt) => update({ prompt })}
+        allowSplit={true}
+        defaultViewMode="split"
       />
       {q.options?.map((o, i) => (
         <div className="option-editor" key={o.id}>
@@ -1213,9 +1428,11 @@ export function QuestionEditor({
         </label>
       )}
       <BlockEditor
-        label="Lời giải"
+        label="Lời giải chi tiết"
         value={q.explanation}
         onChange={(explanation) => update({ explanation })}
+        allowSplit={true}
+        defaultViewMode="split"
       />
       <label className="field">
         Thẻ chủ đề (cách nhau bằng dấu phẩy)

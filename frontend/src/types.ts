@@ -111,6 +111,7 @@ export interface Submission {
   created_at: string;
   reviewed_at?: string;
   duplicates?: { id: string; title: string }[];
+  tracking_code?: string;
 }
 export const typeLabels: Record<QuestionType, string> = {
   single_choice: "Chọn một",
@@ -167,19 +168,244 @@ export const emptyExam = (): ExamContent => ({
   questions: [emptyQuestion()],
 });
 export const template: ExamContent = {
-  ...emptyExam(),
-  title: "Ôn tập kiến thức cơ bản",
-  description: "Ví dụ định dạng JSON để nhập đề.",
-  topics: ["Số học"],
+  schema_version: "1.0",
+  title: "Đề thi mẫu chuẩn - Toán học & Lập trình (Toán, Code, Bảng)",
+  subject: "Toán học",
+  grade: "12",
+  description:
+    "File JSON mẫu đầy đủ cú pháp đặc biệt: Công thức toán học (KaTeX $ và $$), khối mã code syntax highlighting, bảng Markdown, và đầy đủ 5 dạng câu hỏi.",
+  topics: ["Hàm số", "Thuật toán", "Hình học không gian", "Giải tích"],
+  settings: {
+    time_limit_minutes: 45,
+    shuffle_questions: true,
+    shuffle_options: true,
+    score_scale: 10,
+  },
   questions: [
     {
-      ...emptyQuestion(),
-      prompt: [{ type: "text", value: "Kết quả của 2 + 2 là bao nhiêu?" }],
-      options: [
-        { id: "a", content: [{ type: "text", value: "4" }] },
-        { id: "b", content: [{ type: "text", value: "5" }] },
+      client_id: "q1",
+      type: "single_choice",
+      prompt: [
+        {
+          type: "text",
+          value:
+            "Cho parabol $(P)$ có hàm số bậc hai: $f(x) = x^2 - 4x + 3$. Tọa độ đỉnh $I(x_I; y_I)$ của parabol là:",
+        },
+        {
+          type: "math",
+          value: "x_I = -\\frac{b}{2a}, \\quad y_I = f(x_I)",
+        },
       ],
-      explanation: [{ type: "text", value: "2 + 2 = 4." }],
+      options: [
+        { id: "a", content: [{ type: "text", value: "$I(2; -1)$" }] },
+        { id: "b", content: [{ type: "text", value: "$I(-2; 1)$" }] },
+        { id: "c", content: [{ type: "text", value: "$I(1; 0)$" }] },
+        { id: "d", content: [{ type: "text", value: "$I(4; 3)$" }] },
+      ],
+      answer: { correct_option_ids: ["a"] },
+      explanation: [
+        {
+          type: "text",
+          value:
+            "Áp dụng công thức đỉnh: hoành độ $x_I = -\\frac{-4}{2 \\cdot 1} = 2$. Thay $x = 2$ vào hàm số: $y_I = 2^2 - 4(2) + 3 = 4 - 8 + 3 = -1$. Vậy tọa độ đỉnh là $I(2; -1)$.",
+        },
+      ],
+      points: 2,
+      difficulty: "easy",
+      tags: ["Hàm số", "Parabol"],
+    },
+    {
+      client_id: "q2",
+      type: "multiple_choice",
+      prompt: [
+        {
+          type: "text",
+          value:
+            "Quan sát đoạn mã Python lọc số nguyên chẵn từ mảng và bảng phân tích bên dưới:",
+        },
+        {
+          type: "code",
+          language: "python",
+          value:
+            "def filter_evens(numbers):\n    # Lọc các phần tử chia hết cho 2\n    return [x for x in numbers if x % 2 == 0]\n\nresult = filter_evens([1, 2, 3, 4, 5, 6, 7, 8])\nprint(result)",
+        },
+        {
+          type: "text",
+          value:
+            "| Đầu vào (Input) | Kết quả (Output) | Độ phức tạp |\n| :--- | :--- | :--- |\n| `[1, 2, 3, 4]` | `[2, 4]` | $O(n)$ |\n| `[1, 3, 5]` | `[]` | $O(n)$ |\n\nChọn các phát biểu **ĐÚNG** về hàm trên:",
+        },
+      ],
+      options: [
+        {
+          id: "a",
+          content: [
+            {
+              type: "text",
+              value:
+                "Đoạn mã in ra danh sách các số chẵn: `[2, 4, 6, 8]`.",
+            },
+          ],
+        },
+        {
+          id: "b",
+          content: [
+            {
+              type: "text",
+              value:
+                "Độ phức tạp thời gian của hàm là tuyến tính $O(n)$ theo độ dài mảng.",
+            },
+          ],
+        },
+        {
+          id: "c",
+          content: [
+            {
+              type: "text",
+              value:
+                "Biểu thức `x % 2 == 0` kiểm tra xem $x$ có phải là số lẻ không.",
+            },
+          ],
+        },
+        {
+          id: "d",
+          content: [
+            {
+              type: "text",
+              value:
+                "Cú pháp `[x for x in numbers if ...]` là List Comprehension trong Python.",
+            },
+          ],
+        },
+      ],
+      answer: { correct_option_ids: ["a", "b", "d"], partial_credit: true },
+      explanation: [
+        {
+          type: "text",
+          value:
+            "- Phương án **a** đúng: Các số chẵn là 2, 4, 6, 8.\n- Phương án **b** đúng: Duyệt qua mảng một lần nên độ phức tạp là $O(n)$.\n- Phương án **c** sai: Phép chia lấy dư cho 2 bằng 0 là kiểm tra số chẵn.\n- Phương án **d** đúng: Đây là cú pháp List Comprehension chuẩn trong Python.",
+        },
+      ],
+      points: 2,
+      difficulty: "medium",
+      tags: ["Python", "Thuật toán"],
+    },
+    {
+      client_id: "q3",
+      type: "true_false",
+      prompt: [
+        {
+          type: "text",
+          value:
+            "Xét tính Đúng / Sai của các mệnh đề hình học không gian sau:",
+        },
+      ],
+      statements: [
+        {
+          id: "s1",
+          content: [
+            {
+              type: "text",
+              value:
+                "Hai đường thẳng phân biệt cùng song song với một đường thẳng thứ ba thì song song với nhau: $a \\parallel c$ và $b \\parallel c \\implies a \\parallel b$.",
+            },
+          ],
+          answer: true,
+        },
+        {
+          id: "s2",
+          content: [
+            {
+              type: "text",
+              value:
+                "Hai mặt phẳng phân biệt cùng vuông góc với một đường thẳng thì song song với nhau: $(P) \\perp d$ và $(Q) \\perp d \\implies (P) \\parallel (Q)$.",
+            },
+          ],
+          answer: true,
+        },
+        {
+          id: "s3",
+          content: [
+            {
+              type: "text",
+              value:
+                "Hai đường thẳng chéo nhau trong không gian luôn có đúng một điểm chung.",
+            },
+          ],
+          answer: false,
+        },
+        {
+          id: "s4",
+          content: [
+            {
+              type: "text",
+              value:
+                "Nếu đường thẳng $d$ vuông góc với hai đường thẳng cắt nhau trong $(P)$ thì $d \\perp (P)$.",
+            },
+          ],
+          answer: true,
+        },
+      ],
+      explanation: [
+        {
+          type: "text",
+          value:
+            "Hai đường thẳng chéo nhau là hai đường thẳng không cùng nằm trong bất kỳ mặt phẳng nào và **không có điểm chung**. Do đó mệnh đề s3 là Sai.",
+        },
+      ],
+      points: 2,
+      difficulty: "medium",
+      tags: ["Hình học"],
+    },
+    {
+      client_id: "q4",
+      type: "short_answer",
+      prompt: [
+        {
+          type: "text",
+          value: "Tính giá trị của giới hạn lượng giác cơ bản sau:",
+        },
+        {
+          type: "math",
+          value: "L = \\lim_{x \\to 0} \\frac{\\sin(3x)}{x}",
+        },
+      ],
+      answer: {
+        accepted: ["3", "3.0", "3,0"],
+        numeric_tolerance: 0.01,
+      },
+      explanation: [
+        {
+          type: "text",
+          value:
+            "Áp dụng công thức giới hạn đáng nhớ: $\\lim_{u \\to 0} \\frac{\\sin u}{u} = 1$.\nTa biến đổi: $\\lim_{x \\to 0} 3 \\cdot \\frac{\\sin(3x)}{3x} = 3 \\cdot 1 = 3$.",
+        },
+      ],
+      points: 2,
+      difficulty: "easy",
+      tags: ["Giới hạn", "Giải tích"],
+    },
+    {
+      client_id: "q5",
+      type: "essay",
+      prompt: [
+        {
+          type: "text",
+          value:
+            "Trình bày phương pháp chứng minh định lý Pythagoras trong tam giác vuông $ABC$ vuông tại $A$:\n$$a^2 = b^2 + c^2$$\n(Nêu vắn tắt các bước dựng hình và lập luận diện tích).",
+        },
+      ],
+      rubric:
+        "- Dựng hình vuông cạnh (b + c) chứa 4 tam giác vuông (1.0 điểm)\n- Tính diện tích hình vuông lớn theo hai cách (0.5 điểm)\n- Khai triển $(b+c)^2 = 4 \\cdot (\\frac{1}{2}bc) + a^2$ và suy ra $a^2 = b^2 + c^2$ (0.5 điểm)",
+      explanation: [
+        {
+          type: "text",
+          value:
+            "Lời giải tham khảo: Dựng hình vuông lớn cạnh $b + c$. Diện tích hình vuông lớn bằng tổng diện tích 4 tam giác vuông bằng nhau và hình vuông ở giữa có cạnh $a$:\n$$(b+c)^2 = 4 \\cdot \\left(\\frac{1}{2}bc\\right) + a^2 \\iff b^2 + 2bc + c^2 = 2bc + a^2 \\iff a^2 = b^2 + c^2$$",
+        },
+      ],
+      points: 2,
+      difficulty: "hard",
+      tags: ["Hình học", "Tự luận"],
     },
   ],
 };

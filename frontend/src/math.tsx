@@ -1,5 +1,4 @@
 import katex from "katex";
-import "katex/dist/katex.min.css";
 
 export function renderKatex(latex: string, inline = false): string {
   try {
