@@ -1044,7 +1044,7 @@ export function Questions() {
         />
         <button className="button">Tìm kiếm</button>
       </form>
-      <div className="panel form-grid" style={{ marginTop: 12 }}>
+      <div className="panel form-grid" style={{ marginTop: 12, marginBottom: 24 }}>
         <label className="field">
           Dạng câu hỏi
           <select
