@@ -5223,35 +5223,43 @@ td {
     height: 36px;
   }
 
-  /* Main container & Safe spacing for bottom nav */
+  /* Main container & Safe spacing for floating bottom dock */
   main {
-    padding: 16px 14px calc(76px + env(safe-area-inset-bottom)) !important;
+    padding: 16px 14px calc(92px + env(safe-area-inset-bottom)) !important;
   }
   .app-content.exam-mode main {
     padding-bottom: 24px !important;
   }
 
-  /* Mobile Bottom Navigation */
+  /* Mobile Floating Dock (bay lên và bo tròn lại) */
   .mobile-bottom-nav {
     display: flex;
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: calc(58px + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom);
-    background: rgba(255, 255, 255, 0.94);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-top: 1px solid var(--line);
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    left: 14px;
+    right: 14px;
+    max-width: 440px;
+    margin: 0 auto;
+    height: 60px;
+    padding: 4px 6px;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    border-radius: 9999px;
     z-index: 100;
     align-items: stretch;
     justify-content: space-around;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+    box-shadow:
+      0 12px 32px rgba(15, 23, 42, 0.12),
+      0 2px 8px rgba(15, 23, 42, 0.04);
   }
   [data-theme="dark"] .mobile-bottom-nav {
-    background: rgba(15, 23, 42, 0.94);
-    border-top-color: var(--line);
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(51, 65, 85, 0.7);
+    box-shadow:
+      0 14px 36px rgba(0, 0, 0, 0.45),
+      0 2px 8px rgba(0, 0, 0, 0.2);
   }
   .bottom-nav-item {
     flex: 1;
@@ -5264,18 +5272,23 @@ td {
     text-decoration: none;
     font-size: 11px;
     font-weight: 600;
-    padding: 6px 0;
-    transition: color 0.15s ease;
+    padding: 5px 2px;
+    border-radius: 20px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     -webkit-tap-highlight-color: transparent;
+  }
+  .bottom-nav-item:active {
+    transform: scale(0.93);
   }
   .bottom-nav-item.active {
     color: var(--green);
+    background: var(--green-light);
   }
   .bottom-nav-item svg {
-    transition: transform 0.15s ease;
+    transition: transform 0.2s ease;
   }
   .bottom-nav-item.active svg {
-    transform: translateY(-1px);
+    transform: translateY(-1px) scale(1.05);
   }
 
   /* Typography & General Sizing */
@@ -5555,6 +5568,22 @@ td {
 @media (max-width: 480px) {
   .topbar {
     padding: 0 10px;
+  }
+  .mobile-bottom-nav {
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    left: 10px;
+    right: 10px;
+    height: 56px;
+    padding: 3px 4px;
+    border-radius: 28px;
+  }
+  .bottom-nav-item {
+    font-size: 10px;
+    gap: 2px;
+  }
+  .bottom-nav-item svg {
+    width: 18px;
+    height: 18px;
   }
   .app-install-text {
     display: none;
