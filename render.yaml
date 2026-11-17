@@ -1,11 +1,11 @@
-# Both Node services are paid starter plans to support private networking.
-# Deploy explicitly from your Render account after reviewing current pricing.
+# Blueprint hoàn toàn MIỄN PHÍ (Free Tier - 0đ) trên Render
+# Tự động kết nối cơ sở dữ liệu PostgreSQL và cấu hình API / Web
 services:
   - type: web
     name: examsparty-api
     runtime: node
     region: singapore
-    plan: starter
+    plan: free
     buildCommand: npm ci --omit=dev --workspace backend
     startCommand: npm start --workspace backend
     healthCheckPath: /api/health
@@ -34,7 +34,7 @@ services:
     name: examsparty-web
     runtime: node
     region: singapore
-    plan: starter
+    plan: free
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start --workspace frontend
     healthCheckPath: /health
@@ -51,7 +51,7 @@ services:
 databases:
   - name: examsparty-db
     region: singapore
-    plan: basic-256mb
+    plan: free
     databaseName: examsparty
     user: examsparty
     ipAllowList: []

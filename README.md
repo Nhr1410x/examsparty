@@ -38,7 +38,8 @@ npm run test:proxy
 
 Đã có [render.yaml](render.yaml): **2 Node Web Services + Render PostgreSQL**, cùng region Singapore. Frontend là Web Service để chuyển tiếp `/api` qua mạng nội bộ đến backend; trình duyệt chỉ dùng một origin, cookie HttpOnly không phụ thuộc cookie bên thứ ba. Không chọn Static Site với cấu hình này.
 
-Blueprint hiện chọn các gói **trả phí** (`starter`, Postgres `basic-256mb`). Kiểm tra giá trong tài khoản Render trước khi tạo. Không có thao tác tạo dịch vụ hay thanh toán tự động trong dự án.
+Blueprint hiện đã được cấu hình toàn bộ gói **Miễn phí (Free Tier - 0đ)**: cả 2 Web Service Node và PostgreSQL Database đều dùng `plan: free`. Render sẽ tự động liên kết cơ sở dữ liệu với API qua `fromDatabase` mà không tốn chi phí.
+- *Lưu ý về DB*: PostgreSQL miễn phí của Render sẽ hết hạn sau 30 ngày. Nếu bạn muốn lưu trữ vĩnh viễn không hết hạn, có thể kết nối với **Supabase** (hoàn toàn miễn phí): trong phần Environment của `examsparty-api` trên Render, chỉ cần sửa `DATABASE_URL` thành chuỗi kết nối Supabase và đặt `DATABASE_SSL=true`.
 
 1. Đưa toàn bộ thư mục vào một Git repository trên GitHub/GitLab, bao gồm `package-lock.json`; không đưa `.env` vào Git.
 2. Trên Render chọn **New → Blueprint**, kết nối repository và chọn `render.yaml`.
