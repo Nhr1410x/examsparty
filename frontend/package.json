@@ -7,7 +7,7 @@
     "build": "tsc -b && vite build",
     "check": "tsc -b",
     "test": "node --import tsx --test test/*.test.tsx",
-    "start": "node --env-file-if-exists=.env server.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "@fontsource/be-vietnam-pro": "^5.3.0",

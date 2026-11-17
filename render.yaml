@@ -47,7 +47,7 @@ services:
         fromService:
           name: examsparty-api
           type: web
-          property: hostport
+          property: url
 databases:
   - name: examsparty-db
     region: singapore

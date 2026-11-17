@@ -18,12 +18,12 @@ export async function api<T>(
   const response = await fetch(`/api${url}`, {
     method,
     credentials: "same-origin",
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(60000),
     headers: data && !form ? { "Content-Type": "application/json" } : {},
     body: data ? (form ? data : JSON.stringify(data)) : undefined,
   }).catch(() => {
     throw new Error(
-      "Không thể kết nối máy chủ. Kiểm tra mạng và thử lại; bản nháp bài làm vẫn được giữ trên trình duyệt.",
+      "Không thể kết nối máy chủ. Máy chủ có thể đang khởi động từ chế độ ngủ (khoảng 30-45 giây), vui lòng tải lại trang hoặc thử lại sau.",
     );
   });
   const body = await response
