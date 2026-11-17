@@ -569,7 +569,7 @@ export function createApp(db, config) {
     const body = z
       .strictObject({
         subject: z.string().min(1).max(50),
-        question_count: z.coerce.number().int().min(1).max(100).default(10),
+        question_count: z.coerce.number().int().min(1).max(500).default(10),
         time_limit_minutes: z.coerce.number().int().min(1).max(300).default(15),
         title: z.string().max(200).optional(),
         grade: z.string().max(20).optional(),
