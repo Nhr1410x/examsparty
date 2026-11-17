@@ -465,6 +465,22 @@ function Review() {
     </>
   );
 }
+function getExamQuestionCount(content: unknown): number {
+  if (!content) return 0;
+  if (typeof content === "object" && Array.isArray((content as { questions?: unknown[] }).questions)) {
+    return (content as { questions: unknown[] }).questions.length;
+  }
+  if (typeof content === "string") {
+    try {
+      const parsed = JSON.parse(content);
+      return Array.isArray(parsed?.questions) ? parsed.questions.length : 0;
+    } catch {
+      return 0;
+    }
+  }
+  return 0;
+}
+
 function ManageExams() {
   const [page, setPage] = useState(1),
     [query, setQuery] = useState(""),
@@ -498,12 +514,13 @@ function ManageExams() {
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [selectMenuOpen]);
+  const safeSelected = Array.isArray(selected) ? selected : [];
   async function deleteSelected() {
     if (
       busy ||
-      !selected.length ||
+      !safeSelected.length ||
       !window.confirm(
-        `Xóa ${selected.length} đề đã chọn và toàn bộ câu hỏi liên quan khỏi cơ sở dữ liệu?`,
+        `Xóa ${safeSelected.length} đề đã chọn và toàn bộ câu hỏi liên quan khỏi cơ sở dữ liệu?`,
       )
     )
       return;
@@ -512,7 +529,7 @@ function ManageExams() {
     setBusy(true);
     try {
       const result = await api<{ deleted: number }>("/admin/exams", "DELETE", {
-        ids: selected,
+        ids: safeSelected,
       });
       setSelected([]);
       setPage(1);
@@ -530,7 +547,7 @@ function ManageExams() {
       const res = await api<{ ids: string[]; total: number }>(
         `/admin/exams?ids_only=true&q=${encodeURIComponent(search)}`,
       );
-      setSelected(res.ids);
+      setSelected(Array.isArray(res?.ids) ? res.ids : []);
       setSelectMenuOpen(false);
     } catch (e) {
       setIssue(e);
@@ -743,7 +760,7 @@ function ManageExams() {
                   aria-expanded={selectMenuOpen}
                 >
                   <CheckSquare size={15} />
-                  <span>Chọn nhiều</span>
+                  <span>Chọn mục</span>
                   <ChevronDown
                     size={13}
                     className={`select-chevron ${selectMenuOpen ? "open" : ""}`}
@@ -757,72 +774,69 @@ function ManageExams() {
                     <input
                       type="checkbox"
                       checked={
-                        data.items.length > 0 &&
-                        data.items.every((exam) => selected.includes(exam.id))
+                        (data?.items?.length ?? 0) > 0 &&
+                        (data?.items || []).every((exam) => safeSelected.includes(exam.id))
                       }
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const pageIds = (data?.items || []).map((exam) => exam.id);
                         setSelected(
                           e.target.checked
-                            ? Array.from(new Set([...selected, ...data.items.map((exam) => exam.id)]))
-                            : selected.filter((id) => !data.items.some((exam) => exam.id === id)),
-                        )
-                      }
+                            ? Array.from(new Set([...safeSelected, ...pageIds]))
+                            : safeSelected.filter((id) => !pageIds.includes(id)),
+                        );
+                      }}
                     />
-                    <span>Chọn tất cả trong trang ({data.items.length})</span>
+                    <span>Chọn tất cả trong trang ({data?.items?.length ?? 0})</span>
                   </label>
                   <button
                     type="button"
-                    className="admin-select-dropdown-item"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: "8px 12px",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      width: "100%",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      color: "var(--green)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                    }}
+                    className="admin-select-dropdown-item featured"
                     onClick={() => void selectAllExams()}
                   >
-                    <span>✓ Chọn tất cả trong toàn bộ hệ thống ({data.total ?? data.items.length})</span>
+                    <span>Toàn bộ hệ thống</span>
+                    <span className="select-item-tag featured">{data?.total ?? data?.items?.length ?? 0} đề</span>
                   </button>
-                  {selected.length > 0 && (
-                    <button
-                      type="button"
-                      className="admin-select-dropdown-clear"
-                      onClick={() => {
-                        setSelected([]);
-                        setSelectMenuOpen(false);
-                      }}
-                    >
-                      Bỏ chọn tất cả ({selected.length})
-                    </button>
+                  {safeSelected.length > 0 && (
+                    <>
+                      <div className="admin-select-dropdown-divider" />
+                      <button
+                        type="button"
+                        className="admin-select-dropdown-clear"
+                        onClick={() => {
+                          setSelected([]);
+                          setSelectMenuOpen(false);
+                        }}
+                      >
+                        <X size={13} />
+                        Bỏ chọn tất cả ({safeSelected.length})
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
-              {selected.length > 0 && (
-                <div className="admin-selection-badge" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              {safeSelected.length > 0 && (
+                <div className="admin-selection-badge">
                   <span>
-                    Đã chọn <strong>{selected.length}</strong> {data.total ? `/ ${data.total}` : ""} đề
+                    Đã chọn <strong>{safeSelected.length}</strong>
+                    {data?.total ? ` / ${data.total}` : ""} đề
                   </span>
-                  {Boolean(data.total && data.total > data.items.length && selected.length < data.total) && (
+                  {Boolean(
+                    data?.total &&
+                      data.total > (data?.items?.length ?? 0) &&
+                      safeSelected.length < data.total,
+                  ) && (
                     <button
                       type="button"
-                      className="text-link-subtle"
-                      style={{ fontWeight: 700, color: "var(--green)", textDecoration: "underline", cursor: "pointer" }}
+                      className="admin-select-all-btn"
                       onClick={() => void selectAllExams()}
                     >
-                      Chọn tất cả {data.total} đề trong toàn bộ hệ thống
+                      <Check size={13} />
+                      Chọn tất cả {data?.total} đề
                     </button>
                   )}
                   <button
                     type="button"
-                    className="text-link-subtle"
+                    className="admin-clear-link"
                     onClick={() => setSelected([])}
                   >
                     Bỏ chọn
@@ -833,37 +847,38 @@ function ManageExams() {
 
             <div className="admin-batch-right">
               <button
-                className="button danger small admin-delete-btn"
-                disabled={busy || !selected.length}
+                className={`button small admin-delete-btn ${safeSelected.length ? "danger" : "secondary"}`}
+                disabled={busy || !safeSelected.length}
                 onClick={() => void deleteSelected()}
               >
                 <Trash2 size={14} />
                 <span>
                   {busy
                     ? "Đang xóa…"
-                    : selected.length
-                      ? `Xóa đã chọn (${selected.length})`
+                    : safeSelected.length
+                      ? `Xóa đã chọn (${safeSelected.length})`
                       : "Xóa đã chọn"}
                 </span>
               </button>
             </div>
           </div>
           <div className="admin-list">
-            {data.items.map((exam) => (
+            {(data?.items || []).map((exam) => (
               <div
-                className={`panel review-item ${selected.includes(exam.id) ? "selected" : ""}`}
+                className={`panel review-item ${safeSelected.includes(exam.id) ? "selected" : ""}`}
                 key={exam.id}
               >
                 <input
                   type="checkbox"
                   aria-label={`Chọn đề ${exam.title}`}
-                  checked={selected.includes(exam.id)}
+                  checked={safeSelected.includes(exam.id)}
                   onChange={(e) =>
-                    setSelected((ids) =>
-                      e.target.checked
-                        ? [...ids, exam.id]
-                        : ids.filter((id) => id !== exam.id),
-                    )
+                    setSelected((ids) => {
+                      const cur = Array.isArray(ids) ? ids : [];
+                      return e.target.checked
+                        ? [...cur, exam.id]
+                        : cur.filter((id) => id !== exam.id);
+                    })
                   }
                 />
                 <div>
@@ -873,7 +888,7 @@ function ManageExams() {
                       <span className="subject-dot" />
                       {exam.subject}
                     </span>
-                    <span>· v{exam.version} · {exam.content.questions.length} câu</span>
+                    <span>· v{exam.version} · {getExamQuestionCount(exam.content)} câu</span>
                   </p>
                 </div>
                 <Badge status={exam.status || "draft"} />
@@ -943,7 +958,7 @@ function ManageQuestions() {
       const res = await api<{ ids: string[]; total: number }>(
         `/admin/questions?ids_only=true&q=${encodeURIComponent(query)}${kind ? `&type=${kind}` : ""}${difficulty ? `&difficulty=${difficulty}` : ""}${filterStatus ? `&status=${filterStatus}` : ""}`,
       );
-      setSelected(res.ids);
+      setSelected(Array.isArray(res?.ids) ? res.ids : []);
       setSelectMenuOpen(false);
     } catch (e) {
       setIssue(e);
@@ -951,6 +966,8 @@ function ManageQuestions() {
       setBusy(false);
     }
   }
+
+  const safeSelected = Array.isArray(selected) ? selected : [];
 
   useEffect(() => {
     if (!selectMenuOpen) return;
@@ -969,9 +986,9 @@ function ManageQuestions() {
   async function deleteSelected() {
     if (
       busy ||
-      !selected.length ||
+      !safeSelected.length ||
       !window.confirm(
-        `Xóa ${selected.length} câu hỏi đã chọn khỏi ngân hàng? Các đề thi cũ đã dùng câu hỏi này vẫn giữ nguyên nội dung.`,
+        `Xóa ${safeSelected.length} câu hỏi đã chọn khỏi ngân hàng? Các đề thi cũ đã dùng câu hỏi này vẫn giữ nguyên nội dung.`,
       )
     )
       return;
@@ -980,7 +997,7 @@ function ManageQuestions() {
     setBusy(true);
     try {
       const result = await api<{ deleted: number }>("/admin/questions", "DELETE", {
-        ids: selected,
+        ids: safeSelected,
       });
       setSelected([]);
       setPage(1);
@@ -1187,98 +1204,112 @@ function ManageQuestions() {
                   className={`button secondary small admin-select-trigger ${selectMenuOpen ? "active" : ""}`}
                   onClick={() => setSelectMenuOpen((v) => !v)}
                   disabled={busy}
+                  aria-expanded={selectMenuOpen}
                 >
                   <CheckSquare size={15} />
-                  <span>Chọn nhiều</span>
+                  <span>Chọn mục</span>
                   <ChevronDown
-                    size={14}
-                    style={{
-                      transform: selectMenuOpen ? "rotate(180deg)" : "none",
-                      transition: "transform 0.15s ease",
-                    }}
+                    size={13}
+                    className={`select-chevron ${selectMenuOpen ? "open" : ""}`}
                   />
                 </button>
-                {selectMenuOpen && (
-                  <div className="admin-select-menu">
-                    <button
-                      type="button"
-                      className="admin-select-menu-item"
-                      onClick={() => {
-                        setSelected(data.items.map((q) => q.id));
-                        setSelectMenuOpen(false);
-                      }}
-                    >
-                      Chọn trang hiện tại ({data.items.length} câu)
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-select-menu-item"
-                      style={{ fontWeight: 600, color: "var(--green)" }}
-                      onClick={() => void selectAllQuestions()}
-                    >
-                      ✓ Chọn tất cả trong toàn bộ ngân hàng ({data.total ?? data.items.length} câu)
-                    </button>
-                    {selected.length > 0 && (
+                <div
+                  className={`admin-select-dropdown ${selectMenuOpen ? "open" : ""}`}
+                  role="menu"
+                >
+                  <button
+                    type="button"
+                    className="admin-select-dropdown-item"
+                    onClick={() => {
+                      const pageIds = (data?.items || []).map((q) => q.id);
+                      setSelected((prev) =>
+                        Array.from(new Set([...(prev || []), ...pageIds])),
+                      );
+                      setSelectMenuOpen(false);
+                    }}
+                  >
+                    <span>Trang hiện tại</span>
+                    <span className="select-item-tag">{data?.items?.length ?? 0} câu</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-select-dropdown-item featured"
+                    onClick={() => void selectAllQuestions()}
+                  >
+                    <span>Toàn bộ ngân hàng</span>
+                    <span className="select-item-tag featured">{data?.total ?? data?.items?.length ?? 0} câu</span>
+                  </button>
+                  {safeSelected.length > 0 && (
+                    <>
+                      <div className="admin-select-dropdown-divider" />
                       <button
                         type="button"
-                        className="admin-select-menu-item"
+                        className="admin-select-dropdown-clear"
                         onClick={() => {
                           setSelected([]);
                           setSelectMenuOpen(false);
                         }}
                       >
-                        Bỏ chọn tất cả
+                        <X size={13} />
+                        Bỏ chọn tất cả ({safeSelected.length})
                       </button>
-                    )}
-                  </div>
-                )}
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="admin-batch-counter" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                {selected.length > 0 ? (
-                  <>
-                    <span>
-                      Đã chọn <strong>{selected.length}</strong> {data.total ? `/ ${data.total}` : ""} câu hỏi
-                    </span>
-                    {Boolean(data.total && data.total > data.items.length && selected.length < data.total) && (
-                      <button
-                        type="button"
-                        className="text-link-subtle"
-                        style={{ fontWeight: 700, color: "var(--green)", textDecoration: "underline", cursor: "pointer" }}
-                        onClick={() => void selectAllQuestions()}
-                      >
-                        Chọn tất cả {data.total} câu hỏi trong toàn bộ ngân hàng
-                      </button>
-                    )}
+              {safeSelected.length > 0 && (
+                <div className="admin-selection-badge">
+                  <span>
+                    Đã chọn <strong>{safeSelected.length}</strong>
+                    {data?.total ? ` / ${data.total}` : ""} câu hỏi
+                  </span>
+                  {Boolean(
+                    data?.total &&
+                      data.total > (data?.items?.length ?? 0) &&
+                      safeSelected.length < data.total,
+                  ) && (
                     <button
                       type="button"
-                      className="text-link-subtle"
-                      onClick={() => setSelected([])}
+                      className="admin-select-all-btn"
+                      onClick={() => void selectAllQuestions()}
                     >
-                      Bỏ chọn
+                      <Check size={13} />
+                      Chọn tất cả {data?.total} câu hỏi
                     </button>
-                  </>
-                ) : (
-                  <span>Chưa chọn câu hỏi nào</span>
-                )}
-              </div>
+                  )}
+                  <button
+                    type="button"
+                    className="admin-clear-link"
+                    onClick={() => setSelected([])}
+                  >
+                    Bỏ chọn
+                  </button>
+                </div>
+              )}
             </div>
             <div className="admin-batch-actions">
               <button
                 type="button"
-                className="button danger small admin-delete-btn"
-                disabled={busy || selected.length === 0}
+                className={`button small admin-delete-btn ${safeSelected.length ? "danger" : "secondary"}`}
+                disabled={busy || !safeSelected.length}
                 onClick={() => void deleteSelected()}
                 title="Xóa các câu hỏi đã chọn khỏi ngân hàng"
               >
-                <Trash2 size={15} />
-                Xóa đã chọn ({selected.length})
+                <Trash2 size={14} />
+                <span>
+                  {busy
+                    ? "Đang xóa…"
+                    : safeSelected.length
+                      ? `Xóa ${safeSelected.length} câu`
+                      : "Xóa đã chọn"}
+                </span>
               </button>
             </div>
           </div>
           <div className="admin-list">
-            {data.items.map((q) => (
+            {(data?.items || []).map((q) => (
               <div
-                className={`panel ${selected.includes(q.id) ? "selected" : ""}`}
+                className={`panel ${safeSelected.includes(q.id) ? "selected" : ""}`}
                 key={q.id}
               >
                 <div
@@ -1289,13 +1320,14 @@ function ManageQuestions() {
                     <input
                       type="checkbox"
                       aria-label={`Chọn câu hỏi ${q.id}`}
-                      checked={selected.includes(q.id)}
+                      checked={safeSelected.includes(q.id)}
                       onChange={(e) => {
-                        setSelected((prev) =>
-                          e.target.checked
-                            ? [...prev, q.id]
-                            : prev.filter((id) => id !== q.id),
-                        );
+                        setSelected((prev) => {
+                          const cur = Array.isArray(prev) ? prev : [];
+                          return e.target.checked
+                            ? [...cur, q.id]
+                            : cur.filter((id) => id !== q.id);
+                        });
                       }}
                     />
                     <span className="small muted">
