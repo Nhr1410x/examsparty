@@ -27,6 +27,13 @@ import {
   Sparkles,
   Trash2,
   Lock,
+  Laptop,
+  Layers,
+  Network,
+  Database,
+  Cpu,
+  Scale,
+  Landmark,
 } from "lucide-react";
 import { api, date, useLoad } from "./api";
 import {
@@ -69,23 +76,52 @@ export function Home() {
   const { data: catalog } = useLoad<Catalog>("/catalog");
   const { data: recent } = useLoad<{ items: Recent[] }>("/attempts");
 
+  const getSubjectIcon = (name: string) => {
+    const s = name.toLowerCase();
+    if (s.includes("toán")) return Calculator;
+    if (s.includes("lý") || s.includes("vật")) return Atom;
+    if (s.includes("hóa")) return Atom;
+    if (s.includes("sinh")) return Feather;
+    if (s.includes("anh") || s.includes("english")) return Languages;
+    if (s.includes("hệ điều hành") || s.includes("os")) return Laptop;
+    if (s.includes("oop") || s.includes("lập trình") || s.includes("code")) return Code2;
+    if (s.includes("cấu trúc dữ liệu") || s.includes("dsa")) return Layers;
+    if (s.includes("mạng") || s.includes("network")) return Network;
+    if (s.includes("cơ sở dữ liệu") || s.includes("csdl") || s.includes("database")) return Database;
+    if (s.includes("kiến trúc máy tính") || s.includes("ktmt") || s.includes("vi xử lý")) return Cpu;
+    if (s.includes("tin") || s.includes("cntt") || s.includes("it")) return Code2;
+    if (s.includes("triết") || s.includes("gdcd") || s.includes("pháp luật")) return Scale;
+    if (s.includes("kinh tế") || s.includes("tài chính") || s.includes("kinh doanh")) return Landmark;
+    if (s.includes("văn")) return Feather;
+    return BookOpen;
+  };
+
   const SUBJECT_METAS: Record<string, { icon: typeof Calculator; tone: string }> = {
-    "Toán học": { icon: Calculator, tone: "green" },
-    "Vật lý": { icon: Atom, tone: "blue" },
-    "Hóa học": { icon: Atom, tone: "amber" },
-    "Tiếng Anh": { icon: Languages, tone: "purple" },
-    "Ngữ văn": { icon: Feather, tone: "amber" },
-    "Tin học": { icon: Code2, tone: "pink" },
-    "Sinh học": { icon: Feather, tone: "green" },
-    "Lịch sử": { icon: BookOpen, tone: "amber" },
-    "Địa lý": { icon: BookOpen, tone: "blue" },
-    "GDCD": { icon: BookOpen, tone: "purple" },
+    "Toán học": { icon: Calculator, tone: "math" },
+    "Vật lý": { icon: Atom, tone: "physics" },
+    "Hóa học": { icon: Atom, tone: "chemistry" },
+    "Tiếng Anh": { icon: Languages, tone: "english" },
+    "Ngữ văn": { icon: Feather, tone: "literature" },
+    "Tin học": { icon: Code2, tone: "cs" },
+    "Sinh học": { icon: Feather, tone: "biology" },
+    "Lịch sử": { icon: BookOpen, tone: "history" },
+    "Địa lý": { icon: BookOpen, tone: "geography" },
+    "GDCD": { icon: Scale, tone: "philosophy" },
+    "Hệ điều hành": { icon: Laptop, tone: "os" },
+    "OOP": { icon: Code2, tone: "code" },
+    "Lập trình hướng đối tượng": { icon: Code2, tone: "code" },
+    "Cấu trúc dữ liệu": { icon: Layers, tone: "dsa" },
+    "Mạng máy tính": { icon: Network, tone: "network" },
+    "Cơ sở dữ liệu": { icon: Database, tone: "database" },
+    "Kiến trúc máy tính": { icon: Cpu, tone: "arch" },
+    "Triết học": { icon: Scale, tone: "philosophy" },
+    "Kinh tế chính trị": { icon: Landmark, tone: "business" },
   };
 
   const currentSubjects = (catalog?.subjects || []).filter(Boolean);
   const subjects = currentSubjects.map((name) => ({
     name,
-    icon: SUBJECT_METAS[name]?.icon || BookOpen,
+    icon: SUBJECT_METAS[name]?.icon || getSubjectIcon(name),
     tone: SUBJECT_METAS[name]?.tone || getSubjectTone(name),
   }));
 

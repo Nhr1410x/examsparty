@@ -610,16 +610,37 @@ export function Blocks({ blocks }: { blocks?: Block[] }) {
 }
 export function getSubjectTone(subject = ""): string {
   const s = subject.toLowerCase().trim();
-  if (s.includes("toán")) return "math";
-  if (s.includes("lý") || s.includes("vật")) return "physics";
+  if (!s) return "default";
+  if (s.includes("toán") || s.includes("giải tích") || s.includes("đại số") || s.includes("hình học") || s.includes("xác suất")) return "math";
+  if (s.includes("lý") || s.includes("vật") || s.includes("cơ học") || s.includes("quang") || s.includes("nhiệt")) return "physics";
   if (s.includes("hóa")) return "chemistry";
-  if (s.includes("sinh")) return "biology";
-  if (s.includes("anh") || s.includes("english")) return "english";
-  if (s.includes("tin")) return "cs";
+  if (s.includes("sinh") || s.includes("di truyền") || s.includes("y học") || s.includes("dược")) return "biology";
+  if (s.includes("anh") || s.includes("english") || s.includes("ngoại ngữ") || s.includes("ielts") || s.includes("toeic")) return "english";
+  if (s.includes("hệ điều hành") || s.includes("operating system") || s.includes("os")) return "os";
+  if (s.includes("oop") || s.includes("hướng đối tượng") || s.includes("lập trình") || s.includes("java") || s.includes("python") || s.includes("c++") || s.includes("javascript") || s.includes("code")) return "code";
+  if (s.includes("cấu trúc dữ liệu") || s.includes("giải thuật") || s.includes("dsa") || s.includes("thuật toán")) return "dsa";
+  if (s.includes("mạng") || s.includes("network") || s.includes("an ninh") || s.includes("bảo mật") || s.includes("security")) return "network";
+  if (s.includes("cơ sở dữ liệu") || s.includes("csdl") || s.includes("database") || s.includes("sql")) return "database";
+  if (s.includes("kiến trúc máy tính") || s.includes("ktmt") || s.includes("vi xử lý") || s.includes("hệ thống máy tính")) return "arch";
+  if (s.includes("tin") || s.includes("cntt") || s.includes("it") || s.includes("khoa học máy tính") || s.includes("computer")) return "cs";
   if (s.includes("sử")) return "history";
   if (s.includes("địa")) return "geography";
   if (s.includes("văn") || s.includes("ngữ")) return "literature";
-  return "default";
+  if (s.includes("gdcd") || s.includes("công dân") || s.includes("triết") || s.includes("chính trị") || s.includes("pháp luật") || s.includes("tư tưởng")) return "philosophy";
+  if (s.includes("kinh tế") || s.includes("quản trị") || s.includes("tài chính") || s.includes("marketing") || s.includes("kế toán")) return "business";
+
+  // Deterministic fallback for custom subject names:
+  const tones = [
+    "math", "physics", "chemistry", "biology", "english", "cs",
+    "history", "geography", "literature", "os", "code", "dsa",
+    "network", "database", "arch", "philosophy", "business"
+  ];
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = (hash << 5) - hash + s.charCodeAt(i);
+    hash |= 0;
+  }
+  return tones[Math.abs(hash) % tones.length];
 }
 
 export function ExamTile({

@@ -31,6 +31,7 @@ import {
   Blocks,
   Empty,
   ErrorMessage,
+  getSubjectTone,
   Loading,
   Notice,
   QuestionEditor,
@@ -499,7 +500,7 @@ function ManageExams() {
       busy ||
       !selected.length ||
       !window.confirm(
-        `Xóa ${selected.length} đề đã chọn khỏi kho đề? Bài làm cũ và câu hỏi trong ngân hàng vẫn được giữ.`,
+        `Xóa ${selected.length} đề đã chọn và toàn bộ câu hỏi liên quan khỏi cơ sở dữ liệu?`,
       )
     )
       return;
@@ -513,7 +514,7 @@ function ManageExams() {
       setSelected([]);
       setPage(1);
       setRevision((n) => n + 1);
-      setMessage(`Đã xóa ${result.deleted} đề. Bài làm cũ vẫn được giữ.`);
+      setMessage(`Đã xóa ${result.deleted} đề và toàn bộ câu hỏi liên quan khỏi cơ sở dữ liệu.`);
     } catch (e) {
       setIssue(e);
     } finally {
@@ -819,9 +820,12 @@ function ManageExams() {
                 />
                 <div>
                   <strong>{exam.title}</strong>
-                  <p>
-                    {exam.subject} · v{exam.version} ·{" "}
-                    {exam.content.questions.length} câu
+                  <p style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                    <span className={`subject-pill subject-${getSubjectTone(exam.subject)}`} style={{ padding: "2px 8px", fontSize: "11px" }}>
+                      <span className="subject-dot" />
+                      {exam.subject}
+                    </span>
+                    <span>· v{exam.version} · {exam.content.questions.length} câu</span>
                   </p>
                 </div>
                 <Badge status={exam.status || "draft"} />

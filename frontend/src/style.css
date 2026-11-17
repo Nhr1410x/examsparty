@@ -1562,30 +1562,95 @@ footer a {
 .subject-tile .subject-icon svg {
   width: 18px;
 }
-.green {
-  background: var(--green-light);
-  color: var(--green);
-  border: 1px solid var(--green-border);
+.green, .subject-icon.math {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
 }
-.blue {
-  background: var(--indigo-light);
-  color: var(--indigo);
-  border: 1px solid var(--indigo-border);
+.blue, .subject-icon.physics {
+  background: #f0f9ff;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
 }
-.purple {
-  background: #f5f3ff;
-  color: #7c3aed;
-  border: 1px solid #ddd6fe;
-}
-.amber {
+.amber, .subject-icon.chemistry {
   background: #fffbeb;
   color: #d97706;
   border: 1px solid #fde68a;
 }
-.pink {
+.subject-icon.biology {
+  background: #f7fee7;
+  color: #65a30d;
+  border: 1px solid #d9f99d;
+}
+.purple, .subject-icon.english {
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+}
+.pink, .subject-icon.cs {
+  background: #faf5ff;
+  color: #9333ea;
+  border: 1px solid #e9d5ff;
+}
+.subject-icon.history {
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fecdd3;
+}
+.subject-icon.geography {
+  background: #f0fdfa;
+  color: #0d9488;
+  border: 1px solid #99f6e4;
+}
+.subject-icon.literature {
+  background: #f5f3ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+}
+.subject-icon.os {
+  background: #ecfeff;
+  color: #0891b2;
+  border: 1px solid #a5f3fc;
+}
+.subject-icon.code {
+  background: #fdf4ff;
+  color: #c026d3;
+  border: 1px solid #f5d0fe;
+}
+.subject-icon.dsa {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+.subject-icon.network {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+.subject-icon.database {
   background: #fdf2f8;
   color: #db2777;
   border: 1px solid #fbcfe8;
+}
+.subject-icon.arch {
+  background: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #fed7aa;
+}
+.subject-icon.philosophy {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
+.subject-icon.business {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+.subject-icon.default {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
 }
 /* Distinct Subject Pills */
 .subject-pill {
@@ -1645,55 +1710,161 @@ footer a {
   color: #0d9488;
   border: 1px solid #99f6e4;
 }
-.subject-literature,
+.subject-literature {
+  background: #f5f3ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+}
+.subject-os {
+  background: #ecfeff;
+  color: #0891b2;
+  border: 1px solid #a5f3fc;
+}
+.subject-code {
+  background: #fdf4ff;
+  color: #c026d3;
+  border: 1px solid #f5d0fe;
+}
+.subject-dsa {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+.subject-network {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+.subject-database {
+  background: #fdf2f8;
+  color: #db2777;
+  border: 1px solid #fbcfe8;
+}
+.subject-arch {
+  background: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #fed7aa;
+}
+.subject-philosophy {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
+.subject-business {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
 .subject-default {
   background: #f1f5f9;
   color: #475569;
   border: 1px solid #cbd5e1;
 }
 
-:root[data-theme="dark"] .subject-math {
+:root[data-theme="dark"] .subject-math,
+:root[data-theme="dark"] .subject-icon.math {
   background: rgba(16, 185, 129, 0.16);
   color: #34d399;
   border-color: rgba(16, 185, 129, 0.35);
 }
-:root[data-theme="dark"] .subject-physics {
+:root[data-theme="dark"] .subject-physics,
+:root[data-theme="dark"] .subject-icon.physics {
   background: rgba(14, 165, 233, 0.16);
   color: #38bdf8;
   border-color: rgba(14, 165, 233, 0.35);
 }
-:root[data-theme="dark"] .subject-chemistry {
+:root[data-theme="dark"] .subject-chemistry,
+:root[data-theme="dark"] .subject-icon.chemistry {
   background: rgba(245, 158, 11, 0.16);
   color: #fbbf24;
   border-color: rgba(245, 158, 11, 0.35);
 }
-:root[data-theme="dark"] .subject-biology {
+:root[data-theme="dark"] .subject-biology,
+:root[data-theme="dark"] .subject-icon.biology {
   background: rgba(132, 204, 22, 0.16);
   color: #a3e635;
   border-color: rgba(132, 204, 22, 0.35);
 }
-:root[data-theme="dark"] .subject-english {
+:root[data-theme="dark"] .subject-english,
+:root[data-theme="dark"] .subject-icon.english {
   background: rgba(99, 102, 241, 0.16);
   color: #818cf8;
   border-color: rgba(99, 102, 241, 0.35);
 }
-:root[data-theme="dark"] .subject-cs {
+:root[data-theme="dark"] .subject-cs,
+:root[data-theme="dark"] .subject-icon.cs {
   background: rgba(168, 85, 247, 0.16);
   color: #c084fc;
   border-color: rgba(168, 85, 247, 0.35);
 }
-:root[data-theme="dark"] .subject-history {
+:root[data-theme="dark"] .subject-history,
+:root[data-theme="dark"] .subject-icon.history {
   background: rgba(244, 63, 94, 0.16);
   color: #fb7185;
   border-color: rgba(244, 63, 94, 0.35);
 }
-:root[data-theme="dark"] .subject-geography {
+:root[data-theme="dark"] .subject-geography,
+:root[data-theme="dark"] .subject-icon.geography {
   background: rgba(20, 184, 166, 0.16);
   color: #2dd4bf;
   border-color: rgba(20, 184, 166, 0.35);
 }
 :root[data-theme="dark"] .subject-literature,
-:root[data-theme="dark"] .subject-default {
+:root[data-theme="dark"] .subject-icon.literature {
+  background: rgba(124, 58, 237, 0.16);
+  color: #a78bfa;
+  border-color: rgba(124, 58, 237, 0.35);
+}
+:root[data-theme="dark"] .subject-os,
+:root[data-theme="dark"] .subject-icon.os {
+  background: rgba(8, 145, 178, 0.16);
+  color: #22d3ee;
+  border-color: rgba(8, 145, 178, 0.35);
+}
+:root[data-theme="dark"] .subject-code,
+:root[data-theme="dark"] .subject-icon.code {
+  background: rgba(192, 38, 211, 0.16);
+  color: #e879f9;
+  border-color: rgba(192, 38, 211, 0.35);
+}
+:root[data-theme="dark"] .subject-dsa,
+:root[data-theme="dark"] .subject-icon.dsa {
+  background: rgba(37, 99, 235, 0.16);
+  color: #60a5fa;
+  border-color: rgba(37, 99, 235, 0.35);
+}
+:root[data-theme="dark"] .subject-network,
+:root[data-theme="dark"] .subject-icon.network {
+  background: rgba(29, 78, 216, 0.16);
+  color: #60a5fa;
+  border-color: rgba(29, 78, 216, 0.35);
+}
+:root[data-theme="dark"] .subject-database,
+:root[data-theme="dark"] .subject-icon.database {
+  background: rgba(219, 39, 119, 0.16);
+  color: #f472b6;
+  border-color: rgba(219, 39, 119, 0.35);
+}
+:root[data-theme="dark"] .subject-arch,
+:root[data-theme="dark"] .subject-icon.arch {
+  background: rgba(234, 88, 12, 0.16);
+  color: #fb923c;
+  border-color: rgba(234, 88, 12, 0.35);
+}
+:root[data-theme="dark"] .subject-philosophy,
+:root[data-theme="dark"] .subject-icon.philosophy {
+  background: rgba(180, 83, 9, 0.16);
+  color: #fbbf24;
+  border-color: rgba(180, 83, 9, 0.35);
+}
+:root[data-theme="dark"] .subject-business,
+:root[data-theme="dark"] .subject-icon.business {
+  background: rgba(21, 128, 61, 0.16);
+  color: #4ade80;
+  border-color: rgba(21, 128, 61, 0.35);
+}
+:root[data-theme="dark"] .subject-default,
+:root[data-theme="dark"] .subject-icon.default {
   background: rgba(148, 163, 184, 0.16);
   color: #cbd5e1;
   border-color: rgba(148, 163, 184, 0.35);
@@ -5877,20 +6048,64 @@ td {
   display: inline-block;
   margin-bottom: 2px;
 }
-.subject-dot-indicator.tone-green {
+.subject-dot-indicator.tone-green,
+.subject-dot-indicator.tone-math {
   background: #059669;
 }
-.subject-dot-indicator.tone-blue {
-  background: #2563eb;
+.subject-dot-indicator.tone-blue,
+.subject-dot-indicator.tone-physics {
+  background: #0284c7;
 }
-.subject-dot-indicator.tone-purple {
-  background: #7c3aed;
-}
-.subject-dot-indicator.tone-amber {
+.subject-dot-indicator.tone-amber,
+.subject-dot-indicator.tone-chemistry {
   background: #d97706;
 }
-.subject-dot-indicator.tone-pink {
+.subject-dot-indicator.tone-biology {
+  background: #65a30d;
+}
+.subject-dot-indicator.tone-purple,
+.subject-dot-indicator.tone-english {
+  background: #4f46e5;
+}
+.subject-dot-indicator.tone-pink,
+.subject-dot-indicator.tone-cs {
+  background: #9333ea;
+}
+.subject-dot-indicator.tone-history {
+  background: #e11d48;
+}
+.subject-dot-indicator.tone-geography {
+  background: #0d9488;
+}
+.subject-dot-indicator.tone-literature {
+  background: #7c3aed;
+}
+.subject-dot-indicator.tone-os {
+  background: #0891b2;
+}
+.subject-dot-indicator.tone-code {
+  background: #c026d3;
+}
+.subject-dot-indicator.tone-dsa {
+  background: #2563eb;
+}
+.subject-dot-indicator.tone-network {
+  background: #1d4ed8;
+}
+.subject-dot-indicator.tone-database {
   background: #db2777;
+}
+.subject-dot-indicator.tone-arch {
+  background: #ea580c;
+}
+.subject-dot-indicator.tone-philosophy {
+  background: #b45309;
+}
+.subject-dot-indicator.tone-business {
+  background: #15803d;
+}
+.subject-dot-indicator.tone-default {
+  background: #64748b;
 }
 .subject-btn-name {
   font-size: 14px;

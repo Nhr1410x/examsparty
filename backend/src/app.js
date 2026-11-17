@@ -977,7 +977,7 @@ export function createApp(db, config) {
     res.json({
       pending: await count("submissions", "WHERE status='pending'"),
       exams: await count("exams", "WHERE status <> 'deleted'"),
-      questions: await count("questions"),
+      questions: await count("questions", "WHERE status <> 'deleted'"),
       attempts: await count("attempts"),
       reports: await count("reports", "WHERE status='open'"),
     });
@@ -1090,6 +1090,24 @@ export function createApp(db, config) {
           404,
           "Một số đề không còn tồn tại. Vui lòng tải lại danh sách.",
         );
+
+      // Find all questions associated with the exams being deleted
+      const idPlaceholders = ids.map((_, i) => `$${i + 1}`).join(",");
+      const linkedQRows = (
+        await client.query(
+          `SELECT DISTINCT question_id FROM exam_questions WHERE exam_id IN (${idPlaceholders})`,
+          ids,
+        )
+      ).rows;
+      const questionIds = linkedQRows.map((r) => r.question_id);
+
+      // Remove association from exam_questions
+      await client.query(
+        `DELETE FROM exam_questions WHERE exam_id IN (${idPlaceholders})`,
+        ids,
+      );
+
+      // Mark exams as deleted
       for (const exam of exams) {
         await client.query(
           "UPDATE exams SET status='deleted',updated_at=$1 WHERE id=$2",
@@ -1097,6 +1115,23 @@ export function createApp(db, config) {
         );
         await audit(client, req, "delete", "exam", exam.id, exam.title);
       }
+
+      // Delete questions completely from database if they are no longer in any active exam
+      if (questionIds.length > 0) {
+        const qPlaceholders = questionIds.map((_, i) => `$${i + 1}`).join(",");
+        await client.query(
+          `DELETE FROM questions 
+           WHERE id IN (${qPlaceholders}) 
+             AND id NOT IN (
+               SELECT eq.question_id 
+               FROM exam_questions eq 
+               JOIN exams e ON eq.exam_id = e.id 
+               WHERE e.status <> 'deleted'
+             )`,
+          questionIds,
+        );
+      }
+
       return exams.length;
     });
     res.json({ deleted });
@@ -1255,11 +1290,12 @@ export function createApp(db, config) {
           404,
           "Một số câu hỏi không tồn tại hoặc đã bị xóa. Vui lòng tải lại danh sách.",
         );
+      await client.query(
+        `DELETE FROM exam_questions WHERE question_id IN (${ids.map((_, i) => `$${i + 1}`).join(",")})`,
+        ids,
+      );
       for (const q of questions) {
-        await client.query(
-          "UPDATE questions SET status='deleted',updated_at=$1 WHERE id=$2",
-          [new Date(), q.id],
-        );
+        await client.query("DELETE FROM questions WHERE id=$1", [q.id]);
         const title = (
           q.content?.prompt?.[0]?.value ||
           q.content?.client_id ||

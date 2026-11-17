@@ -83,6 +83,10 @@ export async function migrate(db) {
   await db.query(
     "INSERT INTO settings (key,value) VALUES ('policy','{\"contributions_enabled\":true}') ON CONFLICT (key) DO NOTHING",
   );
+  await db.query(`
+    DELETE FROM exam_questions WHERE exam_id IN (SELECT id FROM exams WHERE status = 'deleted');
+    DELETE FROM questions WHERE status = 'deleted';
+  `);
 }
 
 export async function transaction(db, fn) {
