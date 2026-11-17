@@ -709,17 +709,35 @@ test("admin search and filters narrow questions and accounts", async () => {
     0,
   );
 
-  // Test question deletion
+  // Test question archiving vs permanent deletion
   const qList = (await guest.get("/api/admin/questions")).body.items;
-  const toDelete = qList[0];
+  const toArchive = qList[0];
+  const archiveRes = await del(guest, "/api/admin/questions").send({
+    ids: [toArchive.id],
+    permanent: false,
+  });
+  assert.equal(archiveRes.status, 200);
+  assert.equal(archiveRes.body.deleted, 1);
+  assert.equal(archiveRes.body.mode, "archived");
+
+  const archivedQ = (
+    await db.query("SELECT status FROM questions WHERE id=$1", [toArchive.id])
+  ).rows[0];
+  assert.equal(archivedQ.status, "archived");
+
+  const toPermDelete = qList[1];
   const deleteRes = await del(guest, "/api/admin/questions").send({
-    ids: [toDelete.id],
+    ids: [toPermDelete.id],
+    permanent: true,
   });
   assert.equal(deleteRes.status, 200);
   assert.equal(deleteRes.body.deleted, 1);
+  assert.equal(deleteRes.body.mode, "permanent");
 
-  const afterDelete = (await guest.get("/api/admin/questions")).body.items;
-  assert.ok(!afterDelete.some((q) => q.id === toDelete.id));
+  const deletedQ = (
+    await db.query("SELECT id FROM questions WHERE id=$1", [toPermDelete.id])
+  ).rows[0];
+  assert.equal(deletedQ, undefined);
 
   await db.end();
 });

@@ -1301,7 +1301,7 @@ export function createApp(db, config) {
     });
   });
   app.delete("/api/admin/questions", async (req, res) => {
-    const { ids } = z
+    const { ids, permanent = true } = z
       .strictObject({
         ids: z
           .array(uuid)
@@ -1312,9 +1312,10 @@ export function createApp(db, config) {
               new Set(ids.map((id) => id.toLowerCase())).size === ids.length,
             "Không chọn trùng câu hỏi.",
           ),
+        permanent: z.boolean().optional().default(true),
       })
       .parse(req.body);
-    const deleted = await transaction(db, async (client) => {
+    const result = await transaction(db, async (client) => {
       const questions = (
         await client.query(
           `SELECT id, content FROM questions WHERE status <> 'deleted' AND id IN (${ids.map((_, i) => `$${i + 1}`).join(",")}) ORDER BY id FOR UPDATE`,
@@ -1326,6 +1327,26 @@ export function createApp(db, config) {
           404,
           "Một số câu hỏi không tồn tại hoặc đã bị xóa. Vui lòng tải lại danh sách.",
         );
+
+      if (!permanent) {
+        // Soft delete / Move to archive
+        const idPlaceholders = ids.map((_, i) => `$${i + 2}`).join(",");
+        await client.query(
+          `UPDATE questions SET status='archived', updated_at=$1 WHERE id IN (${idPlaceholders})`,
+          [new Date(), ...ids],
+        );
+        for (const q of questions) {
+          const title = (
+            q.content?.prompt?.[0]?.value ||
+            q.content?.client_id ||
+            q.id
+          ).slice(0, 50);
+          await audit(client, req, "archive", "question", q.id, title);
+        }
+        return { deleted: questions.length, mode: "archived" };
+      }
+
+      // Permanent delete: remove links in exam_questions and delete from questions
       await client.query(
         `DELETE FROM exam_questions WHERE question_id IN (${ids.map((_, i) => `$${i + 1}`).join(",")})`,
         ids,
@@ -1339,9 +1360,9 @@ export function createApp(db, config) {
         ).slice(0, 50);
         await audit(client, req, "delete", "question", q.id, title);
       }
-      return questions.length;
+      return { deleted: questions.length, mode: "permanent" };
     });
-    res.json({ deleted });
+    res.json(result);
   });
   app.post("/api/admin/questions", async (req, res) => {
     const { content: raw, status } = z

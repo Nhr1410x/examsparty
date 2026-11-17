@@ -24,6 +24,7 @@ import {
   Sun,
   Moon,
   Upload,
+  Archive,
 } from "lucide-react";
 import { api, date, useLoad } from "./api";
 import {
@@ -937,6 +938,11 @@ function ManageQuestions() {
     [status, setStatus] = useState("draft"),
     [selected, setSelected] = useState<string[]>([]),
     [selectMenuOpen, setSelectMenuOpen] = useState(false),
+    [deleteDialog, setDeleteDialog] = useState<{
+      ids: string[];
+      preview?: string;
+    } | null>(null),
+    [deleteMode, setDeleteMode] = useState<"permanent" | "archive">("permanent"),
     [issue, setIssue] = useState<unknown>(null),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
@@ -983,55 +989,48 @@ function ManageQuestions() {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [selectMenuOpen]);
 
-  async function deleteSelected() {
-    if (
-      busy ||
-      !safeSelected.length ||
-      !window.confirm(
-        `Xóa ${safeSelected.length} câu hỏi đã chọn khỏi ngân hàng? Các đề thi cũ đã dùng câu hỏi này vẫn giữ nguyên nội dung.`,
-      )
-    )
-      return;
-    setIssue(null);
-    setMessage("");
-    setBusy(true);
-    try {
-      const result = await api<{ deleted: number }>("/admin/questions", "DELETE", {
-        ids: safeSelected,
-      });
-      setSelected([]);
-      setPage(1);
-      setRevision((n) => n + 1);
-      setMessage(`Đã xóa ${result.deleted} câu hỏi khỏi ngân hàng.`);
-    } catch (e) {
-      setIssue(e);
-    } finally {
-      setBusy(false);
-    }
+  function requestDeleteSelected() {
+    if (busy || !safeSelected.length) return;
+    setDeleteDialog({
+      ids: safeSelected,
+      preview: `${safeSelected.length} câu hỏi đã chọn`,
+    });
+    setDeleteMode("permanent");
   }
 
-  async function deleteSingle(id: string, qContent?: Question) {
+  function requestDeleteSingle(id: string, qContent?: Question) {
+    if (busy) return;
     const previewText = qContent?.prompt?.[0]?.value
-      ? `"${qContent.prompt[0].value.slice(0, 40)}..."`
+      ? `"${qContent.prompt[0].value.slice(0, 70)}${qContent.prompt[0].value.length > 70 ? "…" : ""}"`
       : "câu hỏi này";
-    if (
-      busy ||
-      !window.confirm(
-        `Bạn có chắc chắn muốn xóa ${previewText} khỏi ngân hàng câu hỏi?`,
-      )
-    )
-      return;
+    setDeleteDialog({
+      ids: [id],
+      preview: previewText,
+    });
+    setDeleteMode("permanent");
+  }
+
+  async function executeDelete(mode: "permanent" | "archive") {
+    if (!deleteDialog || busy) return;
+    const isPermanent = mode === "permanent";
     setIssue(null);
     setMessage("");
     setBusy(true);
     try {
-      await api<{ deleted: number }>("/admin/questions", "DELETE", {
-        ids: [id],
+      const result = await api<{ deleted: number; mode: string }>("/admin/questions", "DELETE", {
+        ids: deleteDialog.ids,
+        permanent: isPermanent,
       });
-      if (editing === id) setEditing(null);
-      setSelected((prev) => prev.filter((item) => item !== id));
+      const idsSet = new Set(deleteDialog.ids);
+      setSelected((prev) => (Array.isArray(prev) ? prev.filter((id) => !idsSet.has(id)) : []));
+      if (editing && idsSet.has(editing)) setEditing(null);
+      setDeleteDialog(null);
       setRevision((n) => n + 1);
-      setMessage(`Đã xóa câu hỏi thành công.`);
+      if (isPermanent) {
+        setMessage(`Đã xóa vĩnh viễn ${result.deleted} câu hỏi khỏi cơ sở dữ liệu.`);
+      } else {
+        setMessage(`Đã chuyển ${result.deleted} câu hỏi vào mục Lưu trữ.`);
+      }
     } catch (e) {
       setIssue(e);
     } finally {
@@ -1184,7 +1183,7 @@ function ManageQuestions() {
                 type="button"
                 className="button danger"
                 disabled={busy}
-                onClick={() => void deleteSingle(editing, content)}
+                onClick={() => requestDeleteSingle(editing, content)}
               >
                 <Trash2 size={16} />
                 Xóa câu hỏi
@@ -1292,7 +1291,7 @@ function ManageQuestions() {
                 type="button"
                 className={`button small admin-delete-btn ${safeSelected.length ? "danger" : "secondary"}`}
                 disabled={busy || !safeSelected.length}
-                onClick={() => void deleteSelected()}
+                onClick={() => requestDeleteSelected()}
                 title="Xóa các câu hỏi đã chọn khỏi ngân hàng"
               >
                 <Trash2 size={14} />
@@ -1357,7 +1356,7 @@ function ManageQuestions() {
                       type="button"
                       className="button danger small"
                       disabled={busy}
-                      onClick={() => void deleteSingle(q.id, q.content)}
+                      onClick={() => requestDeleteSingle(q.id, q.content)}
                       title="Xóa câu hỏi này"
                     >
                       <Trash2 size={14} />
@@ -1380,6 +1379,155 @@ function ManageQuestions() {
         </fieldset>
       ) : (
         <Empty text="Không tìm thấy câu hỏi phù hợp." />
+      )}
+
+      {deleteDialog && (
+        <div
+          className="modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !busy) setDeleteDialog(null);
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="modal-dialog delete-confirm-dialog">
+            <div className="modal-dialog-header">
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div
+                  className={`modal-icon-badge ${deleteMode === "permanent" ? "danger" : "archive"}`}
+                >
+                  {deleteMode === "permanent" ? (
+                    <Trash2 size={20} />
+                  ) : (
+                    <Archive size={20} />
+                  )}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>
+                    {deleteDialog.ids.length === 1
+                      ? "Tùy chọn xóa câu hỏi"
+                      : `Tùy chọn xóa ${deleteDialog.ids.length} câu hỏi`}
+                  </h3>
+                  <p className="meta-text" style={{ margin: "3px 0 0" }}>
+                    Chọn phương thức xử lý câu hỏi trong hệ thống
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => !busy && setDeleteDialog(null)}
+                disabled={busy}
+                aria-label="Đóng"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-dialog-body">
+              {deleteDialog.preview && (
+                <div className="delete-preview-box">
+                  <div className="delete-preview-label">
+                    {deleteDialog.ids.length === 1 ? "Nội dung câu hỏi:" : "Đối tượng tác động:"}
+                  </div>
+                  <div className="delete-preview-content">
+                    {deleteDialog.preview}
+                  </div>
+                </div>
+              )}
+
+              <div className="delete-options-grid">
+                <div
+                  className={`delete-option-card ${deleteMode === "archive" ? "selected archive" : ""}`}
+                  onClick={() => setDeleteMode("archive")}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="delete-option-header">
+                    <div className="delete-option-icon archive">
+                      <Archive size={18} />
+                    </div>
+                    <div className="delete-option-title-row">
+                      <div className="delete-option-title">Chuyển vào lưu trữ</div>
+                      <span className="delete-option-badge archive">An toàn</span>
+                    </div>
+                    <input
+                      type="radio"
+                      name="deleteQuestionMode"
+                      checked={deleteMode === "archive"}
+                      onChange={() => setDeleteMode("archive")}
+                      className="delete-option-radio"
+                    />
+                  </div>
+                  <p className="delete-option-desc">
+                    Đặt trạng thái câu hỏi thành <strong>"Lưu trữ"</strong>. Câu hỏi sẽ ẩn khỏi danh sách chính nhưng dữ liệu vẫn an toàn trong cơ sở dữ liệu, có thể tìm lại và khôi phục bất cứ lúc nào qua bộ lọc trạng thái.
+                  </p>
+                </div>
+
+                <div
+                  className={`delete-option-card ${deleteMode === "permanent" ? "selected danger" : ""}`}
+                  onClick={() => setDeleteMode("permanent")}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="delete-option-header">
+                    <div className="delete-option-icon danger">
+                      <Trash2 size={18} />
+                    </div>
+                    <div className="delete-option-title-row">
+                      <div className="delete-option-title">Xóa vĩnh viễn khỏi Database</div>
+                      <span className="delete-option-badge danger">Không thể hoàn tác</span>
+                    </div>
+                    <input
+                      type="radio"
+                      name="deleteQuestionMode"
+                      checked={deleteMode === "permanent"}
+                      onChange={() => setDeleteMode("permanent")}
+                      className="delete-option-radio"
+                    />
+                  </div>
+                  <p className="delete-option-desc">
+                    Xóa <strong>hoàn toàn câu hỏi khỏi cơ sở dữ liệu</strong> và gỡ bỏ khỏi ngân hàng câu hỏi. Số lượng câu hỏi trên trang Tổng quan (Dashboard) sẽ giảm ngay lập tức.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-dialog-footer">
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setDeleteDialog(null)}
+                disabled={busy}
+              >
+                Hủy bỏ
+              </button>
+              <div>
+                {deleteMode === "archive" ? (
+                  <button
+                    type="button"
+                    className="button primary"
+                    onClick={() => void executeDelete("archive")}
+                    disabled={busy}
+                  >
+                    <Archive size={15} />
+                    <span>{busy ? "Đang xử lý…" : "Xác nhận chuyển vào lưu trữ"}</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="button danger"
+                    onClick={() => void executeDelete("permanent")}
+                    disabled={busy}
+                  >
+                    <Trash2 size={15} />
+                    <span>{busy ? "Đang xóa…" : "Xác nhận xóa vĩnh viễn"}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

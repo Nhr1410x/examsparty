@@ -275,3 +275,110 @@ test("admin imports JSON file directly into database", async () => {
     dom.window.close();
   }
 });
+
+test("admin chooses between archiving and permanently deleting questions", async () => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', {
+    url: "http://localhost:5173/admin",
+  });
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    localStorage: dom.window.localStorage,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+  const originalFetch = globalThis.fetch;
+  let questions = [
+    {
+      id: "q-1",
+      status: "published",
+      version: 1,
+      content: {
+        type: "single_choice",
+        prompt: [{ type: "text", value: "Câu hỏi trắc nghiệm số 1" }],
+        options: [{ id: "a", content: [{ type: "text", value: "Đáp án A" }] }],
+        answer: { correct_option_ids: ["a"] },
+        points: 1,
+      },
+    },
+  ];
+  const deleteCalls: any[] = [];
+
+  globalThis.fetch = async (input, options) => {
+    const url = String(input);
+    let body: unknown = {};
+    let status = 200;
+    if (url === "/api/session") {
+      body = {
+        user: { id: "admin", email: "admin@example.com", role: "admin" },
+      };
+    } else if (url.startsWith("/api/admin/questions") && options?.method === "DELETE") {
+      const data = JSON.parse(String(options.body));
+      deleteCalls.push(data);
+      if (data.permanent) {
+        questions = questions.filter((q) => !data.ids.includes(q.id));
+      } else {
+        questions = questions.map((q) =>
+          data.ids.includes(q.id) ? { ...q, status: "archived" } : q,
+        );
+      }
+      body = { deleted: data.ids.length, mode: data.permanent ? "permanent" : "archived" };
+    } else if (url.startsWith("/api/admin/questions?")) {
+      body = { items: questions, total: questions.length, page: 1, limit: 12 };
+    }
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  const root = createRoot(document.getElementById("root")!);
+  const button = (text: string) =>
+    Array.from(document.querySelectorAll("button")).find((b) =>
+      b.textContent?.includes(text),
+    )!;
+
+  try {
+    await act(async () =>
+      root.render(
+        <MemoryRouter>
+          <Admin />
+        </MemoryRouter>,
+      ),
+    );
+    await act(async () => button("Câu hỏi").click());
+
+    // Click single question delete button
+    const deleteBtn = Array.from(document.querySelectorAll("button")).find(
+      (b) => b.textContent?.trim() === "Xóa" && b.className.includes("danger"),
+    )!;
+    assert.ok(deleteBtn, "Row delete button exists");
+    await act(async () => deleteBtn.click());
+
+    // Modal dialog should appear
+    const dialog = document.querySelector(".delete-confirm-dialog");
+    assert.ok(dialog, "Delete options dialog appears");
+    assert.ok(dialog.textContent?.includes("Chuyển vào lưu trữ"));
+    assert.ok(dialog.textContent?.includes("Xóa vĩnh viễn khỏi Database"));
+
+    // Select archive option
+    const archiveCard = Array.from(document.querySelectorAll(".delete-option-card")).find(
+      (el) => el.textContent?.includes("Chuyển vào lưu trữ"),
+    )! as HTMLElement;
+    await act(async () => archiveCard.click());
+
+    // Confirm archive
+    const confirmArchiveBtn = Array.from(document.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("Xác nhận chuyển vào lưu trữ"),
+    )!;
+    assert.ok(confirmArchiveBtn, "Confirm archive button is visible");
+    await act(async () => confirmArchiveBtn.click());
+
+    assert.equal(deleteCalls.length, 1);
+    assert.deepEqual(deleteCalls[0], { ids: ["q-1"], permanent: false });
+    assert.match(document.body.textContent || "", /Đã chuyển 1 câu hỏi vào mục Lưu trữ/);
+  } finally {
+    await act(async () => root.unmount());
+    globalThis.fetch = originalFetch;
+    dom.window.close();
+  }
+});
