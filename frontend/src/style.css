@@ -5974,31 +5974,53 @@ td {
 }
 
 /* ========================================================
-   DETAIL PAGE: TOP MODE SELECTION (LUYỆN TẬP / THI THỬ)
+   DETAIL PAGE: RESPONSIVE MODE SELECTION (LUYỆN TẬP / THI THỬ)
+   - Desktop (> 900px): Right sticky sidebar (.detail-mode-panel-desktop)
+   - Mobile (<= 900px): Top block before questions (.detail-mode-panel-mobile)
    ======================================================== */
-.detail-mode-panel-top {
-  margin-top: 24px;
-  margin-bottom: 28px;
-  padding: 22px 24px;
-  border-radius: 18px;
-  background: var(--surface);
-  border: 1px solid var(--line);
+.detail-mode-panel-mobile {
+  display: none !important;
 }
-.mode-panel-header {
-  margin-bottom: 16px;
+.detail-mode-panel-desktop {
+  display: block !important;
+  align-self: start;
+  position: sticky;
+  top: 80px;
 }
-.mode-panel-header h2 {
-  font-size: 19px;
-  margin-bottom: 4px;
+
+@media (max-width: 900px) {
+  .detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .detail-mode-panel-desktop {
+    display: none !important;
+  }
+  .detail-mode-panel-mobile {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 20px;
+    margin-bottom: 24px;
+    padding: 20px;
+    border-radius: 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+  }
+  .detail-mode-panel-mobile > h2,
+  .detail-mode-panel-mobile > .confirm-box {
+    grid-column: 1 / -1;
+  }
+  .detail-mode-panel-mobile > h2 {
+    font-size: 19px;
+    margin-bottom: 4px;
+  }
 }
-.mode-options-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-@media (max-width: 680px) {
-  .mode-options-grid {
-    grid-template-columns: 1fr;
+
+@media (max-width: 600px) {
+  .detail-mode-panel-mobile {
+    grid-template-columns: 1fr !important;
+    padding: 16px;
+    gap: 12px;
   }
 }
 

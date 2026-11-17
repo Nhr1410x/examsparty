@@ -583,6 +583,89 @@ export function Detail() {
   }
   if (loading) return <Loading />;
   if (error || !exam) return <ErrorMessage error={error} />;
+
+  const modePanelContent = (
+    <>
+      <h2>Chọn chế độ làm bài</h2>
+      <div className="mode-option">
+        <span className="subject-icon green">
+          <BookOpen />
+        </span>
+        <h3>Luyện tập</h3>
+        <p>
+          Không áp lực thời gian. Hiểu từng câu qua đáp án và lời giải ngay
+          sau khi kiểm tra.
+        </p>
+        <ul>
+          <li>Giữ nguyên thứ tự câu và phương án</li>
+          <li>Tự động lưu, tiếp tục bất cứ lúc nào</li>
+          <li>Kết thúc sớm khi bạn muốn</li>
+        </ul>
+        <button
+          className="button full"
+          disabled={busy}
+          onClick={() => void start("practice")}
+        >
+          <Play size={17} />
+          Bắt đầu luyện tập
+        </button>
+      </div>
+      <div className="mode-option">
+        <span className="subject-icon amber">
+          <Timer />
+        </span>
+        <h3>Thi thử</h3>
+        <p>Làm quen áp lực phòng thi và đánh giá kiến thức của bạn.</p>
+        <ul>
+          <li>
+            {exam.content.settings.shuffle_questions
+              ? "Trộn câu hỏi"
+              : "Giữ thứ tự câu hỏi"}{" "}
+            ·{" "}
+            {exam.content.settings.shuffle_options
+              ? "trộn phương án"
+              : "giữ thứ tự phương án"}
+          </li>
+          <li>Không tạm dừng; tự nộp khi hết giờ</li>
+          <li>Chỉ xem đáp án sau khi nộp</li>
+        </ul>
+        <button
+          className="button secondary full"
+          disabled={busy}
+          onClick={() => setConfirm(true)}
+        >
+          Bắt đầu thi thử <ArrowRight size={17} />
+        </button>
+      </div>
+      {confirm && (
+        <div className="confirm-box" role="alert" style={{ marginTop: 16 }}>
+          <strong>
+            Bạn có {exam.time_limit_minutes} phút cho {exam.question_count} câu.
+          </strong>
+          <p>
+            Điểm = điểm đạt / tổng điểm × 10. Câu tự luận cần người chấm.
+            Đồng hồ chạy ngay sau khi xác nhận.
+          </p>
+          <div className="row" style={{ gap: 10, marginTop: 12 }}>
+            <button
+              className="button small"
+              disabled={busy}
+              onClick={() => void start("exam")}
+            >
+              Vào thi ngay
+            </button>
+            <button
+              className="text-button small"
+              onClick={() => setConfirm(false)}
+            >
+              Hủy
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <>
       <Link className="back-link" to="/exams">
@@ -590,7 +673,7 @@ export function Detail() {
         Quay lại kho đề
       </Link>
       <div className="detail-grid">
-        <div>
+        <div className="detail-main-content">
           <span className={`subject-pill subject-${getSubjectTone(exam.subject)}`}>
             <span className="subject-dot" />
             {exam.subject}
@@ -614,91 +697,9 @@ export function Detail() {
             </div>
           </div>
 
-          {/* ĐƯA PHẦN LUYỆN TẬP, THI THỬ LÊN TRÊN */}
-          <div className="mode-panel panel detail-mode-panel-top">
-            <div className="mode-panel-header">
-              <h2>Chọn chế độ làm bài</h2>
-              <span className="muted small">Luyện tập để hiểu sâu hoặc Thi thử để rèn phản xạ</span>
-            </div>
-            <div className="mode-options-grid">
-              <div className="mode-option">
-                <span className="subject-icon green">
-                  <BookOpen />
-                </span>
-                <h3>Luyện tập</h3>
-                <p>
-                  Không áp lực thời gian. Hiểu từng câu qua đáp án và lời giải ngay
-                  sau khi kiểm tra.
-                </p>
-                <ul>
-                  <li>Giữ nguyên thứ tự câu và phương án</li>
-                  <li>Tự động lưu, tiếp tục bất cứ lúc nào</li>
-                  <li>Kết thúc sớm khi bạn muốn</li>
-                </ul>
-                <button
-                  className="button full"
-                  disabled={busy}
-                  onClick={() => void start("practice")}
-                >
-                  <Play size={17} />
-                  Bắt đầu luyện tập
-                </button>
-              </div>
-              <div className="mode-option">
-                <span className="subject-icon amber">
-                  <Timer />
-                </span>
-                <h3>Thi thử</h3>
-                <p>Làm quen áp lực phòng thi và đánh giá kiến thức của bạn.</p>
-                <ul>
-                  <li>
-                    {exam.content.settings.shuffle_questions
-                      ? "Trộn câu hỏi"
-                      : "Giữ thứ tự câu hỏi"}{" "}
-                    ·{" "}
-                    {exam.content.settings.shuffle_options
-                      ? "trộn phương án"
-                      : "giữ thứ tự phương án"}
-                  </li>
-                  <li>Không tạm dừng; tự nộp khi hết giờ</li>
-                  <li>Chỉ xem đáp án sau khi nộp</li>
-                </ul>
-                <button
-                  className="button secondary full"
-                  disabled={busy}
-                  onClick={() => setConfirm(true)}
-                >
-                  Bắt đầu thi thử <ArrowRight size={17} />
-                </button>
-              </div>
-            </div>
-            {confirm && (
-              <div className="confirm-box" role="alert" style={{ marginTop: 18 }}>
-                <strong>
-                  Bạn có {exam.time_limit_minutes} phút cho {exam.question_count}{" "}
-                  câu.
-                </strong>
-                <p>
-                  Điểm = điểm đạt / tổng điểm × 10. Câu tự luận cần người chấm.
-                  Đồng hồ chạy ngay sau khi xác nhận.
-                </p>
-                <div className="row" style={{ gap: 10, marginTop: 12 }}>
-                  <button
-                    className="button small"
-                    disabled={busy}
-                    onClick={() => void start("exam")}
-                  >
-                    Vào thi ngay
-                  </button>
-                  <button
-                    className="text-button small"
-                    onClick={() => setConfirm(false)}
-                  >
-                    Hủy
-                  </button>
-                </div>
-              </div>
-            )}
+          {/* DÀNH CHO DI ĐỘNG: Hiển thị ngay trên trước Nội dung trong đề */}
+          <div className="mode-panel panel detail-mode-panel-mobile">
+            {modePanelContent}
           </div>
 
           <h2>Nội dung trong đề</h2>
@@ -752,6 +753,11 @@ export function Detail() {
           </details>
           <ErrorMessage error={issue} />
         </div>
+
+        {/* DÀNH CHO MÁY TÍNH: Bố trí lại cột phải như cũ (sticky) */}
+        <aside className="mode-panel panel detail-mode-panel-desktop">
+          {modePanelContent}
+        </aside>
       </div>
     </>
   );
