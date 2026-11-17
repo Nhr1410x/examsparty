@@ -25,8 +25,11 @@ import {
   Moon,
   Upload,
   Archive,
+  BookMarked,
+  Download,
 } from "lucide-react";
 import { api, date, useLoad } from "./api";
+import { formatFileSize, DocumentViewerModal } from "./documents";
 import {
   Badge,
   Blocks,
@@ -49,6 +52,8 @@ import {
   template,
   typeLabels,
   User,
+  DocumentItem,
+  documentCategories,
 } from "./types";
 
 export function Admin() {
@@ -154,6 +159,7 @@ const tabs = [
   ["review", "Duyệt nội dung", ClipboardCheck],
   ["exams", "Quản lý đề", LibraryBig],
   ["questions", "Câu hỏi", FileQuestion],
+  ["documents", "Tài liệu", BookMarked],
   ["users", "Tài khoản", Users],
   ["reports", "Báo lỗi", Flag],
   ["logs", "Nhật ký", ScrollText],
@@ -268,6 +274,8 @@ function AdminWorkspace({
             <ManageExams />
           ) : tab === "questions" ? (
             <ManageQuestions />
+          ) : tab === "documents" ? (
+            <ManageDocuments />
           ) : tab === "users" ? (
             <ManageUsers self={user.id} />
           ) : tab === "logs" ? (
@@ -297,6 +305,7 @@ function Overview() {
               ["pending", "Đang chờ duyệt"],
               ["exams", "Đề trong hệ thống"],
               ["questions", "Câu hỏi đã lưu"],
+              ["documents", "Tài liệu học tập"],
               ["attempts", "Lượt bắt đầu làm"],
               ["reports", "Báo lỗi chưa xử lý"],
             ].map(([key, label]) => (
@@ -832,18 +841,18 @@ function ManageExams() {
                   </span>
                   {Boolean(
                     data?.total &&
-                      data.total > (data?.items?.length ?? 0) &&
-                      safeSelected.length < data.total,
+                    data.total > (data?.items?.length ?? 0) &&
+                    safeSelected.length < data.total,
                   ) && (
-                    <button
-                      type="button"
-                      className="admin-select-all-btn"
-                      onClick={() => void selectAllExams()}
-                    >
-                      <Check size={13} />
-                      Chọn tất cả {data?.total} đề
-                    </button>
-                  )}
+                      <button
+                        type="button"
+                        className="admin-select-all-btn"
+                        onClick={() => void selectAllExams()}
+                      >
+                        <Check size={13} />
+                        Chọn tất cả {data?.total} đề
+                      </button>
+                    )}
                   <button
                     type="button"
                     className="admin-clear-link"
@@ -1338,18 +1347,18 @@ function ManageQuestions() {
                   </span>
                   {Boolean(
                     data?.total &&
-                      data.total > safeSelected.length,
+                    data.total > safeSelected.length,
                   ) && (
-                    <button
-                      type="button"
-                      className="admin-select-all-btn"
-                      onClick={() => void selectAllQuestions()}
-                      title={`Chọn tất cả ${data?.total} câu hỏi`}
-                    >
-                      <Check size={13} />
-                      Chọn toàn bộ {data?.total} câu hỏi {filterSubject ? `môn ${filterSubject}` : ""}
-                    </button>
-                  )}
+                      <button
+                        type="button"
+                        className="admin-select-all-btn"
+                        onClick={() => void selectAllQuestions()}
+                        title={`Chọn tất cả ${data?.total} câu hỏi`}
+                      >
+                        <Check size={13} />
+                        Chọn toàn bộ {data?.total} câu hỏi {filterSubject ? `môn ${filterSubject}` : ""}
+                      </button>
+                    )}
                   <button
                     type="button"
                     className="admin-clear-link"
@@ -1383,41 +1392,41 @@ function ManageQuestions() {
           {/* Banner notification when page items are selected but bank has more */}
           {Boolean(
             data?.total &&
-              data.total > (data?.items?.length ?? 0) &&
-              safeSelected.length > 0 &&
-              safeSelected.length < data.total &&
-              data.items.every((q) => safeSelected.includes(q.id)),
+            data.total > (data?.items?.length ?? 0) &&
+            safeSelected.length > 0 &&
+            safeSelected.length < data.total &&
+            data.items.every((q) => safeSelected.includes(q.id)),
           ) && (
-            <div
-              className="admin-selection-callout"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "10px 16px",
-                background: "var(--subtle)",
-                borderRadius: 12,
-                border: "1px solid var(--line)",
-                marginBottom: 14,
-                fontSize: 13.5,
-              }}
-            >
-              <span>
-                Đang chọn tất cả <strong>{data.items.length}</strong> câu hỏi trên trang này.
-              </span>
-              <button
-                type="button"
-                className="button small primary"
-                onClick={() => void selectAllQuestions()}
-                disabled={busy}
+              <div
+                className="admin-selection-callout"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 16px",
+                  background: "var(--subtle)",
+                  borderRadius: 12,
+                  border: "1px solid var(--line)",
+                  marginBottom: 14,
+                  fontSize: 13.5,
+                }}
               >
-                <Check size={14} />
                 <span>
-                  Chọn tất cả <strong>{data.total}</strong> câu hỏi {filterSubject ? `môn ${filterSubject}` : "trong toàn bộ ngân hàng"}
+                  Đang chọn tất cả <strong>{data.items.length}</strong> câu hỏi trên trang này.
                 </span>
-              </button>
-            </div>
-          )}
+                <button
+                  type="button"
+                  className="button small primary"
+                  onClick={() => void selectAllQuestions()}
+                  disabled={busy}
+                >
+                  <Check size={14} />
+                  <span>
+                    Chọn tất cả <strong>{data.total}</strong> câu hỏi {filterSubject ? `môn ${filterSubject}` : "trong toàn bộ ngân hàng"}
+                  </span>
+                </button>
+              </div>
+            )}
 
           <div className="admin-list">
             {(data?.items || []).map((q) => (
@@ -1659,6 +1668,750 @@ function ManageQuestions() {
     </>
   );
 }
+
+function ManageDocuments() {
+  const [revision, setRevision] = useState(0),
+    [query, setQuery] = useState(""),
+    [search, setSearch] = useState(""),
+    [subject, setSubject] = useState(""),
+    [grade, setGrade] = useState(""),
+    [category, setCategory] = useState(""),
+    [status, setStatus] = useState("all"),
+    [page, setPage] = useState(1),
+    [selected, setSelected] = useState<string[]>([]),
+    [editing, setEditing] = useState<"new" | DocumentItem | null>(null),
+    [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null),
+    [deleteDialog, setDeleteDialog] = useState<{ ids: string[] } | null>(null),
+    [deleteMode, setDeleteMode] = useState<"archive" | "permanent">("archive"),
+    [busy, setBusy] = useState(false),
+    [issue, setIssue] = useState<unknown>(null),
+    [message, setMessage] = useState<string | null>(null);
+
+  // Form state
+  const [formTitle, setFormTitle] = useState(""),
+    [formDesc, setFormDesc] = useState(""),
+    [formSubject, setFormSubject] = useState("Toán học"),
+    [formGrade, setFormGrade] = useState("12"),
+    [formCategory, setFormCategory] = useState("theory"),
+    [formAuthor, setFormAuthor] = useState("Examsparty"),
+    [formStatus, setFormStatus] = useState<"published" | "draft" | "archived">("published"),
+    [formFile, setFormFile] = useState<File | null>(null);
+
+  const { data, error, loading } = useLoad<{ items: DocumentItem[]; total: number }>(
+    `/admin/documents?page=${page}&q=${encodeURIComponent(search)}&subject=${encodeURIComponent(subject)}&grade=${encodeURIComponent(grade)}&category=${encodeURIComponent(category)}&status=${encodeURIComponent(status)}&r=${revision}`,
+  );
+
+  const startEdit = (item: "new" | DocumentItem) => {
+    if (item === "new") {
+      setFormTitle("");
+      setFormDesc("");
+      setFormSubject("Toán học");
+      setFormGrade("12");
+      setFormCategory("theory");
+      setFormAuthor("Examsparty");
+      setFormStatus("published");
+      setFormFile(null);
+    } else {
+      setFormTitle(item.title);
+      setFormDesc(item.description || "");
+      setFormSubject(item.subject);
+      setFormGrade(item.grade);
+      setFormCategory(item.category);
+      setFormAuthor(item.author_name || "Examsparty");
+      setFormStatus(item.status);
+      setFormFile(null);
+    }
+    setEditing(item);
+    setIssue(null);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formTitle.trim()) {
+      setIssue(new Error("Vui lòng nhập tiêu đề tài liệu."));
+      return;
+    }
+    if (editing === "new" && !formFile) {
+      setIssue(new Error("Vui lòng chọn tập tin tài liệu cần tải lên."));
+      return;
+    }
+
+    setBusy(true);
+    setIssue(null);
+    try {
+      const formData = new FormData();
+      formData.append("title", formTitle.trim());
+      formData.append("description", formDesc.trim());
+      formData.append("subject", formSubject);
+      formData.append("grade", formGrade);
+      formData.append("category", formCategory);
+      formData.append("author_name", formAuthor.trim() || "Examsparty");
+      formData.append("status", formStatus);
+      if (formFile) {
+        formData.append("file", formFile);
+      }
+
+      const url = editing === "new" ? "/api/admin/documents" : `/api/admin/documents/${editing!.id}`;
+      const method = editing === "new" ? "POST" : "PUT";
+
+      const res = await fetch(url, {
+        method,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Không thể lưu tài liệu.");
+      }
+
+      setMessage(editing === "new" ? "Đã tải lên tài liệu mới thành công!" : "Đã cập nhật thông tin tài liệu!");
+      setTimeout(() => setMessage(null), 3000);
+      setEditing(null);
+      setRevision((r) => r + 1);
+    } catch (err: any) {
+      setIssue(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const executeDelete = async (mode: "archive" | "permanent") => {
+    if (!deleteDialog) return;
+    setBusy(true);
+    setIssue(null);
+    try {
+      await api("/admin/documents", "DELETE", {
+        ids: deleteDialog.ids,
+        permanent: mode === "permanent",
+      });
+      setMessage(
+        mode === "permanent"
+          ? `Đã xóa vĩnh viễn ${deleteDialog.ids.length} tài liệu.`
+          : `Đã chuyển ${deleteDialog.ids.length} tài liệu vào lưu trữ.`,
+      );
+      setTimeout(() => setMessage(null), 3000);
+      setSelected((prev) => prev.filter((id) => !deleteDialog.ids.includes(id)));
+      setDeleteDialog(null);
+      setRevision((r) => r + 1);
+    } catch (err: any) {
+      setIssue(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleBatchZipDownload = async () => {
+    if (selected.length === 0 || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/documents/batch-download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selected }),
+      });
+      if (!res.ok) throw new Error("Không thể tải tập tin ZIP.");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Examsparty_Admin_Documents.zip";
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      setIssue(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const isAllPageSelected =
+    Boolean(data?.items?.length) && data!.items.every((d) => selected.includes(d.id));
+
+  return (
+    <>
+      <div className="admin-section-header">
+        <div>
+          <h2>Quản lý tài liệu học tập</h2>
+          <p className="meta-text">Tải lên, biên soạn và quản lý các tài liệu ôn thi trực tuyến</p>
+        </div>
+        <button
+          type="button"
+          className="button small"
+          onClick={() => startEdit("new")}
+          disabled={busy}
+        >
+          <Plus size={16} />
+          <span>Tải tài liệu mới</span>
+        </button>
+      </div>
+
+      <div className="admin-filters-grid" style={{ marginBottom: 16 }}>
+        <form
+          className="search-row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setSearch(query);
+            setPage(1);
+          }}
+        >
+          <input
+            placeholder="Tìm theo tiêu đề, tên file..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button className="button secondary small" type="submit">
+            Tìm
+          </button>
+        </form>
+
+        <label className="field">
+          Lọc môn
+          <select
+            value={subject}
+            onChange={(e) => {
+              setSubject(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">Tất cả môn</option>
+            {[
+              "Toán học",
+              "Ngữ văn",
+              "Tiếng Anh",
+              "Vật lý",
+              "Hóa học",
+              "Sinh học",
+              "Tin học",
+              "Lịch sử",
+              "Địa lý",
+              "GDCD",
+            ].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field">
+          Khối lớp
+          <select
+            value={grade}
+            onChange={(e) => {
+              setGrade(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">Tất cả khối</option>
+            <option value="12">Lớp 12</option>
+            <option value="11">Lớp 11</option>
+            <option value="10">Lớp 10</option>
+            <option value="dgnl">ĐGNL</option>
+            <option value="thpt_quoc_gia">THPT QG</option>
+          </select>
+        </label>
+
+        <label className="field">
+          Dạng tài liệu
+          <select
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">Mọi thể loại</option>
+            {Object.entries(documentCategories).map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field">
+          Trạng thái
+          <select
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="all">Mọi trạng thái</option>
+            <option value="published">Đã xuất bản</option>
+            <option value="draft">Bản nháp</option>
+            <option value="archived">Lưu trữ</option>
+          </select>
+        </label>
+      </div>
+
+      <ErrorMessage error={error || issue} />
+      {message && <Notice>{message}</Notice>}
+
+      {/* Editing Dialog Modal */}
+      {editing && (
+        <div
+          className="modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !busy) setEditing(null);
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="modal-dialog" style={{ maxWidth: 620 }}>
+            <div className="modal-dialog-header">
+              <h3>{editing === "new" ? "Tải lên tài liệu học tập mới" : "Chỉnh sửa thông tin tài liệu"}</h3>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setEditing(null)}
+                disabled={busy}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="modal-dialog-body">
+              <label className="field">
+                Tiêu đề tài liệu *
+                <input
+                  type="text"
+                  required
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  placeholder="VD: Sổ tay tóm tắt công thức Vật lý 12..."
+                />
+              </label>
+
+              <label className="field">
+                Mô tả ngắn gọn
+                <textarea
+                  rows={2}
+                  value={formDesc}
+                  onChange={(e) => setFormDesc(e.target.value)}
+                  placeholder="Nội dung chính hoặc ghi chú dành cho học sinh..."
+                />
+              </label>
+
+              <div className="grid col-2">
+                <label className="field">
+                  Môn học *
+                  <select
+                    value={formSubject}
+                    onChange={(e) => setFormSubject(e.target.value)}
+                  >
+                    {[
+                      "Toán học",
+                      "Ngữ văn",
+                      "Tiếng Anh",
+                      "Vật lý",
+                      "Hóa học",
+                      "Sinh học",
+                      "Tin học",
+                      "Lịch sử",
+                      "Địa lý",
+                      "GDCD",
+                    ].map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="field">
+                  Khối lớp *
+                  <select
+                    value={formGrade}
+                    onChange={(e) => setFormGrade(e.target.value)}
+                  >
+                    <option value="12">Lớp 12</option>
+                    <option value="11">Lớp 11</option>
+                    <option value="10">Lớp 10</option>
+                    <option value="dgnl">ĐGNL</option>
+                    <option value="thpt_quoc_gia">Tốt nghiệp THPT</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="grid col-2">
+                <label className="field">
+                  Thể loại tài liệu
+                  <select
+                    value={formCategory}
+                    onChange={(e) => setFormCategory(e.target.value)}
+                  >
+                    {Object.entries(documentCategories).map(([k, label]) => (
+                      <option key={k} value={k}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="field">
+                  Trạng thái
+                  <select
+                    value={formStatus}
+                    onChange={(e) => setFormStatus(e.target.value as any)}
+                  >
+                    <option value="published">Xuất bản công khai</option>
+                    <option value="draft">Bản nháp (ẩn)</option>
+                    <option value="archived">Lưu trữ</option>
+                  </select>
+                </label>
+              </div>
+
+              <label className="field">
+                Nguồn / Tác giả
+                <input
+                  type="text"
+                  value={formAuthor}
+                  onChange={(e) => setFormAuthor(e.target.value)}
+                  placeholder="Examsparty / Ban Chuyên Môn..."
+                />
+              </label>
+
+              <label className="field">
+                {editing === "new" ? "Chọn tập tin (PDF, DOCX, tối đa 35MB) *" : "Thay thế tập tin (để trống nếu giữ nguyên)"}
+                <input
+                  type="file"
+                  accept=".pdf,.docx,.doc,.pptx"
+                  required={editing === "new"}
+                  onChange={(e) => setFormFile(e.target.files?.[0] || null)}
+                />
+              </label>
+
+              <div className="modal-dialog-footer">
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => setEditing(null)}
+                  disabled={busy}
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="button" disabled={busy}>
+                  <Save size={16} />
+                  <span>{busy ? "Đang xử lý…" : editing === "new" ? "Tải lên ngay" : "Lưu thay đổi"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Main List */}
+      {loading ? (
+        <Loading />
+      ) : data?.items?.length ? (
+        <fieldset disabled={busy} aria-label="Danh sách tài liệu học tập">
+          {/* Batch Bar */}
+          <div className="admin-batch-bar">
+            <div className="admin-batch-left">
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={isAllPageSelected}
+                  onChange={(e) => {
+                    const pageIds = (data?.items || []).map((d) => d.id);
+                    if (e.target.checked) {
+                      setSelected((prev) => Array.from(new Set([...prev, ...pageIds])));
+                    } else {
+                      setSelected((prev) => prev.filter((id) => !pageIds.includes(id)));
+                    }
+                  }}
+                />
+                <span>Chọn tất cả trong trang ({data.items.length})</span>
+              </label>
+
+              {selected.length > 0 && (
+                <div className="admin-selection-badge">
+                  <span>
+                    Đã chọn <strong>{selected.length}</strong> / {data.total} tài liệu
+                  </span>
+                  <button
+                    type="button"
+                    className="admin-clear-link"
+                    onClick={() => setSelected([])}
+                  >
+                    Bỏ chọn
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="admin-batch-right">
+              {selected.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    className="button secondary small"
+                    onClick={handleBatchZipDownload}
+                    title="Tải về file ZIP chứa các tài liệu đã chọn"
+                  >
+                    <Download size={14} />
+                    <span>Tải về ZIP ({selected.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-delete-btn"
+                    onClick={() => setDeleteDialog({ ids: selected })}
+                  >
+                    <Trash2 size={14} />
+                    <span>Xóa ({selected.length})</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="admin-table-container">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 40 }} />
+                  <th>Tiêu đề tài liệu</th>
+                  <th>Môn học</th>
+                  <th>Khối</th>
+                  <th>Dạng</th>
+                  <th>Dung lượng</th>
+                  <th>Lượt xem / tải</th>
+                  <th>Trạng thái</th>
+                  <th style={{ textAlign: "right" }}>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((doc) => {
+                  const isChecked = selected.includes(doc.id);
+                  return (
+                    <tr key={doc.id} className={isChecked ? "selected-row" : ""}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            setSelected((prev) =>
+                              e.target.checked
+                                ? [...prev, doc.id]
+                                : prev.filter((id) => id !== doc.id),
+                            );
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{doc.title}</div>
+                        <small className="muted" style={{ display: "block" }}>
+                          {doc.file_name}
+                        </small>
+                      </td>
+                      <td>
+                        <span className={`subject-pill subject-${getSubjectTone(doc.subject)}`}>
+                          <span className="subject-dot" />
+                          {doc.subject}
+                        </span>
+                      </td>
+                      <td>Lớp {doc.grade === "dgnl" ? "ĐGNL" : doc.grade === "thpt_quoc_gia" ? "THPT" : doc.grade}</td>
+                      <td>{documentCategories[doc.category] || doc.category}</td>
+                      <td>{formatFileSize(doc.file_size)}</td>
+                      <td>
+                        <span title="Lượt xem">{doc.views_count} xem</span> •{" "}
+                        <span title="Lượt tải">{doc.downloads_count} tải</span>
+                      </td>
+                      <td>
+                        <span className={`badge ${doc.status}`}>
+                          {doc.status === "published"
+                            ? "Xuất bản"
+                            : doc.status === "draft"
+                              ? "Nháp"
+                              : "Lưu trữ"}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            className="icon-button"
+                            onClick={() => setPreviewDoc(doc)}
+                            title="Xem trước tài liệu"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          <a
+                            href={`/api/documents/${doc.id}/download`}
+                            className="icon-button"
+                            title="Tải tập tin về máy"
+                          >
+                            <Download size={15} />
+                          </a>
+                          <button
+                            type="button"
+                            className="icon-button"
+                            onClick={() => startEdit(doc)}
+                            title="Chỉnh sửa thông tin"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-button"
+                            onClick={() => setDeleteDialog({ ids: [doc.id] })}
+                            title="Xóa tài liệu"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <Pagination
+            page={page}
+            hasNext={data.items.length === 12}
+            onChange={(next) => setPage(next)}
+          />
+        </fieldset>
+      ) : (
+        <Empty text="Chưa có tài liệu học tập nào phù hợp." />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteDialog && (
+        <div
+          className="modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !busy) setDeleteDialog(null);
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="modal-dialog delete-confirm-dialog">
+            <div className="modal-dialog-header">
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div className={`modal-icon-badge ${deleteMode === "permanent" ? "danger" : "archive"}`}>
+                  {deleteMode === "permanent" ? <Trash2 size={20} /> : <Archive size={20} />}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>
+                    {deleteDialog.ids.length === 1
+                      ? "Tùy chọn xóa tài liệu"
+                      : `Tùy chọn xóa ${deleteDialog.ids.length} tài liệu`}
+                  </h3>
+                  <p className="meta-text" style={{ margin: "3px 0 0" }}>
+                    Chọn phương thức xử lý tài liệu trong hệ thống
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => !busy && setDeleteDialog(null)}
+                disabled={busy}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-dialog-body">
+              <div className="delete-options-container">
+                <div
+                  className={`delete-option-card ${deleteMode === "archive" ? "selected archive" : ""}`}
+                  onClick={() => setDeleteMode("archive")}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="delete-option-header">
+                    <div className="delete-option-icon archive">
+                      <Archive size={18} />
+                    </div>
+                    <div className="delete-option-title-row">
+                      <div className="delete-option-title">Chuyển vào lưu trữ</div>
+                      <span className="delete-option-badge safe">An toàn</span>
+                    </div>
+                    <input
+                      type="radio"
+                      name="deleteDocMode"
+                      checked={deleteMode === "archive"}
+                      onChange={() => setDeleteMode("archive")}
+                      className="delete-option-radio"
+                    />
+                  </div>
+                  <p className="delete-option-desc">
+                    Đặt trạng thái tài liệu thành <strong>"Lưu trữ"</strong>. Tài liệu sẽ ẩn khỏi góc học tập công khai nhưng dữ liệu vẫn được bảo toàn.
+                  </p>
+                </div>
+
+                <div
+                  className={`delete-option-card ${deleteMode === "permanent" ? "selected danger" : ""}`}
+                  onClick={() => setDeleteMode("permanent")}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="delete-option-header">
+                    <div className="delete-option-icon danger">
+                      <Trash2 size={18} />
+                    </div>
+                    <div className="delete-option-title-row">
+                      <div className="delete-option-title">Xóa vĩnh viễn khỏi Database</div>
+                      <span className="delete-option-badge danger">Không thể hoàn tác</span>
+                    </div>
+                    <input
+                      type="radio"
+                      name="deleteDocMode"
+                      checked={deleteMode === "permanent"}
+                      onChange={() => setDeleteMode("permanent")}
+                      className="delete-option-radio"
+                    />
+                  </div>
+                  <p className="delete-option-desc">
+                    Xóa <strong>hoàn toàn tập tin và bản ghi khỏi cơ sở dữ liệu</strong>. Dung lượng lưu trữ sẽ được giải phóng ngay lập tức.
+                  </p>
+                </div>
+              </div>
+
+              <div className="modal-dialog-footer">
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => setDeleteDialog(null)}
+                  disabled={busy}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className={`button ${deleteMode === "permanent" ? "danger" : "secondary"}`}
+                  onClick={() => void executeDelete(deleteMode)}
+                  disabled={busy}
+                >
+                  {deleteMode === "permanent" ? <Trash2 size={15} /> : <Archive size={15} />}
+                  <span>{busy ? "Đang xử lý…" : deleteMode === "permanent" ? "Xác nhận xóa vĩnh viễn" : "Xác nhận chuyển vào lưu trữ"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Live Preview Modal */}
+      {previewDoc && (
+        <DocumentViewerModal
+          doc={previewDoc}
+          onClose={() => setPreviewDoc(null)}
+        />
+      )}
+    </>
+  );
+}
+
 function ManageUsers({ self }: { self: string }) {
   const [revision, setRevision] = useState(0),
     [query, setQuery] = useState(""),

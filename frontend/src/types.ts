@@ -568,3 +568,30 @@ export function normalizeExamPayload(data: any): ExamContent {
     questions: normalizedQuestions,
   };
 }
+
+export interface DocumentItem {
+  id: string;
+  title: string;
+  description: string;
+  subject: string;
+  grade: string;
+  category: "theory" | "outline" | "mindmap" | "exercise" | string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  thumbnail_url?: string;
+  views_count: number;
+  downloads_count: number;
+  status: "published" | "draft" | "archived";
+  author_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const documentCategories: Record<string, string> = {
+  theory: "Lý thuyết trọng tâm",
+  outline: "Đề cương ôn tập",
+  mindmap: "Sơ đồ tư duy",
+  exercise: "Chuyên đề bài tập",
+};
+

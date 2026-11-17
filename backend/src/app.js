@@ -18,6 +18,7 @@ import {
   validResponse,
 } from "./domain.js";
 import { transaction } from "./db.js";
+import { createZipArchive } from "./zip.js";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const secret = () => randomBytes(32).toString("hex");
@@ -967,6 +968,149 @@ export function createApp(db, config) {
       .send(a.data);
   });
 
+  // --- Public Documents API ---
+  app.get("/api/documents", async (req, res) => {
+    const { page, limit } = pagination(req);
+    const subject = req.query.subject ? String(req.query.subject).trim() : null;
+    const grade = req.query.grade ? String(req.query.grade).trim() : null;
+    const category = req.query.category ? String(req.query.category).trim() : null;
+    const q = req.query.q ? String(req.query.q).trim() : null;
+
+    const values = ["published"];
+    let where = "status=$1";
+
+    if (subject) {
+      values.push(subject);
+      where += ` AND subject=$${values.length}`;
+    }
+    if (grade) {
+      values.push(grade);
+      where += ` AND grade=$${values.length}`;
+    }
+    if (category) {
+      values.push(category);
+      where += ` AND category=$${values.length}`;
+    }
+    if (q) {
+      values.push(`%${q}%`);
+      where += ` AND (title ILIKE $${values.length} OR description ILIKE $${values.length} OR file_name ILIKE $${values.length})`;
+    }
+
+    const total = Number(
+      (await db.query(`SELECT count(*) AS count FROM documents WHERE ${where}`, values)).rows[0]?.count || 0
+    );
+
+    const offset = (page - 1) * limit;
+    values.push(limit, offset);
+    const rows = (
+      await db.query(
+        `SELECT id, title, description, subject, grade, category, file_name, mime_type, file_size, thumbnail_url, views_count, downloads_count, author_name, created_at, updated_at
+         FROM documents
+         WHERE ${where}
+         ORDER BY created_at DESC
+         LIMIT $${values.length - 1} OFFSET $${values.length}`,
+        values
+      )
+    ).rows;
+
+    res.json({ items: rows, total, page, limit });
+  });
+
+  app.get("/api/documents/subjects", async (req, res) => {
+    const rows = (
+      await db.query(
+        "SELECT subject, count(*) as count FROM documents WHERE status='published' GROUP BY subject ORDER BY count DESC"
+      )
+    ).rows;
+    res.json({
+      subjects: rows.map((r) => ({
+        subject: r.subject,
+        count: Number(r.count),
+      })),
+    });
+  });
+
+  app.get("/api/documents/:id", async (req, res) => {
+    uuid.parse(req.params.id);
+    const row = (
+      await db.query(
+        "SELECT id, title, description, subject, grade, category, file_name, mime_type, file_size, thumbnail_url, views_count, downloads_count, author_name, created_at, updated_at FROM documents WHERE id=$1 AND status='published'",
+        [req.params.id]
+      )
+    ).rows[0];
+    if (!row) throw httpError(404, "Không tìm thấy tài liệu.");
+
+    db.query("UPDATE documents SET views_count = views_count + 1 WHERE id=$1", [req.params.id]).catch(() => {});
+    res.json({ document: { ...row, views_count: Number(row.views_count) + 1 } });
+  });
+
+  app.get("/api/documents/:id/preview", async (req, res) => {
+    uuid.parse(req.params.id);
+    const row = (
+      await db.query(
+        "SELECT id, file_name, mime_type, data FROM documents WHERE id=$1 AND status <> 'deleted'",
+        [req.params.id]
+      )
+    ).rows[0];
+    if (!row) throw httpError(404, "Không tìm thấy tài liệu.");
+
+    db.query("UPDATE documents SET views_count = views_count + 1 WHERE id=$1", [req.params.id]).catch(() => {});
+
+    res.set({
+      "Content-Type": row.mime_type || "application/pdf",
+      "Content-Disposition": `inline; filename="${encodeURIComponent(row.file_name)}"`,
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "public, max-age=3600",
+    }).send(row.data);
+  });
+
+  app.get("/api/documents/:id/download", async (req, res) => {
+    uuid.parse(req.params.id);
+    const row = (
+      await db.query(
+        "SELECT id, file_name, mime_type, data FROM documents WHERE id=$1 AND status <> 'deleted'",
+        [req.params.id]
+      )
+    ).rows[0];
+    if (!row) throw httpError(404, "Không tìm thấy tài liệu.");
+
+    db.query("UPDATE documents SET downloads_count = downloads_count + 1 WHERE id=$1", [req.params.id]).catch(() => {});
+
+    res.set({
+      "Content-Type": row.mime_type || "application/octet-stream",
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(row.file_name)}"`,
+      "X-Content-Type-Options": "nosniff",
+    }).send(row.data);
+  });
+
+  app.post("/api/documents/batch-download", limiter(20), async (req, res) => {
+    const { ids } = z
+      .object({ ids: z.array(z.string().uuid()).min(1).max(50) })
+      .parse(req.body);
+
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
+    const rows = (
+      await db.query(
+        `SELECT id, file_name, data FROM documents WHERE id IN (${placeholders}) AND status <> 'deleted'`,
+        ids
+      )
+    ).rows;
+
+    if (!rows.length) throw httpError(404, "Không tìm thấy tài liệu nào để tải.");
+
+    const zipBuffer = createZipArchive(
+      rows.map((r) => ({ name: r.file_name, data: r.data }))
+    );
+
+    db.query(`UPDATE documents SET downloads_count = downloads_count + 1 WHERE id IN (${placeholders})`, ids).catch(() => {});
+
+    res.set({
+      "Content-Type": "application/zip",
+      "Content-Disposition": `attachment; filename="Examsparty_Tai_Lieu.zip"`,
+      "X-Content-Type-Options": "nosniff",
+    }).send(zipBuffer);
+  });
+
   app.use("/api/admin", admin);
   app.get("/api/admin/overview", async (req, res) => {
     const count = async (table, where = "") =>
@@ -978,9 +1122,203 @@ export function createApp(db, config) {
       pending: await count("submissions", "WHERE status='pending'"),
       exams: await count("exams", "WHERE status <> 'deleted'"),
       questions: await count("questions", "WHERE status <> 'deleted'"),
+      documents: await count("documents", "WHERE status <> 'deleted'"),
       attempts: await count("attempts"),
       reports: await count("reports", "WHERE status='open'"),
     });
+  });
+
+  // --- Admin Documents Management ---
+  const docUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 35 * 1024 * 1024, files: 1 },
+  });
+
+  app.get("/api/admin/documents", async (req, res) => {
+    const { page, limit } = pagination(req);
+    const subject = req.query.subject ? String(req.query.subject).trim() : null;
+    const grade = req.query.grade ? String(req.query.grade).trim() : null;
+    const category = req.query.category ? String(req.query.category).trim() : null;
+    const status = req.query.status ? String(req.query.status).trim() : null;
+    const q = req.query.q ? String(req.query.q).trim() : null;
+
+    const values = [];
+    const conditions = [];
+
+    if (status && status !== "all") {
+      values.push(status);
+      conditions.push(`status=$${values.length}`);
+    } else {
+      conditions.push(`status <> 'deleted'`);
+    }
+
+    if (subject) {
+      values.push(subject);
+      conditions.push(`subject=$${values.length}`);
+    }
+    if (grade) {
+      values.push(grade);
+      conditions.push(`grade=$${values.length}`);
+    }
+    if (category) {
+      values.push(category);
+      conditions.push(`category=$${values.length}`);
+    }
+    if (q) {
+      values.push(`%${q}%`);
+      conditions.push(`(title ILIKE $${values.length} OR file_name ILIKE $${values.length} OR description ILIKE $${values.length})`);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const total = Number(
+      (await db.query(`SELECT count(*) AS count FROM documents ${where}`, values)).rows[0]?.count || 0
+    );
+
+    const offset = (page - 1) * limit;
+    values.push(limit, offset);
+    const rows = (
+      await db.query(
+        `SELECT id, title, description, subject, grade, category, file_name, mime_type, file_size, views_count, downloads_count, status, author_name, created_at, updated_at
+         FROM documents
+         ${where}
+         ORDER BY created_at DESC
+         LIMIT $${values.length - 1} OFFSET $${values.length}`,
+        values
+      )
+    ).rows;
+
+    res.json({ items: rows, total, page, limit });
+  });
+
+  app.post("/api/admin/documents", docUpload.single("file"), async (req, res) => {
+    const file = req.file;
+    if (!file) throw httpError(400, "Vui lòng đính kèm tập tin tài liệu.");
+
+    const parsed = z
+      .object({
+        title: z.string().trim().min(2, "Tiêu đề quá ngắn").max(255),
+        description: z.string().trim().max(2000).default(""),
+        subject: z.string().trim().min(1, "Vui lòng chọn môn"),
+        grade: z.string().trim().min(1, "Vui lòng chọn khối lớp"),
+        category: z.string().trim().default("theory"),
+        author_name: z.string().trim().default("Examsparty"),
+        status: z.enum(["published", "draft", "archived"]).default("published"),
+      })
+      .parse(req.body);
+
+    const id = randomUUID();
+    const fileName = file.originalname || "document.pdf";
+    const mimeType = file.mimetype || "application/pdf";
+    const fileSize = file.size;
+    const fileData = file.buffer;
+
+    await db.query(
+      `INSERT INTO documents (id, title, description, subject, grade, category, file_name, mime_type, file_size, data, author_name, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [
+        id,
+        parsed.title,
+        parsed.description,
+        parsed.subject,
+        parsed.grade,
+        parsed.category,
+        fileName,
+        mimeType,
+        fileSize,
+        fileData,
+        parsed.author_name,
+        parsed.status,
+      ]
+    );
+
+    res.status(201).json({
+      id,
+      title: parsed.title,
+      file_name: fileName,
+      file_size: fileSize,
+      status: parsed.status,
+    });
+  });
+
+  app.put("/api/admin/documents/:id", docUpload.single("file"), async (req, res) => {
+    uuid.parse(req.params.id);
+    const parsed = z
+      .object({
+        title: z.string().trim().min(2).max(255),
+        description: z.string().trim().max(2000).default(""),
+        subject: z.string().trim().min(1),
+        grade: z.string().trim().min(1),
+        category: z.string().trim().default("theory"),
+        author_name: z.string().trim().default("Examsparty"),
+        status: z.enum(["published", "draft", "archived"]).default("published"),
+      })
+      .parse(req.body);
+
+    const file = req.file;
+    if (file) {
+      await db.query(
+        `UPDATE documents
+         SET title=$1, description=$2, subject=$3, grade=$4, category=$5, author_name=$6, status=$7, file_name=$8, mime_type=$9, file_size=$10, data=$11, updated_at=now()
+         WHERE id=$12`,
+        [
+          parsed.title,
+          parsed.description,
+          parsed.subject,
+          parsed.grade,
+          parsed.category,
+          parsed.author_name,
+          parsed.status,
+          file.originalname,
+          file.mimetype,
+          file.size,
+          file.buffer,
+          req.params.id,
+        ]
+      );
+    } else {
+      await db.query(
+        `UPDATE documents
+         SET title=$1, description=$2, subject=$3, grade=$4, category=$5, author_name=$6, status=$7, updated_at=now()
+         WHERE id=$8`,
+        [
+          parsed.title,
+          parsed.description,
+          parsed.subject,
+          parsed.grade,
+          parsed.category,
+          parsed.author_name,
+          parsed.status,
+          req.params.id,
+        ]
+      );
+    }
+
+    res.json({ ok: true, id: req.params.id });
+  });
+
+  app.delete("/api/admin/documents", async (req, res) => {
+    const { ids, permanent } = z
+      .object({
+        ids: z.array(z.string().uuid()).min(1),
+        permanent: z.boolean().optional().default(true),
+      })
+      .parse(req.body);
+
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
+    let result;
+    if (permanent) {
+      result = await db.query(
+        `DELETE FROM documents WHERE id IN (${placeholders})`,
+        ids
+      );
+    } else {
+      result = await db.query(
+        `UPDATE documents SET status='archived', updated_at=now() WHERE id IN (${placeholders})`,
+        ids
+      );
+    }
+
+    res.json({ deleted: result.rowCount });
   });
   app.get("/api/admin/review-queue", async (req, res) => {
     const { page, limit } = pagination(req);

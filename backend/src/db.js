@@ -78,6 +78,26 @@ export async function migrate(db) {
       id uuid PRIMARY KEY, exam_id uuid NOT NULL REFERENCES exams(id), message text NOT NULL,
       status text NOT NULL DEFAULT 'open', created_at timestamptz NOT NULL DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS documents (
+      id uuid PRIMARY KEY,
+      title text NOT NULL,
+      description text NOT NULL DEFAULT '',
+      subject text NOT NULL,
+      grade text NOT NULL,
+      category text NOT NULL DEFAULT 'theory',
+      file_name text NOT NULL,
+      mime_type text NOT NULL,
+      file_size integer NOT NULL,
+      data bytea NOT NULL,
+      thumbnail_url text,
+      views_count integer NOT NULL DEFAULT 0,
+      downloads_count integer NOT NULL DEFAULT 0,
+      status text NOT NULL DEFAULT 'published',
+      author_name text NOT NULL DEFAULT 'Examsparty',
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS documents_filter ON documents(status,subject,grade,category);
     CREATE TABLE IF NOT EXISTS settings (key text PRIMARY KEY, value jsonb NOT NULL);
   `);
   await db.query(

@@ -24,6 +24,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Smartphone,
+  BookMarked,
 } from "lucide-react";
 import { api } from "./api";
 import { User } from "./types";
@@ -32,6 +33,9 @@ import { Player, Results } from "./player";
 const Contribution = lazy(() =>
   import("./contribution").then((m) => ({ default: m.Contribution })),
 );
+const DocumentsPage = lazy(() =>
+  import("./documents").then((m) => ({ default: m.DocumentsPage })),
+);
 const Admin = lazy(() => import("./admin").then((m) => ({ default: m.Admin })));
 import "./style.css";
 
@@ -39,6 +43,7 @@ const nav = [
   { to: "/", label: "Tổng quan", icon: LayoutDashboard },
   { to: "/exams", label: "Khám phá kho đề", icon: LibraryBig },
   { to: "/questions", label: "Ngân hàng câu hỏi", icon: FileQuestion },
+  { to: "/documents", label: "Tài liệu học tập", icon: BookMarked },
   { to: "/recent", label: "Không gian học tập", icon: GraduationCap },
 ];
 function Layout() {
@@ -152,12 +157,14 @@ function Layout() {
     ? "Không gian quản trị"
     : location.pathname.startsWith("/attempts")
       ? "Không gian làm bài"
-      : location.pathname.startsWith("/contribute")
-        ? "Đóng góp cộng đồng"
-        : location.pathname.startsWith("/exams")
-          ? "Khám phá kho đề"
-          : nav.find((n) => n.to === location.pathname)?.label ||
-            "Không gian học tập";
+      : location.pathname.startsWith("/documents")
+        ? "Góc tài liệu học tập"
+        : location.pathname.startsWith("/contribute")
+          ? "Đóng góp cộng đồng"
+          : location.pathname.startsWith("/exams")
+            ? "Khám phá kho đề"
+            : nav.find((n) => n.to === location.pathname)?.label ||
+              "Không gian học tập";
   return (
     <>
       <div className="tech-grid-bg" aria-hidden="true" />
@@ -303,6 +310,7 @@ function Layout() {
               <Route path="/exams" element={<Library />} />
               <Route path="/exams/:id" element={<Detail />} />
               <Route path="/questions" element={<Questions />} />
+              <Route path="/documents" element={<DocumentsPage />} />
               <Route path="/recent" element={<RecentPage />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/attempts/:id" element={<Player />} />
