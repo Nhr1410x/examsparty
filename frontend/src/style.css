@@ -5972,3 +5972,258 @@ td {
     transform: scale(1);
   }
 }
+
+/* ========================================================
+   DETAIL PAGE: TOP MODE SELECTION (LUYỆN TẬP / THI THỬ)
+   ======================================================== */
+.detail-mode-panel-top {
+  margin-top: 24px;
+  margin-bottom: 28px;
+  padding: 22px 24px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.mode-panel-header {
+  margin-bottom: 16px;
+}
+.mode-panel-header h2 {
+  font-size: 19px;
+  margin-bottom: 4px;
+}
+.mode-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 680px) {
+  .mode-options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========================================================
+   PLAYER: FOCUSED EXAM & PRACTICE EXPERIENCE
+   ======================================================== */
+.player-mode-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.player-mode-tag.practice {
+  background: var(--green-light);
+  color: var(--green);
+  border: 1px solid var(--green-border);
+}
+.player-mode-tag.exam {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+[data-theme="dark"] .player-mode-tag.exam {
+  background: rgba(180, 83, 9, 0.2);
+  color: #fbbf24;
+  border-color: rgba(180, 83, 9, 0.4);
+}
+
+.player-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.player-heading-main {
+  flex: 1;
+  min-width: 240px;
+}
+.player-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.matrix-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 9px 15px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text-heading);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.matrix-toggle-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+.matrix-badge-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 7px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 9999px;
+  background: var(--green-light);
+  color: var(--green);
+}
+
+.matrix-inline-open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--green);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--green-light);
+  border: 1px solid var(--green-border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.matrix-inline-open-btn:hover {
+  background: var(--green);
+  color: #ffffff;
+}
+
+/* Focused Question Container */
+.player-focused-layout {
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+.focused-panel {
+  padding: 28px 32px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+@media (max-width: 768px) {
+  .focused-panel {
+    padding: 20px 16px;
+  }
+}
+
+/* ========================================================
+   SLIDE-IN QUESTION MATRIX DRAWER ("Scale lại ma trận câu hỏi")
+   ======================================================== */
+.matrix-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 9999;
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeIn 0.15s ease;
+}
+.matrix-drawer {
+  width: 100%;
+  max-width: 440px;
+  height: 100%;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  border-radius: 0;
+  padding: 0;
+  animation: slideDrawer 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+@keyframes slideDrawer {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@media (max-width: 540px) {
+  .matrix-drawer {
+    max-width: 100%;
+  }
+}
+.matrix-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.matrix-drawer-body {
+  padding: 22px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+.matrix-drawer-footer {
+  padding: 18px 24px;
+  border-top: 1px solid var(--line);
+  background: var(--subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Scaled Question Numbers Grid */
+.scaled-matrix-numbers {
+  display: grid !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: 9px !important;
+}
+.scaled-matrix-numbers button {
+  height: 44px !important;
+  min-height: 44px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  border-radius: 10px !important;
+  border: 1.5px solid var(--line) !important;
+  background: var(--surface) !important;
+  color: var(--text-body) !important;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.scaled-matrix-numbers button:hover {
+  border-color: var(--green) !important;
+  transform: translateY(-1px);
+}
+.scaled-matrix-numbers button.current {
+  border-color: var(--green) !important;
+  box-shadow: 0 0 0 2px var(--green) !important;
+  font-weight: 800 !important;
+}
+.scaled-matrix-numbers button.answered {
+  background: var(--green-light) !important;
+  color: var(--green) !important;
+  border-color: var(--green) !important;
+}
+.scaled-matrix-numbers button.flagged {
+  border-color: #f59e0b !important;
+}
+.scaled-matrix-numbers button.flagged svg {
+  color: #d97706 !important;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}

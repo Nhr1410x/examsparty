@@ -16,6 +16,7 @@ import {
   Eye,
   LayoutDashboard,
   ListFilter,
+  LayoutGrid,
 } from "lucide-react";
 import { api, ApiError, useLoad } from "./api";
 import {
@@ -78,7 +79,8 @@ function PlayerSession({ initial }: { initial: Attempt }) {
     [issue, setIssue] = useState<unknown>(null),
     [confirm, setConfirm] = useState(false),
     [submitting, setSubmitting] = useState(false),
-    [now, setNow] = useState(Date.now());
+    [now, setNow] = useState(Date.now()),
+    [matrixOpen, setMatrixOpen] = useState(false);
   const pending = useRef<Record<string, Response>>(
       readLocal(`ep-drafts-${id}`, {}),
     ),
@@ -248,45 +250,68 @@ function PlayerSession({ initial }: { initial: Attempt }) {
   return (
     <>
       <div className="player-heading">
-        <div>
-          <span className="eyebrow muted">
-            {attempt.mode === "exam" ? "THI THỬ" : "LUYỆN TẬP"}
-          </span>
-          <h1>{attempt.snapshot.title}</h1>
-          <div className="row wrap">
+        <div className="player-heading-main">
+          <div className="row wrap" style={{ alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <span className={`player-mode-tag ${attempt.mode === "exam" ? "exam" : "practice"}`}>
+              {attempt.mode === "exam" ? <Clock3 size={13} /> : <BookOpen size={13} />}
+              {attempt.mode === "exam" ? "THI THỬ" : "LUYỆN TẬP"}
+            </span>
             <span className="save-state" role="status">
-              <Save size={14} />
+              <Save size={13} />
               {status}
             </span>
-            <span className="muted small">
-              {answeredCount}/{attempt.snapshot.questions.length} câu đã trả lời
-            </span>
           </div>
+          <h1>{attempt.snapshot.title}</h1>
         </div>
-        {remaining !== null ? (
-          <div
-            className={`timer ${remaining < 60 ? "urgent" : ""}`}
-            role="timer"
-            aria-label="Thời gian còn lại"
-          >
-            <Clock3 size={22} />
-            <div>
-              <small>THỜI GIAN CÒN LẠI</small>
-              <strong>
-                {String(Math.floor(remaining / 60)).padStart(2, "0")}:
-                {String(remaining % 60).padStart(2, "0")}
-              </strong>
+        <div className="player-header-actions">
+          {remaining !== null && (
+            <div
+              className={`timer ${remaining < 60 ? "urgent" : ""}`}
+              role="timer"
+              aria-label="Thời gian còn lại"
+            >
+              <Clock3 size={20} />
+              <div>
+                <small>THỜI GIAN</small>
+                <strong>
+                  {String(Math.floor(remaining / 60)).padStart(2, "0")}:
+                  {String(remaining % 60).padStart(2, "0")}
+                </strong>
+              </div>
             </div>
-          </div>
-        ) : (
-          <Link
-            className="button secondary small"
-            to="/recent"
-            onClick={() => void flush()}
+          )}
+          <button
+            type="button"
+            className="matrix-toggle-btn button secondary button-step-press"
+            onClick={() => setMatrixOpen(true)}
+            aria-label="Mở ma trận câu hỏi"
+            title="Xem danh sách toàn bộ câu hỏi trong đề"
           >
-            Lưu & tạm nghỉ
-          </Link>
-        )}
+            <LayoutGrid size={16} />
+            <span>Ma trận câu hỏi</span>
+            <span className="matrix-badge-count">
+              {answeredCount}/{attempt.snapshot.questions.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            className="button primary button-step-press header-submit-btn"
+            disabled={submitting}
+            onClick={() => setConfirm(true)}
+          >
+            <Send size={15} />
+            <span>Nộp bài</span>
+          </button>
+          {attempt.mode === "practice" && (
+            <Link
+              className="button secondary small"
+              to="/recent"
+              onClick={() => void flush()}
+            >
+              Tạm nghỉ
+            </Link>
+          )}
+        </div>
       </div>
       <div className="progress">
         <span
@@ -295,171 +320,230 @@ function PlayerSession({ initial }: { initial: Attempt }) {
           }}
         />
       </div>
-      <div className="player-grid">
-        <div>
-          <article className="question-panel panel">
-            <div className="row between wrap" style={{ alignItems: "center", marginBottom: 14 }}>
-              <div className="row" style={{ alignItems: "center", gap: 10 }}>
-                <span className="question-number-pill">
-                  CÂU {index + 1}
-                </span>
-                <span className="question-total-count">
-                  / {attempt.snapshot.questions.length} câu
-                </span>
-              </div>
-              <div className="row" style={{ alignItems: "center", gap: 8 }}>
-                <span className="badge">{typeLabels[q.type]}</span>
-                <span className="small muted">{q.points} điểm</span>
-                <button
-                  className={`icon-button ${flags.includes(q.client_id) ? "flagged" : ""}`}
-                  aria-label={
-                    flags.includes(q.client_id)
-                      ? "Bỏ đánh dấu"
-                      : "Đánh dấu cần ôn"
-                  }
-                  aria-pressed={flags.includes(q.client_id)}
-                  onClick={flag}
-                >
-                  <Flag size={18} />
-                </button>
-              </div>
+
+      <div className="player-focused-layout">
+        <article className="question-panel panel focused-panel">
+          <div className="row between wrap" style={{ alignItems: "center", marginBottom: 16 }}>
+            <div className="row" style={{ alignItems: "center", gap: 10 }}>
+              <span className="question-number-pill">
+                CÂU {index + 1}
+              </span>
+              <span className="question-total-count">
+                / {attempt.snapshot.questions.length} câu
+              </span>
             </div>
-            <div className="question-content">
-              <Blocks blocks={q.prompt} />
-            </div>
-            <AnswerInput
-              question={q}
-              value={responses[q.client_id]}
-              onChange={change}
-              disabled={
-                Boolean(attempt.feedback[q.client_id]) ||
-                submitting ||
-                remaining === 0
-              }
-              feedback={attempt.feedback[q.client_id]}
-            />
-            {attempt.feedback[q.client_id] && (
-              <Feedback q={attempt.feedback[q.client_id]} />
-            )}
-            <div className="question-actions">
+            <div className="row" style={{ alignItems: "center", gap: 8 }}>
               <button
-                className="button secondary"
-                disabled={index === 0 || submitting}
-                onClick={() => void go(index - 1)}
+                type="button"
+                className="matrix-inline-open-btn text-button"
+                onClick={() => setMatrixOpen(true)}
+                title="Bấm để mở danh sách ma trận các câu hỏi"
               >
-                <ArrowLeft size={16} />
-                Câu trước
+                <LayoutGrid size={15} />
+                <span>Ma trận ({answeredCount}/{attempt.snapshot.questions.length})</span>
               </button>
-              {attempt.mode === "practice" &&
-                !attempt.feedback[q.client_id] && (
-                  <button
-                    className="button"
-                    disabled={!answered(responses[q.client_id]) || submitting}
-                    onClick={() => void check()}
-                  >
-                    <Check size={16} />
-                    Kiểm tra
-                  </button>
-                )}
+              <span className="badge">{typeLabels[q.type]}</span>
+              <span className="small muted">{q.points} điểm</span>
               <button
-                className="button secondary"
-                disabled={
-                  index === attempt.snapshot.questions.length - 1 || submitting
+                className={`icon-button ${flags.includes(q.client_id) ? "flagged" : ""}`}
+                aria-label={
+                  flags.includes(q.client_id)
+                    ? "Bỏ đánh dấu"
+                    : "Đánh dấu cần ôn"
                 }
-                onClick={() => void go(index + 1)}
+                aria-pressed={flags.includes(q.client_id)}
+                onClick={flag}
               >
-                Câu tiếp <ArrowRight size={16} />
+                <Flag size={18} />
               </button>
             </div>
-          </article>
-          <ErrorMessage error={issue} />
-          {Boolean(issue) && (
+          </div>
+          <div className="question-content">
+            <Blocks blocks={q.prompt} />
+          </div>
+          <AnswerInput
+            question={q}
+            value={responses[q.client_id]}
+            onChange={change}
+            disabled={
+              Boolean(attempt.feedback[q.client_id]) ||
+              submitting ||
+              remaining === 0
+            }
+            feedback={attempt.feedback[q.client_id]}
+          />
+          {attempt.feedback[q.client_id] && (
+            <Feedback q={attempt.feedback[q.client_id]} />
+          )}
+          <div className="question-actions">
             <button
-              className="button secondary small"
-              onClick={() => void flush()}
+              className="button secondary"
+              disabled={index === 0 || submitting}
+              onClick={() => void go(index - 1)}
             >
-              <RotateCcw size={16} />
-              Thử lưu lại
+              <ArrowLeft size={16} />
+              Câu trước
             </button>
-          )}
-          {remaining !== null && (
-            <p className="small muted">
-              Nếu mất kết nối khi hết giờ, hệ thống chấm các câu đã đồng bộ gần
-              nhất. Đồng hồ thi tiếp tục chạy khi bạn rời trang.
-            </p>
-          )}
-        </div>
-        <aside className="panel question-nav">
-          <h3>Hành trình bài làm</h3>
-          <p className="small muted">Chọn số để chuyển nhanh đến câu hỏi.</p>
-          <div className="question-numbers">
-            {attempt.snapshot.questions.map((item, i) => (
-              <button
-                key={item.client_id}
-                className={`${answered(responses[item.client_id]) ? "answered" : ""} ${index === i ? "current" : ""} ${flags.includes(item.client_id) ? "flagged" : ""}`}
-                aria-label={`Câu ${i + 1}${answered(responses[item.client_id]) ? ", đã trả lời" : ""}${flags.includes(item.client_id) ? ", đã đánh dấu" : ""}`}
-                aria-current={i === index ? "step" : undefined}
-                onClick={() => void go(i)}
-              >
-                {i + 1}
-                {flags.includes(item.client_id) && <Flag size={8} />}
-              </button>
-            ))}
+            {attempt.mode === "practice" &&
+              !attempt.feedback[q.client_id] && (
+                <button
+                  className="button"
+                  disabled={!answered(responses[q.client_id]) || submitting}
+                  onClick={() => void check()}
+                >
+                  <Check size={16} />
+                  Kiểm tra
+                </button>
+              )}
+            <button
+              className="button secondary"
+              disabled={
+                index === attempt.snapshot.questions.length - 1 || submitting
+              }
+              onClick={() => void go(index + 1)}
+            >
+              Câu tiếp <ArrowRight size={16} />
+            </button>
           </div>
-          <div className="legend">
-            <span>
-              <i className="answered" />
-              Đã trả lời
-            </span>
-            <span>
-              <i />
-              Chưa trả lời
-            </span>
-            <span>
-              <Flag size={12} />
-              Cần ôn lại
-            </span>
-          </div>
+        </article>
+
+        <ErrorMessage error={issue} />
+        {Boolean(issue) && (
           <button
-            className="button full"
-            disabled={submitting}
-            onClick={() => setConfirm(true)}
+            className="button secondary small"
+            onClick={() => void flush()}
+            style={{ marginTop: 12 }}
           >
-            <Send size={16} />
-            {submitting ? "Đang nộp…" : "Nộp bài"}
+            <RotateCcw size={16} />
+            Thử lưu lại
           </button>
-          {confirm && (
-            <div className="confirm-box" role="alert">
-              <strong>Bạn muốn kết thúc bài?</strong>
-              <p>
-                Còn {attempt.snapshot.questions.length - answeredCount} câu chưa
-                trả lời. Sau khi nộp, bạn có thể xem đáp án và lời giải.
-              </p>
+        )}
+        {remaining !== null && (
+          <p className="small muted" style={{ marginTop: 14, textAlign: "center" }}>
+            Nếu mất kết nối khi hết giờ, hệ thống chấm các câu đã đồng bộ gần
+            nhất. Đồng hồ thi tiếp tục chạy khi bạn rời trang.
+          </p>
+        )}
+      </div>
+
+      {/* MA TRẬN CÂU HỎI DRAWER / MODAL SHEET */}
+      {matrixOpen && (
+        <div
+          className="matrix-drawer-backdrop"
+          onClick={() => setMatrixOpen(false)}
+        >
+          <aside
+            className="matrix-drawer panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Ma trận câu hỏi"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="matrix-drawer-header">
+              <div>
+                <h3 style={{ margin: 0 }}>Ma trận câu hỏi</h3>
+                <span className="muted small">
+                  Đã trả lời {answeredCount}/{attempt.snapshot.questions.length} câu
+                </span>
+              </div>
               <button
-                className="button full small"
+                type="button"
+                className="icon-button close-matrix-btn"
+                aria-label="Đóng ma trận"
+                onClick={() => setMatrixOpen(false)}
+              >
+                <X size={19} />
+              </button>
+            </div>
+            <div className="matrix-drawer-body">
+              <div className="question-numbers scaled-matrix-numbers">
+                {attempt.snapshot.questions.map((item, i) => (
+                  <button
+                    key={item.client_id}
+                    className={`${answered(responses[item.client_id]) ? "answered" : ""} ${index === i ? "current" : ""} ${flags.includes(item.client_id) ? "flagged" : ""}`}
+                    aria-label={`Câu ${i + 1}${answered(responses[item.client_id]) ? ", đã trả lời" : ""}${flags.includes(item.client_id) ? ", đã đánh dấu" : ""}`}
+                    aria-current={i === index ? "step" : undefined}
+                    onClick={() => {
+                      void go(i);
+                      setMatrixOpen(false);
+                    }}
+                  >
+                    {i + 1}
+                    {flags.includes(item.client_id) && <Flag size={8} />}
+                  </button>
+                ))}
+              </div>
+              <div className="legend" style={{ marginTop: 18 }}>
+                <span>
+                  <i className="answered" />
+                  Đã trả lời
+                </span>
+                <span>
+                  <i />
+                  Chưa trả lời
+                </span>
+                <span>
+                  <Flag size={12} />
+                  Cần ôn lại
+                </span>
+              </div>
+            </div>
+            <div className="matrix-drawer-footer">
+              <button
+                className="button full primary"
+                disabled={submitting}
+                onClick={() => {
+                  setConfirm(true);
+                  setMatrixOpen(false);
+                }}
+              >
+                <Send size={16} />
+                {submitting ? "Đang nộp…" : "Nộp bài"}
+              </button>
+              <button
+                className="button secondary full"
+                onClick={() => setMatrixOpen(false)}
+              >
+                Quay lại làm tiếp
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* HỘP THOẠI XÁC NHẬN NỘP BÀI */}
+      {confirm && (
+        <div className="modal-backdrop" onClick={() => setConfirm(false)}>
+          <div
+            className="modal-dialog confirm-box panel"
+            role="alertdialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 440, padding: 24, borderRadius: 16 }}
+          >
+            <h3 style={{ margin: "0 0 8px" }}>Bạn muốn kết thúc bài?</h3>
+            <p className="muted small" style={{ margin: "0 0 16px", lineHeight: 1.5 }}>
+              Còn {attempt.snapshot.questions.length - answeredCount} câu chưa
+              trả lời. Sau khi nộp, bạn có thể xem điểm, đáp án và lời giải chi tiết.
+            </p>
+            <div className="row wrap" style={{ gap: 10 }}>
+              <button
+                className="button small primary"
                 disabled={submitting}
                 onClick={() => void submit()}
               >
                 Xác nhận nộp bài
               </button>
               <button
-                className="text-button full"
+                className="button secondary small"
                 onClick={() => setConfirm(false)}
               >
                 Tiếp tục làm bài
               </button>
             </div>
-          )}
-          <div className="nav-tip">
-            <BookOpen size={20} />
-            <p>
-              {attempt.mode === "practice"
-                ? "Không cần vội. Mỗi lời giải là một cơ hội hiểu sâu hơn."
-                : "Bình tĩnh đọc kỹ đề. Bạn có thể quay lại các câu đã đánh dấu."}
-            </p>
           </div>
-        </aside>
-      </div>
+        </div>
+      )}
     </>
   );
 }
