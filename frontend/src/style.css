@@ -854,23 +854,46 @@ pre {
 /* ==========================================================================
    ADMIN PORTAL STANDALONE LAYOUT
    ========================================================================== */
+html.admin-body-locked,
+body.admin-body-locked,
+html:has(.admin-portal-layout),
+body:has(.admin-portal-layout) {
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 .app-content.admin-mode {
   margin-left: 0 !important;
-  width: 100%;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 10;
 }
 .app-content.admin-mode main {
-  max-width: 100%;
-  padding: 0;
-  margin: 0;
-  width: 100%;
+  max-width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+  flex: 1;
 }
 .admin-portal-layout {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
   height: 100vh;
   max-height: 100vh;
+  width: 100%;
   overflow: hidden;
   background: var(--bg);
+  min-height: 0;
 }
 .admin-sidebar {
   background: var(--surface);
@@ -880,6 +903,7 @@ pre {
   flex-direction: column;
   gap: 8px;
   height: 100vh;
+  max-height: 100vh;
   overflow-y: auto;
   flex-shrink: 0;
 }
@@ -997,16 +1021,18 @@ pre {
   height: 100vh;
   max-height: 100vh;
   overflow: hidden;
-  max-width: 1560px;
+  max-width: 100%;
   width: 100%;
   padding: 0;
+  min-width: 0;
+  min-height: 0;
 }
 .admin-content-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 22px 40px 18px;
+  padding: 20px 40px 18px;
   border-bottom: 1px solid var(--line);
   background: var(--bg);
   flex-shrink: 0;
@@ -1027,10 +1053,12 @@ pre {
   overflow-y: auto;
   padding: 24px 40px 48px;
   scroll-behavior: smooth;
+  min-height: 0;
 }
 @media (max-width: 900px) {
   .admin-portal-layout {
     grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
     height: 100vh;
     max-height: 100vh;
     overflow: hidden;
@@ -1055,6 +1083,9 @@ pre {
   }
   .admin-tab-body {
     padding: 18px 20px 36px;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
   }
 }
 .topbar {

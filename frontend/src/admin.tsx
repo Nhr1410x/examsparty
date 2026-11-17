@@ -174,6 +174,15 @@ function AdminWorkspace({
 
   const activeTabTitle = tabs.find(([v]) => v === tab)?.[1] || "Tổng quan";
 
+  useEffect(() => {
+    document.body.classList.add("admin-body-locked");
+    document.documentElement.classList.add("admin-body-locked");
+    return () => {
+      document.body.classList.remove("admin-body-locked");
+      document.documentElement.classList.remove("admin-body-locked");
+    };
+  }, []);
+
   function toggleTheme() {
     const next = theme === "light" ? "dark" : "light";
     setTheme(next);

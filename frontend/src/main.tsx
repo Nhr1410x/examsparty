@@ -94,6 +94,19 @@ function Layout() {
     }
   }, [location.pathname]);
   useEffect(() => {
+    if (isAdmin) {
+      document.body.classList.add("admin-body-locked");
+      document.documentElement.classList.add("admin-body-locked");
+    } else {
+      document.body.classList.remove("admin-body-locked");
+      document.documentElement.classList.remove("admin-body-locked");
+    }
+    return () => {
+      document.body.classList.remove("admin-body-locked");
+      document.documentElement.classList.remove("admin-body-locked");
+    };
+  }, [isAdmin]);
+  useEffect(() => {
     api<{ user: User | null; demo: boolean }>("/session")
       .then((r) => {
         setUser(r.user);
@@ -310,13 +323,15 @@ function Layout() {
             </Routes>
           </Suspense>
         </main>
-        <footer>
-          <span>© {new Date().getFullYear()} Examsparty</span>
-          <Link to="/privacy">Thông tin riêng tư</Link>
-          <Link to="/contribute">
-            Cùng đóng góp <HeartHandshake size={14} />
-          </Link>
-        </footer>
+        {!isAdmin && (
+          <footer>
+            <span>© {new Date().getFullYear()} Examsparty</span>
+            <Link to="/privacy">Thông tin riêng tư</Link>
+            <Link to="/contribute">
+              Cùng đóng góp <HeartHandshake size={14} />
+            </Link>
+          </footer>
+        )}
       </div>
       {!isAdmin && !isAttempt && (
         <nav className="mobile-bottom-nav" aria-label="Điều hướng nhanh điện thoại">
