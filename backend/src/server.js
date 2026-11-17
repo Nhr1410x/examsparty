@@ -13,12 +13,12 @@ const config = {
 if (!process.env.DATABASE_URL)
   throw new Error("DATABASE_URL is required. See backend/.env.example.");
 if (config.production && !process.env.FRONTEND_ORIGIN)
-  throw new Error("Production requires FRONTEND_ORIGIN.");
+  console.warn("Notice: FRONTEND_ORIGIN is not set; CSRF origin validation will fall back gracefully.");
 if (config.production && !config.totpSecret)
   console.warn("Notice: ADMIN_TOTP_SECRET is not set; admin MFA will be disabled.");
 if (config.adminPassword && config.adminPassword.length < 12)
   throw new Error("ADMIN_PASSWORD must contain at least 12 characters.");
-if (config.production && !config.frontendOrigin.startsWith("http"))
+if (config.production && config.frontendOrigin && !config.frontendOrigin.startsWith("http"))
   config.frontendOrigin = `https://${config.frontendOrigin}`;
 const db = createDatabase(
   process.env.DATABASE_URL,

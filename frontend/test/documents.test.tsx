@@ -98,23 +98,42 @@ test("documents page: list, selection, batch bar, and preview modal", async () =
       );
     });
 
+    // Wait for subjects to load
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    // When no subject is selected, the Subject Selection Hub is displayed
+    const subjectCards = rootEl.querySelectorAll(".subject-hub-card");
+    assert.ok(subjectCards.length > 0, "Subject hub cards should be rendered initially");
+
+    // Click on "Toán học" card to enter the horizontal documents view
+    const mathCard = Array.from(subjectCards).find((el) =>
+      el.textContent?.includes("Toán học"),
+    ) as HTMLElement;
+    assert.ok(mathCard, "Math subject card should exist");
+
+    await act(async () => {
+      mathCard.click();
+    });
+
     // Wait for documents to load
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
 
-    // Verify document cards are rendered
-    const cards = rootEl.querySelectorAll(".document-card");
-    assert.equal(cards.length, 2);
+    // Verify horizontal document rows are rendered
+    const rows = rootEl.querySelectorAll(".doc-horizontal-row");
+    assert.equal(rows.length, 2, "Should render 2 document rows");
 
-    const firstCardTitle = rootEl.querySelector(".doc-card-title");
-    assert.equal(firstCardTitle?.textContent, "Sổ tay công thức Toán 12");
+    const firstRowTitle = rootEl.querySelector(".doc-row-title");
+    assert.equal(firstRowTitle?.textContent, "Sổ tay công thức Toán 12");
 
     // Initially batch bar should not be visible
     assert.equal(rootEl.querySelector(".doc-batch-bar"), null);
 
     // Click checkbox on first card to select
-    const firstCheckbox = rootEl.querySelector(".doc-card-checkbox") as HTMLButtonElement;
+    const firstCheckbox = rootEl.querySelector(".doc-row-checkbox") as HTMLButtonElement;
     assert(firstCheckbox);
     await act(async () => {
       firstCheckbox.click();
@@ -125,28 +144,28 @@ test("documents page: list, selection, batch bar, and preview modal", async () =
     assert(batchBar, "Batch bar should appear when items are selected");
     assert(batchBar.textContent?.includes("Đã chọn 1 tài liệu"));
 
-    // Click "Xem thử" button on first card
+    // Click "Xem trực tiếp" button on first card
     const previewBtn = rootEl.querySelector(".doc-action-btn") as HTMLButtonElement;
     assert(previewBtn);
     await act(async () => {
       previewBtn.click();
     });
 
-    // Preview modal should be open
-    const modal = rootEl.querySelector(".doc-viewer-backdrop");
-    assert(modal, "Preview modal should open");
-    const iframe = rootEl.querySelector(".doc-viewer-iframe") as HTMLIFrameElement;
+    // Fullscreen Preview modal should be open
+    const modal = rootEl.querySelector(".doc-fullscreen-overlay");
+    assert(modal, "Fullscreen preview modal should open");
+    const iframe = rootEl.querySelector(".doc-fullscreen-iframe") as HTMLIFrameElement;
     assert(iframe);
     assert(iframe.src.includes("/api/documents/doc-1/preview"));
 
-    // Close modal
-    const closeBtn = rootEl.querySelector(".doc-viewer-close-btn") as HTMLButtonElement;
-    assert(closeBtn);
+    // Close modal via circular dark close button (X)
+    const closeBtn = rootEl.querySelector(".doc-viewer-circle-close") as HTMLButtonElement;
+    assert(closeBtn, "Circular close button should exist");
     await act(async () => {
       closeBtn.click();
     });
 
-    assert.equal(rootEl.querySelector(".doc-viewer-backdrop"), null);
+    assert.equal(rootEl.querySelector(".doc-fullscreen-overlay"), null);
 
     root.unmount();
   } finally {

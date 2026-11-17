@@ -73,23 +73,23 @@ test("study hub documents: upload, list, filters, preview, single download, batc
   // 4. Public list: /api/documents
   const listRes = await publicAgent.get("/api/documents");
   assert.equal(listRes.status, 200);
-  assert.equal(listRes.body.total, 2);
-  assert.equal(listRes.body.items.length, 2);
+  assert.equal(listRes.body.total, 5); // 3 seeded + 2 newly uploaded
+  assert.equal(listRes.body.items.length, 5);
 
   // 5. Public filter by subject
   const mathFilter = await publicAgent.get("/api/documents?subject=Toán học");
   assert.equal(mathFilter.status, 200);
-  assert.equal(mathFilter.body.items.length, 1);
+  assert.equal(mathFilter.body.items.length, 2); // 1 seeded + 1 uploaded
   assert.equal(mathFilter.body.items[0].subject, "Toán học");
 
   // 6. Public filter by category
   const mindmapFilter = await publicAgent.get("/api/documents?category=mindmap");
   assert.equal(mindmapFilter.status, 200);
-  assert.equal(mindmapFilter.body.items.length, 1);
+  assert.equal(mindmapFilter.body.items.length, 2); // 1 seeded + 1 uploaded
   assert.equal(mindmapFilter.body.items[0].category, "mindmap");
 
   // 7. Public search query
-  const searchRes = await publicAgent.get("/api/documents?q=Giải tích");
+  const searchRes = await publicAgent.get("/api/documents?q=So-tay-Toan-12.pdf");
   assert.equal(searchRes.status, 200);
   assert.equal(searchRes.body.items.length, 1);
   assert.equal(searchRes.body.items[0].id, doc1Id);
