@@ -2307,67 +2307,29 @@ export function GeneratePersonalExamModal({
               </button>
             </div>
 
-            {/* Khối tùy chỉnh số câu linh hoạt */}
-            <div className="custom-count-wrapper">
-              <div className="custom-count-row">
-                <span className="custom-count-label">
-                  Tùy chọn số lượng câu:
-                </span>
-                <div className="custom-count-stepper">
-                  <button
-                    type="button"
-                    className="stepper-btn"
-                    disabled={questionCount <= 1}
-                    onClick={() => setQuestionCount((c) => Math.max(1, c - 1))}
-                    aria-label="Giảm 1 câu"
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    min={1}
-                    max={maxAvailable}
-                    value={questionCount}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10);
-                      if (isNaN(val)) {
-                        setQuestionCount(1);
-                      } else {
-                        setQuestionCount(Math.max(1, Math.min(val, maxAvailable)));
-                      }
-                    }}
-                    className="stepper-input"
-                    aria-label="Số lượng câu hỏi tùy chọn"
-                  />
-                  <button
-                    type="button"
-                    className="stepper-btn"
-                    disabled={questionCount >= maxAvailable}
-                    onClick={() => setQuestionCount((c) => Math.min(maxAvailable, c + 1))}
-                    aria-label="Tăng 1 câu"
-                  >
-                    +
-                  </button>
-                </div>
+            {/* Nhập số câu trực tiếp - Nhanh và chuyên nghiệp */}
+            <div className="custom-count-input-box">
+              <span className="custom-count-prefix">Hoặc nhập số câu tùy ý:</span>
+              <div className="custom-input-group">
+                <input
+                  type="number"
+                  min={1}
+                  max={maxAvailable}
+                  value={questionCount}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (isNaN(val)) {
+                      setQuestionCount(1);
+                    } else {
+                      setQuestionCount(Math.max(1, Math.min(val, maxAvailable)));
+                    }
+                  }}
+                  placeholder="Số câu"
+                  className="custom-number-field"
+                  aria-label="Số câu hỏi muốn làm"
+                />
+                <span className="custom-input-suffix">/ tối đa {maxAvailable} câu</span>
               </div>
-
-              {maxAvailable > 1 && (
-                <>
-                  <input
-                    type="range"
-                    min={1}
-                    max={maxAvailable}
-                    value={Math.min(questionCount, maxAvailable)}
-                    onChange={(e) => setQuestionCount(Number(e.target.value))}
-                    className="custom-range-slider"
-                    aria-label="Kéo thanh trượt chọn số câu"
-                  />
-                  <div className="custom-range-bounds">
-                    <span>1 câu</span>
-                    <span>Tối đa {maxAvailable} câu</span>
-                  </div>
-                </>
-              )}
             </div>
           </div>
 
