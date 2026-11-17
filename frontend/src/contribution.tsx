@@ -561,15 +561,40 @@ export function Contribution() {
       setBusy(false);
     }
   }
-  async function send() {
-    if (!preview || !accepted) return;
+  async function send(contentOverride?: ExamContent) {
+    if (!contact || !contact.trim()) {
+      setIssue(
+        new Error(
+          "Vui lòng nhập Email liên hệ để nhận mã theo dõi và thông báo duyệt đề.",
+        ),
+      );
+      return;
+    }
+    if (!accepted) {
+      setIssue(
+        new Error(
+          "Vui lòng tích chọn xác nhận: Tôi đã kiểm tra nội dung và có quyền chia sẻ học liệu này.",
+        ),
+      );
+      return;
+    }
     setBusy(true);
     setIssue(null);
     try {
+      let contentToSend = contentOverride || preview;
+      if (!contentToSend) {
+        const rawParsed = JSON.parse(raw);
+        const validated = await api<{ content: ExamContent }>(
+          "/contributions/validate",
+          "POST",
+          rawParsed,
+        );
+        contentToSend = validated.content;
+      }
       const response = await api<{ tracking_code: string }>(
         "/contributions",
         "POST",
-        { contact, content: preview },
+        { contact: contact.trim(), content: contentToSend },
       );
       setCode(response.tracking_code);
       try {
@@ -673,31 +698,33 @@ export function Contribution() {
             </Notice>
             <ExamEditor raw={raw} onChange={setRaw} />
             <div className="panel contribution-actions">
-              <label className="field">
-                Email liên hệ
-                <input
-                  type="email"
-                  required
-                  maxLength={200}
-                  value={contact}
-                  onChange={(e) => setContact(e.target.value)}
-                  placeholder="ban@example.com"
-                />
-              </label>
-              <button
-                className="button secondary"
-                disabled={busy}
-                onClick={() => void validate()}
+              <div
+                className="row wrap between"
+                style={{ width: "100%", gap: 16, alignItems: "flex-end" }}
               >
-                <Eye size={17} />
-                {busy ? "Đang kiểm tra…" : "Kiểm tra & xem trước"}
-              </button>
-            </div>
-            {preview && (
-              <>
-                <ExamPreview content={preview} />
-                <div className="panel">
-                  <label className="row">
+                <label className="field" style={{ flex: "1 1 280px", margin: 0 }}>
+                  Email liên hệ (để nhận kết quả duyệt)
+                  <input
+                    type="email"
+                    required
+                    maxLength={200}
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                    placeholder="ban@example.com"
+                  />
+                </label>
+                <div
+                  style={{
+                    flex: "1 1 320px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
+                  <label
+                    className="row"
+                    style={{ cursor: "pointer", fontSize: "14px" }}
+                  >
                     <input
                       type="checkbox"
                       checked={accepted}
@@ -705,16 +732,8 @@ export function Contribution() {
                     />
                     Tôi đã kiểm tra nội dung và có quyền chia sẻ học liệu này.
                   </label>
-                  <div className="row wrap">
-                    <button
-                      className="button"
-                      disabled={busy || !accepted || !contact}
-                      onClick={() => void send()}
-                    >
-                      <Send size={16} />
-                      Gửi duyệt
-                    </button>
-                    {tracked?.status === "changes_requested" && (
+                  <div className="row wrap" style={{ gap: 8 }}>
+                    {tracked?.status === "changes_requested" ? (
                       <button
                         className="button secondary"
                         disabled={busy || !accepted}
@@ -722,7 +741,70 @@ export function Contribution() {
                       >
                         Gửi lại bản chỉnh sửa
                       </button>
+                    ) : (
+                      <button
+                        className="button"
+                        disabled={busy}
+                        onClick={() => void send()}
+                      >
+                        <Send size={16} />
+                        {busy ? "Đang gửi…" : "Gửi đề thi lên duyệt"}
+                      </button>
                     )}
+                    <button
+                      className="button secondary"
+                      disabled={busy}
+                      onClick={() => void validate()}
+                    >
+                      <Eye size={16} />
+                      {preview ? "Thu gọn xem trước" : "Xem trước câu hỏi"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {preview && (
+              <>
+                <div
+                  className="panel editor-preview-action-bar"
+                  style={{ marginTop: 16 }}
+                >
+                  <div className="row between wrap" style={{ gap: 12 }}>
+                    <div>
+                      <span className="eyebrow green-text">
+                        BẢN XEM TRƯỚC NỘI DUNG ĐÓNG GÓP
+                      </span>
+                      <h3>{preview.title || "Chưa đặt tiêu đề"}</h3>
+                      <p className="muted small">
+                        {preview.subject} · {preview.questions.length} câu hỏi ·{" "}
+                        {preview.settings?.time_limit_minutes || 45} phút
+                      </p>
+                    </div>
+                    <button
+                      className="button"
+                      disabled={busy}
+                      onClick={() => void send(preview)}
+                    >
+                      <Send size={16} />
+                      Gửi duyệt ngay
+                    </button>
+                  </div>
+                </div>
+                <ExamPreview content={preview} showAnswers={true} />
+                <div className="panel" style={{ marginTop: 16 }}>
+                  <div className="row wrap between">
+                    <p className="muted small">
+                      Sau khi gửi, đề sẽ chuyển vào hàng đợi duyệt của quản trị
+                      viên.
+                    </p>
+                    <button
+                      className="button"
+                      disabled={busy}
+                      onClick={() => void send(preview)}
+                    >
+                      <Send size={16} />
+                      Gửi đề thi lên duyệt
+                    </button>
                   </div>
                 </div>
               </>
