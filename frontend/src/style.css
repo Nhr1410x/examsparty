@@ -6249,3 +6249,68 @@ td {
   top: 4px;
   right: 4px;
 }
+
+/* ========================================================
+   MARKDOWN TABLE RENDERING (Đề bài, câu hỏi, lời giải)
+   ======================================================== */
+.markdown-table-wrapper {
+  margin: 18px 0;
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+.markdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+}
+.markdown-table thead {
+  background: var(--subtle);
+  border-bottom: 2px solid var(--line);
+}
+.markdown-table th {
+  padding: 12px 18px;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text-heading);
+  white-space: nowrap;
+  border-bottom: 2px solid var(--line);
+  border-right: 1px solid var(--line);
+}
+.markdown-table th:last-child {
+  border-right: none;
+}
+.markdown-table td {
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  color: var(--text-body);
+  font-size: 13.5px;
+}
+.markdown-table td:last-child {
+  border-right: none;
+}
+.markdown-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.markdown-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.015);
+}
+[data-theme="dark"] .markdown-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+.block-text-paragraph {
+  margin: 12px 0;
+  line-height: 1.65;
+  font-size: 15px;
+}
+.block-text-paragraph:first-child {
+  margin-top: 0;
+}
+.block-text-paragraph:last-child {
+  margin-bottom: 0;
+}

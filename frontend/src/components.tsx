@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Fragment, lazy, Suspense, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -164,10 +164,263 @@ export function CodeBlock({ language, code }: { language?: string; code: string 
   );
 }
 
+function parseTableRow(line: string): string[] | null {
+  let t = line.trim();
+  if (!t.includes("|")) return null;
+  if (t.startsWith("|")) t = t.slice(1);
+  if (t.endsWith("|")) t = t.slice(0, -1);
+  const cells = t.split("|").map((c) => c.trim());
+  return cells.length >= 2 ? cells : null;
+}
+
+function isSeparatorRow(line: string): boolean {
+  const cells = parseTableRow(line);
+  if (!cells || cells.length === 0) return false;
+  return cells.every((c) => /^:?-{2,}:?$/.test(c.trim()));
+}
+
+interface ParsedTable {
+  headers: string[];
+  alignments: ("left" | "center" | "right")[];
+  rows: string[][];
+}
+
+function parseMarkdownTable(lines: string[]): ParsedTable | null {
+  if (lines.length < 2) return null;
+  const headerCells = parseTableRow(lines[0]);
+  const separatorCells = parseTableRow(lines[1]);
+  if (!headerCells || !separatorCells || !isSeparatorRow(lines[1])) return null;
+
+  const alignments = separatorCells.map((c) => {
+    const trimmed = c.trim();
+    const left = trimmed.startsWith(":");
+    const right = trimmed.endsWith(":");
+    if (left && right) return "center" as const;
+    if (right) return "right" as const;
+    return "left" as const;
+  });
+
+  const rows: string[][] = [];
+  for (let i = 2; i < lines.length; i++) {
+    const cells = parseTableRow(lines[i]);
+    if (!cells) break;
+    rows.push(cells);
+  }
+
+  return {
+    headers: headerCells,
+    alignments,
+    rows,
+  };
+}
+
+function parseTextSegment(text: string) {
+  const lines = text.split(/\r?\n/);
+  const items: ({ type: "table"; table: ParsedTable } | { type: "paragraph"; text: string })[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (parseTableRow(line) && i + 1 < lines.length && isSeparatorRow(lines[i + 1])) {
+      const tableLines = [line, lines[i + 1]];
+      i += 2;
+      while (i < lines.length && parseTableRow(lines[i])) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+      const table = parseMarkdownTable(tableLines);
+      if (table) {
+        items.push({ type: "table", table });
+        continue;
+      }
+    }
+
+    const paraLines: string[] = [];
+    while (i < lines.length) {
+      if (parseTableRow(lines[i]) && i + 1 < lines.length && isSeparatorRow(lines[i + 1])) {
+        break;
+      }
+      paraLines.push(lines[i]);
+      i++;
+    }
+
+    if (paraLines.length > 0) {
+      const paraText = paraLines.join("\n").trim();
+      if (paraText) {
+        const paragraphs = paraText.split(/\n\s*\n+/);
+        for (const p of paragraphs) {
+          if (p.trim()) {
+            items.push({ type: "paragraph", text: p.trim() });
+          }
+        }
+      }
+    }
+  }
+
+  return items;
+}
+
+export function parseInlineTokens(text: unknown): React.ReactNode[] {
+  if (text === null || text === undefined) return [];
+  const rawStr = String(text);
+  if (!rawStr) return [];
+
+  const tokenRegex =
+    /\$((?:\\\$|[^\$\n])+?)\$|\\\(([\s\S]+?)\\\)|`([^`\n]+)`|\*\*([^*]+)\*\*|__([^_]+)__/g;
+
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = tokenRegex.exec(rawStr)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(rawStr.slice(lastIndex, match.index));
+    }
+
+    const [, inlineMath1, inlineMath2, inlineCode, bold1, bold2] = match;
+
+    if (inlineMath1 !== undefined || inlineMath2 !== undefined) {
+      const math = (inlineMath1 ?? inlineMath2).trim();
+      nodes.push(
+        <Suspense key={key++} fallback={<code>${math}$</code>}>
+          <MathContent value={math} inline={true} />
+        </Suspense>,
+      );
+    } else if (inlineCode !== undefined) {
+      nodes.push(
+        <code key={key++} className="inline-code-token">
+          {highlightCode(inlineCode)}
+        </code>,
+      );
+    } else if (bold1 !== undefined || bold2 !== undefined) {
+      nodes.push(<strong key={key++}>{bold1 ?? bold2}</strong>);
+    }
+
+    lastIndex = tokenRegex.lastIndex;
+  }
+
+  if (lastIndex < rawStr.length) {
+    nodes.push(rawStr.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
+export function renderRichContent(text: unknown): React.ReactNode {
+  if (text === null || text === undefined) return null;
+  const rawStr = String(text);
+  if (!rawStr) return null;
+
+  const blockRegex =
+    /```(?:([a-zA-Z0-9_-]+)\n)?([\s\S]+?)```|\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]/g;
+
+  const chunks: { type: "code" | "math" | "text"; content: string; lang?: string }[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = blockRegex.exec(rawStr)) !== null) {
+    if (match.index > lastIndex) {
+      chunks.push({ type: "text", content: rawStr.slice(lastIndex, match.index) });
+    }
+
+    const [, codeLang, codeBlock, dispMath1, dispMath2] = match;
+
+    if (codeBlock !== undefined) {
+      chunks.push({ type: "code", content: codeBlock.trim(), lang: codeLang });
+    } else if (dispMath1 !== undefined || dispMath2 !== undefined) {
+      chunks.push({ type: "math", content: (dispMath1 ?? dispMath2).trim() });
+    }
+
+    lastIndex = blockRegex.lastIndex;
+  }
+
+  if (lastIndex < rawStr.length) {
+    chunks.push({ type: "text", content: rawStr.slice(lastIndex) });
+  }
+
+  let key = 0;
+  const renderedNodes: React.ReactNode[] = [];
+
+  for (const chunk of chunks) {
+    if (chunk.type === "code") {
+      renderedNodes.push(
+        <CodeBlock key={key++} language={chunk.lang} code={chunk.content} />,
+      );
+    } else if (chunk.type === "math") {
+      renderedNodes.push(
+        <Suspense key={key++} fallback={<code>$${chunk.content}$$</code>}>
+          <MathContent value={chunk.content} inline={false} />
+        </Suspense>,
+      );
+    } else {
+      const segments = parseTextSegment(chunk.content);
+      for (const seg of segments) {
+        if (seg.type === "table" && seg.table) {
+          renderedNodes.push(
+            <div key={key++} className="markdown-table-wrapper">
+              <table className="markdown-table">
+                <thead>
+                  <tr>
+                    {seg.table.headers.map((h, hIdx) => (
+                      <th
+                        key={hIdx}
+                        style={{ textAlign: seg.table?.alignments[hIdx] || "left" }}
+                      >
+                        {parseInlineTokens(h)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {seg.table.rows.map((row, rIdx) => (
+                    <tr key={rIdx}>
+                      {row.map((cell, cIdx) => (
+                        <td
+                          key={cIdx}
+                          style={{
+                            textAlign: seg.table?.alignments[cIdx] || "left",
+                          }}
+                        >
+                          {parseInlineTokens(cell)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>,
+          );
+        } else if (seg.type === "paragraph" && seg.text) {
+          const lines = seg.text.split("\n");
+          renderedNodes.push(
+            <p key={key++} className="block-text-paragraph">
+              {lines.map((line, lIdx) => (
+                <Fragment key={lIdx}>
+                  {lIdx > 0 && <br />}
+                  {parseInlineTokens(line)}
+                </Fragment>
+              ))}
+            </p>,
+          );
+        }
+      }
+    }
+  }
+
+  return <>{renderedNodes}</>;
+}
+
 export function parseMathAndCode(text: unknown): React.ReactNode[] {
   if (text === null || text === undefined) return [];
   const rawStr = String(text);
   if (!rawStr) return [];
+
+  // If input contains a markdown table, use full rich renderer
+  if (rawStr.includes("|") && isSeparatorRow(rawStr.split("\n")[1] || "")) {
+    return [<Fragment key="table-content">{renderRichContent(rawStr)}</Fragment>];
+  }
 
   const tokenRegex =
     /```(?:([a-zA-Z0-9_-]+)\n)?([\s\S]+?)```|\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\$((?:\\\$|[^\$\n])+?)\$|\\\(([\s\S]+?)\\\)|`([^`\n]+)`/g;
@@ -348,7 +601,7 @@ export function Blocks({ blocks }: { blocks?: Block[] }) {
           />
         ) : (
           <div className="block-text-p" key={i}>
-            {parseMathAndCode(b.value || "")}
+            {renderRichContent(b.value || "")}
           </div>
         ),
       )}
