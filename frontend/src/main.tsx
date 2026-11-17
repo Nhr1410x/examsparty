@@ -23,6 +23,7 @@ import {
   ChevronRight,
   PanelLeftClose,
   PanelLeft,
+  Smartphone,
 } from "lucide-react";
 import { api } from "./api";
 import { User } from "./types";
@@ -51,6 +52,37 @@ function Layout() {
   const isAttempt = location.pathname.startsWith("/attempts/");
   const isAdmin = location.pathname.startsWith("/admin");
   const [collapsed, setCollapsed] = useState(() => isAttempt || isAdmin);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      if (choice?.outcome === "accepted") {
+        setDeferredPrompt(null);
+      }
+    } else {
+      alert(
+        "📱 CÁCH TẠO APP SHORTCUT TRÊN ĐIỆN THOẠI:\n\n" +
+          "• Trên iPhone (Safari):\n" +
+          "  1. Nhấn nút Chia sẻ (biểu tượng mũi tên hướng lên ở thanh dưới).\n" +
+          "  2. Chọn 'Thêm vào MH chính' (Add to Home Screen).\n\n" +
+          "• Trên Android (Chrome / Cốc Cốc):\n" +
+          "  1. Nhấn nút 3 chấm ⋮ ở góc trên bên phải.\n" +
+          "  2. Chọn 'Cài đặt ứng dụng' hoặc 'Thêm vào màn hình chính'.\n\n" +
+          "Examsparty sẽ xuất hiện như ứng dụng độc lập trên màn hình chính của bạn!",
+      );
+    }
+  };
 
   useEffect(() => {
     setOpen(false);
@@ -157,6 +189,15 @@ function Layout() {
               </NavLink>
             ))}
             <div className="nav-divider" />
+            <button
+              type="button"
+              className="sidebar-install-link button-step-press"
+              onClick={handleInstallApp}
+              title="Cài đặt App Shortcut lên màn hình chính"
+            >
+              <Smartphone size={19} />
+              <span>Cài App Shortcut</span>
+            </button>
             <NavLink to="/contribute">
               <HeartHandshake size={20} />
               Đóng góp nội dung
@@ -210,7 +251,17 @@ function Layout() {
                 </span>
               )}
             </div>
-            <div className="row">
+            <div className="row" style={{ gap: 8, alignItems: "center" }}>
+              <button
+                type="button"
+                className="app-install-btn button-step-press"
+                onClick={handleInstallApp}
+                title="Tạo app shortcut / Cài đặt ứng dụng"
+                aria-label="Cài đặt shortcut ứng dụng"
+              >
+                <Smartphone size={15} />
+                <span className="app-install-text">Tạo App</span>
+              </button>
               <button
                 className="icon-button theme-toggle"
                 aria-label={`Chuyển sang giao diện ${theme === "light" ? "tối" : "sáng"}`}
@@ -267,6 +318,30 @@ function Layout() {
           </Link>
         </footer>
       </div>
+      {!isAdmin && !isAttempt && (
+        <nav className="mobile-bottom-nav" aria-label="Điều hướng nhanh điện thoại">
+          <NavLink to="/" end className={({ isActive }) => `bottom-nav-item ${isActive ? "active" : ""}`}>
+            <LayoutDashboard size={20} />
+            <span>Trang chủ</span>
+          </NavLink>
+          <NavLink to="/exams" className={({ isActive }) => `bottom-nav-item ${isActive ? "active" : ""}`}>
+            <LibraryBig size={20} />
+            <span>Kho đề</span>
+          </NavLink>
+          <NavLink to="/recent" className={({ isActive }) => `bottom-nav-item ${isActive ? "active" : ""}`}>
+            <GraduationCap size={20} />
+            <span>Học tập</span>
+          </NavLink>
+          <NavLink to="/questions" className={({ isActive }) => `bottom-nav-item ${isActive ? "active" : ""}`}>
+            <FileQuestion size={20} />
+            <span>Câu hỏi</span>
+          </NavLink>
+          <NavLink to="/contribute" className={({ isActive }) => `bottom-nav-item ${isActive ? "active" : ""}`}>
+            <HeartHandshake size={20} />
+            <span>Đóng góp</span>
+          </NavLink>
+        </nav>
+      )}
     </>
   );
 }

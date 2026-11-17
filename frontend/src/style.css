@@ -5109,683 +5109,493 @@ td {
     display: none;
   }
 }
-@media (max-width: 760px) {
+/* ========================================================
+   PWA APP SHORTCUT & MOBILE NAVIGATION
+   ======================================================== */
+.app-install-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 9999px;
+  background: var(--green-light);
+  color: var(--green);
+  border: 1px solid var(--green-border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.app-install-btn:hover {
+  background: var(--green);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+}
+.sidebar-install-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px dashed var(--green);
+  background: var(--green-light);
+  color: var(--green);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  margin: 6px 0;
+}
+.sidebar-install-link:hover {
+  background: var(--green);
+  color: #ffffff;
+}
+
+.mobile-bottom-nav {
+  display: none;
+}
+
+/* ========================================================
+   TABLET & MOBILE VIEWPORT SYSTEM (<= 768px)
+   ======================================================== */
+@media (max-width: 768px) {
+  /* Layout & Navigation */
   .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 1000;
     transform: translateX(-100%);
-    width: 248px;
-    transition: transform 0.2s;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: none;
   }
   .sidebar.open {
     transform: translateX(0);
-  }
-  .sidebar .brand {
-    font-size: 23px;
-  }
-  .sidebar .brand small {
-    font-size: 6.8px;
-  }
-  .sidebar .brand-mark {
-    width: 41px;
-    height: 41px;
-  }
-  .sidebar nav a {
-    font-size: 12px;
-    padding: 13px;
-  }
-  .sidebar-label {
-    font-size: 8px;
-  }
-  .sidebar-bottom .community-card h4 {
-    font-size: 12px;
-  }
-  .sidebar-bottom .community-card p {
-    font-size: 10px;
-  }
-  .guest-info small {
-    font-size: 8px;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.35);
   }
   .nav-backdrop {
     position: fixed;
     inset: 0;
-    background: #091e12a6;
-    z-index: 29;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 999;
     border: 0;
   }
   .app-content {
-    margin-left: 0;
+    margin-left: 0 !important;
+    width: 100%;
+    min-width: 0;
   }
   .mobile-menu {
-    display: flex;
+    display: inline-flex !important;
+  }
+  .sidebar-toggle-btn {
+    display: none !important;
   }
   .topbar {
-    height: 65px;
-    padding: 0 19px;
-    gap: 10px;
+    height: 58px;
+    padding: 0 14px;
+    gap: 8px;
   }
   .topbar > .row {
-    gap: 9px;
+    gap: 8px;
   }
   .breadcrumb {
-    font-size: 9px;
+    font-size: 13px;
     gap: 6px;
-  }
-  .breadcrumb > strong {
-    max-width: 170px;
+    max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .header-contribute {
-    font-size: 9px;
-    padding-left: 10px;
+    display: none;
   }
   .theme-toggle {
-    width: 30px;
-    height: 30px;
+    width: 36px;
+    height: 36px;
   }
+
+  /* Main container & Safe spacing for bottom nav */
   main {
-    padding: 26px 20px;
+    padding: 16px 14px calc(76px + env(safe-area-inset-bottom)) !important;
   }
+  .app-content.exam-mode main {
+    padding-bottom: 24px !important;
+  }
+
+  /* Mobile Bottom Navigation */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(58px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--line);
+    z-index: 100;
+    align-items: stretch;
+    justify-content: space-around;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+  }
+  [data-theme="dark"] .mobile-bottom-nav {
+    background: rgba(15, 23, 42, 0.94);
+    border-top-color: var(--line);
+  }
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 0;
+    transition: color 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bottom-nav-item.active {
+    color: var(--green);
+  }
+  .bottom-nav-item svg {
+    transition: transform 0.15s ease;
+  }
+  .bottom-nav-item.active svg {
+    transform: translateY(-1px);
+  }
+
+  /* Typography & General Sizing */
   .page-heading {
-    margin-bottom: 22px;
-    align-items: flex-start;
+    margin-bottom: 18px;
+    gap: 8px;
   }
   .page-heading h1 {
-    font-size: 25px;
-    letter-spacing: -0.8px;
+    font-size: 22px;
+    letter-spacing: -0.4px;
+    line-height: 1.25;
   }
   .page-heading p {
-    font-size: 11px;
+    font-size: 13px;
+    line-height: 1.5;
   }
   .page-heading .eyebrow {
-    font-size: 7px;
+    font-size: 11px;
   }
+
+  /* Hero Section */
   .hero {
-    padding: 27px;
-    margin-bottom: 17px;
-    border-radius: 13px;
+    padding: 22px 18px;
+    margin-bottom: 18px;
+    border-radius: 16px;
   }
   .hero h2 {
-    font-size: 33px;
+    font-size: 26px;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
   }
   .hero p {
-    font-size: 11px;
-    max-width: 100%;
+    font-size: 13px;
+    line-height: 1.5;
   }
   .hero-label {
-    font-size: 7px;
-  }
-  .hero-search input {
-    font-size: 10px;
-  }
-  .hero-search button {
-    font-size: 10px;
-  }
-  .hero-perks {
-    gap: 15px;
-    font-size: 7px;
-  }
-  .stats-grid {
-    margin-bottom: 25px;
-    gap: 10px;
-  }
-  .stat {
-    padding: 14px;
-  }
-  .stat strong {
-    font-size: 22px;
-  }
-  .stat p {
-    font-size: 8px;
-    line-height: 1.6;
-  }
-  .section-heading h2 {
-    font-size: 18px;
-  }
-  .section-heading .text-link {
-    font-size: 10px;
-    gap: 6px;
-  }
-  .subject-tile {
-    padding: 13px 12px;
-  }
-  .subject-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-  }
-  .exam-card {
-    padding: 20px 18px 0;
-  }
-  .exam-card h3 {
-    font-size: 13px;
-  }
-  .exam-card .description {
-    font-size: 10px;
-  }
-  .exam-meta {
-    font-size: 9px;
-  }
-  .card-bottom {
-    font-size: 9px;
-  }
-  .bottom-banner p {
-    font-size: 9px;
-  }
-  .panel {
-    padding: 20px;
-  }
-  .detail-title {
-    font-size: 27px;
-  }
-  .filter-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .form-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .player-heading {
-    align-items: flex-start;
-  }
-  .player-heading h1 {
-    font-size: 20px;
-  }
-  .player-heading .eyebrow {
-    font-size: 8px;
-  }
-  .timer {
-    padding: 10px;
-    gap: 8px;
-  }
-  .timer > svg {
-    width: 18px;
-  }
-  .timer small {
-    font-size: 6px;
-  }
-  .timer strong {
-    font-size: 18px;
-  }
-  .question-panel {
-    padding: 22px;
-  }
-  .question-content {
-    font-size: 16px;
-  }
-  .question-numbers {
-    grid-template-columns: repeat(10, 1fr);
-  }
-  .question-nav {
-    padding: 20px;
-  }
-  .result-summary {
-    padding: 25px;
-    gap: 22px;
-  }
-  .result-message h2 {
-    font-size: 18px;
-  }
-  .result-message p {
     font-size: 11px;
-  }
-  .result-counts {
-    font-size: 10px;
-    gap: 12px;
-  }
-  .admin-tabs {
-    gap: 3px;
-  }
-  .admin-tabs button {
-    font-size: 10px;
-    padding: 10px;
-  }
-  .admin-stats {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .track-form {
-    flex-wrap: wrap;
-  }
-  .track-form > .field {
-    min-width: 100%;
-  }
-  .editor-toolbar > .row {
-    gap: 8px;
-  }
-  .table-wrap {
-    padding: 0;
-  }
-  .recent-item {
-    gap: 12px;
-  }
-  .recent-item h3 {
-    font-size: 12px;
-  }
-  .recent-item p {
-    font-size: 9px;
-  }
-  .recent-item .badge {
-    font-size: 9px;
-  }
-  .recent-item > .subject-icon {
-    display: none;
-  }
-  .config-list > div:not(.notice) {
-    font-size: 11px;
-  }
-  .config-list > div > span {
-    text-align: right;
-  }
-  .config-list > .notice > div {
-    text-align: left;
-  }
-  .result-summary {
-    margin-top: 10px;
-  }
-}
-@media (max-width: 450px) {
-  main {
-    padding: 24px 16px;
-  }
-  .topbar {
-    padding: 0 12px;
-  }
-  .header-contribute {
-    display: none;
-  }
-  .breadcrumb {
-    font-size: 8px;
-  }
-  .breadcrumb > strong {
-    max-width: 160px;
-  }
-  .page-heading h1 {
-    font-size: 22px;
-  }
-  .page-heading p {
-    font-size: 10px;
-    line-height: 1.9;
-  }
-  .page-heading > .count-label {
-    font-size: 9px;
-    padding: 8px;
-  }
-  .page-heading > .button {
-    font-size: 9px;
-    padding: 9px 11px;
-    min-height: 36px;
-  }
-  .hero {
-    padding: 23px 19px;
-  }
-  .hero h2 {
-    font-size: 29px;
-    letter-spacing: -1px;
-  }
-  .hero p {
-    font-size: 10px;
+    letter-spacing: 0.5px;
   }
   .hero-search {
-    gap: 7px;
-    padding-left: 10px;
-  }
-  .hero-search input {
-    font-size: 8.5px;
-  }
-  .hero-search button {
-    font-size: 9px;
-    padding: 10px;
-  }
-  .hero-search > svg {
-    width: 15px;
-  }
-  .hero-perks {
-    font-size: 6.5px;
-    gap: 10px;
-  }
-  .hero-label {
-    letter-spacing: 0.7px;
-    font-size: 6.5px;
-  }
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .stat {
-    display: flex;
-    padding: 15px;
-    gap: 12px;
-  }
-  .stat-icon {
-    display: grid;
-    width: 34px;
-    height: 34px;
-  }
-  .stat strong {
-    font-size: 21px;
-  }
-  .stat p {
-    font-size: 8px;
-  }
-  .section-heading h2 {
-    font-size: 16px;
-  }
-  .section-heading p {
-    font-size: 9px;
-  }
-  .section-heading .text-link {
-    font-size: 8px;
-    gap: 5px;
-  }
-  .section-heading .text-link svg {
-    width: 13px;
-  }
-  .subject-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .subject-tile:last-child {
-    grid-column: 1/-1;
-  }
-  .subject-tile > svg {
-    display: block;
-  }
-  .exam-grid {
-    grid-template-columns: 1fr;
-  }
-  .exam-card h3 {
-    font-size: 15px;
-    min-height: 0;
-  }
-  .exam-card .description {
-    font-size: 11px;
-    min-height: 0;
-  }
-  .exam-card {
-    padding: 21px 21px 0;
-  }
-  .card-top {
-    margin-bottom: 15px;
-  }
-  .exam-meta {
-    font-size: 10px;
-  }
-  .card-bottom {
-    font-size: 10px;
-  }
-  .card-bottom a {
-    height: 31px;
-    width: 31px;
-  }
-  .bottom-banner {
-    flex-wrap: wrap;
-    gap: 14px;
-    padding: 20px;
-  }
-  .bottom-banner .button {
-    margin-left: 0;
-    font-size: 10px;
-  }
-  .bottom-banner h3 {
-    font-size: 13px;
-  }
-  .bottom-banner p {
-    font-size: 10px;
-  }
-  .search-box {
     padding-left: 12px;
     gap: 8px;
   }
-  .search-box input {
-    font-size: 11px;
+  .hero-search input {
+    font-size: 14px;
   }
-  .search-box .button {
-    font-size: 10px;
-    padding: 10px;
+  .hero-search button {
+    font-size: 13px;
+    padding: 10px 14px;
+    min-height: 42px;
   }
-  .search-box > svg {
-    width: 17px;
+  .hero-perks {
+    gap: 12px;
+    font-size: 12px;
+    flex-wrap: wrap;
   }
-  .panel {
-    padding: 18px;
+
+  /* Stats Grid */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
   }
-  .mode-panel {
-    display: block;
+  .stat {
+    padding: 14px 12px;
+    gap: 10px;
   }
-  .mode-panel > .mode-option {
-    margin-top: 18px;
+  .stat strong {
+    font-size: 22px;
   }
-  .detail-title {
-    font-size: 25px;
+  .stat p {
+    font-size: 12px;
+    line-height: 1.4;
   }
-  .detail-facts {
-    padding: 20px 10px;
+
+  /* Subject Grid */
+  .subject-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
-  .detail-facts strong {
-    font-size: 16px;
+  .subject-tile {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  /* Exam Cards & Horizontal Cards */
+  .exam-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .exam-card-horizontal {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 16px !important;
+    gap: 14px !important;
+  }
+  .exam-card-horizontal .exam-actions {
+    width: 100% !important;
+    margin-top: 4px;
+  }
+  .exam-card-horizontal .exam-actions .button {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .exam-card-horizontal h3 {
+    font-size: 16px !important;
+    line-height: 1.4 !important;
+  }
+  .exam-card-horizontal p {
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+  }
+
+  /* Question Bank & Filters */
+  .filter-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
   .form-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
-  .filter-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .field {
+    font-size: 13px;
   }
+  .field select,
+  .field input,
+  .field textarea {
+    font-size: 15px;
+    min-height: 44px;
+  }
+
+  /* Exam Player & Attempt Mode */
   .player-heading {
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-  .player-heading > div:first-child {
-    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
   .player-heading h1 {
-    font-size: 21px;
-  }
-  .player-heading .eyebrow {
-    font-size: 7px;
+    font-size: 20px;
+    line-height: 1.3;
   }
   .timer {
     width: 100%;
     justify-content: center;
-    padding: 9px 15px;
-  }
-  .timer > div {
-    display: flex;
-    align-items: center;
-    gap: 18px;
-  }
-  .timer small {
-    margin: 0;
-    font-size: 8px;
+    padding: 10px 16px;
+    min-height: 46px;
   }
   .timer strong {
-    font-size: 21px;
+    font-size: 20px;
   }
+  .timer small {
+    font-size: 11px;
+  }
+
   .question-panel {
-    padding: 20px 17px;
-  }
-  .question-panel > .row {
-    gap: 8px;
-  }
-  .question-panel > .row .row {
-    gap: 7px;
-  }
-  .question-panel > .row .badge {
-    font-size: 8px;
-  }
-  .question-panel > .row .small {
-    font-size: 9px;
+    padding: 18px 16px;
+    border-radius: 14px;
   }
   .question-label {
     font-size: 13px;
   }
   .question-content {
-    font-size: 16px;
-    margin: 20px 0;
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 16px 0;
   }
+  .question-content pre,
+  .question-content code {
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+
+  /* Options list - touch friendly */
   .option {
-    padding: 13px 11px;
-    font-size: 12px;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 46px;
     gap: 10px;
+    border-radius: 10px;
   }
   .option-letter {
-    width: 26px;
-    height: 26px;
-    font-size: 10px;
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
   }
+
+  /* Question Number Navigation Grid (5 columns on mobile) */
+  .question-numbers {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 8px !important;
+  }
+  .question-numbers button,
+  .review-num-btn,
+  .q-num-btn {
+    min-height: 42px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+  }
+
+  /* Actions & Buttons */
   .question-actions {
-    gap: 7px;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .question-actions .button {
-    font-size: 9px;
-    padding: 10px 9px;
-    gap: 5px;
+    flex: 1 1 calc(50% - 4px);
+    min-height: 44px;
+    font-size: 13px;
+    justify-content: center;
   }
-  .question-actions .button svg {
-    width: 12px;
-  }
-  .question-numbers {
-    grid-template-columns: repeat(8, 1fr);
-    gap: 7px;
-  }
-  .feedback {
-    padding: 15px;
-  }
-  .feedback > .row:first-child {
-    align-items: flex-start;
-  }
-  .feedback .row.between strong {
-    font-size: 11px;
-  }
-  .feedback p,
-  .feedback .blocks {
-    font-size: 11px;
-  }
+
+  /* Result Summary Screen */
   .result-summary {
     flex-direction: column;
     text-align: center;
-    gap: 20px;
+    padding: 22px 18px;
+    gap: 18px;
   }
   .score-ring {
-    width: 135px;
-    height: 135px;
+    width: 140px;
+    height: 140px;
+    margin: 0 auto;
   }
   .result-message h2 {
-    font-size: 18px;
+    font-size: 20px;
+  }
+  .result-message p {
+    font-size: 13px;
   }
   .result-counts {
     justify-content: center;
+    font-size: 12px;
+    gap: 12px;
   }
-  .result-message .eyebrow {
-    font-size: 9px;
+
+  /* Review Screen */
+  .review-tools {
+    flex-direction: column;
+    gap: 10px;
   }
   .review-tools .tabs {
     width: 100%;
-    gap: 3px;
-  }
-  .review-tools .tabs button {
-    font-size: 9px;
-    padding: 9px;
+    overflow-x: auto;
   }
   .review-tools .inline-search {
     width: 100%;
   }
-  .review-list > .panel {
-    padding: 19px;
+
+  /* Split View Editors */
+  .split-view-container,
+  .question-editor-split {
+    grid-template-columns: 1fr !important;
   }
-  .contribution-actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 15px;
-  }
-  .contribution-actions .field {
-    width: 100%;
-  }
-  .editor-toolbar .tabs {
-    width: 100%;
-    justify-content: center;
-  }
-  .editor-toolbar > .row {
-    flex-wrap: wrap;
-    gap: 7px;
-  }
-  .editor-toolbar > .row .button {
-    font-size: 9px;
-    padding: 8px 10px;
-  }
-  .json-editor {
-    font-size: 10px;
-    min-height: 350px;
-  }
-  .login-panel {
-    padding: 25px;
-  }
-  .review-item {
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .review-item > div {
-    min-width: 100%;
-  }
-  .review-item .badge {
-    margin-right: auto;
-  }
-  .admin-tabs button {
-    font-size: 9px;
-    padding: 9px;
-  }
-  .admin-tabs svg {
-    width: 13px;
-  }
-  .admin-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .config-list > div:not(.notice) {
-    font-size: 10px;
-  }
-  .config-list > div > strong {
-    max-width: 45%;
-  }
-  .config-list > div > span {
-    max-width: 52%;
-  }
-  .success-panel {
-    padding: 25px;
-  }
-  .tracking-code {
-    font-size: 10px;
-  }
-  .recent-item {
-    flex-wrap: wrap;
-  }
-  .recent-item > div {
-    width: 100%;
-    flex: auto;
-  }
-  .recent-item > .badge {
-    margin-right: auto;
-  }
-  .recent-item > svg {
-    width: 17px;
-  }
-  .count-label {
-    padding: 8px;
-    font-size: 9px;
-  }
-  .page-tabs {
-    width: 100%;
-  }
-  .page-tabs button {
-    flex: 1;
-  }
-  .question-editor > .row h3 {
-    font-size: 14px;
-  }
+
+  /* Footer */
   footer {
-    padding: 20px 16px;
-    font-size: 8px;
-    gap: 10px;
+    padding: 18px 14px;
+    font-size: 12px;
+    gap: 12px;
+    flex-direction: column;
+    text-align: center;
   }
-  footer a {
-    font-size: 8px;
+}
+
+/* ========================================================
+   SMALL MOBILE SCREENS (<= 480px)
+   ======================================================== */
+@media (max-width: 480px) {
+  .topbar {
+    padding: 0 10px;
   }
-  .field {
-    font-size: 11px;
+  .app-install-text {
+    display: none;
+  }
+  .app-install-btn {
+    padding: 6px 8px;
+  }
+  .breadcrumb > strong {
+    max-width: 110px;
+  }
+  .page-heading h1 {
+    font-size: 20px;
+  }
+  .hero {
+    padding: 18px 14px;
+  }
+  .hero h2 {
+    font-size: 22px;
+  }
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .subject-grid {
+    grid-template-columns: 1fr;
+  }
+  .question-numbers {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 6px !important;
+  }
+  .modal-dialog.generate-exam-dialog {
+    max-width: 95vw !important;
+    margin: 10px auto;
+  }
+  .modal-dialog-header {
+    padding: 16px 18px;
+  }
+  .modal-dialog-body {
+    padding: 16px 18px;
+  }
+  .modal-dialog-footer {
+    padding: 14px 18px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
