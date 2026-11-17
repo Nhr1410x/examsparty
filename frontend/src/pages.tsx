@@ -235,9 +235,9 @@ export function Home() {
         {loading ? (
           <Loading />
         ) : exams?.items.length ? (
-          <div className="exam-grid">
+          <div className="exam-row-list">
             {exams.items.map((e) => (
-              <ExamTile exam={e} key={e.id} />
+              <ExamTile exam={e} key={e.id} horizontal />
             ))}
           </div>
         ) : (

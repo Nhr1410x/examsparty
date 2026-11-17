@@ -364,30 +364,58 @@ export function getSubjectTone(subject = ""): string {
   return "default";
 }
 
-export function ExamTile({ exam }: { exam: ExamCard }) {
+export function ExamTile({
+  exam,
+  horizontal = false,
+}: {
+  exam: ExamCard;
+  horizontal?: boolean;
+}) {
   const tone = getSubjectTone(exam.subject);
   return (
-    <article className="exam-card card-hover-lift">
-      <div className="card-top">
-        <span className={`subject-pill subject-${tone}`}>
-          <span className="subject-dot" />
-          {exam.subject}
-        </span>
-        <span className="exam-card-chip">
-          <Clock3 size={13} />
-          {exam.time_limit_minutes} phút
-        </span>
-      </div>
-      <h3 className="exam-card-title">
-        <Link to={`/exams/${exam.id}`}>{exam.title}</Link>
-      </h3>
-      <div className="card-footer">
-        <div className="card-meta-row">
-          <span className="card-meta-item">
-            <FileQuestion size={15} />
-            <span>{exam.question_count} câu hỏi</span>
+    <article
+      className={`exam-card ${horizontal ? "exam-card-horizontal" : ""} card-hover-lift`}
+    >
+      <div className="exam-card-main">
+        <div className="card-top">
+          <span className={`subject-pill subject-${tone}`}>
+            <span className="subject-dot" />
+            {exam.subject}
           </span>
+          <span className="exam-card-chip">
+            <Clock3 size={13} />
+            {exam.time_limit_minutes} phút
+          </span>
+          <span className="exam-card-chip">
+            <FileQuestion size={13} />
+            {exam.question_count} câu hỏi
+          </span>
+          {exam.grade && (
+            <span className="exam-card-chip">Khối {exam.grade}</span>
+          )}
         </div>
+        <h3 className="exam-card-title">
+          <Link to={`/exams/${exam.id}`}>{exam.title}</Link>
+        </h3>
+        {exam.topics && exam.topics.length > 0 && (
+          <div className="exam-card-topics">
+            {exam.topics.slice(0, 4).map((t) => (
+              <span key={t} className="exam-topic-tag">
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="card-footer exam-card-actions">
+        {!horizontal && (
+          <div className="card-meta-row">
+            <span className="card-meta-item">
+              <FileQuestion size={15} />
+              <span>{exam.question_count} câu hỏi</span>
+            </span>
+          </div>
+        )}
         <Link
           className="btn-take-exam button-step-press"
           aria-label={`Vào làm đề ${exam.title}`}
