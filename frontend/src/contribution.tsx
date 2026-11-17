@@ -410,7 +410,7 @@ export function ExamEditor({
       {savedNotice && <Notice>{savedNotice}</Notice>}
       {mode === "preview" ? (
         <div className="editor-preview-pane">
-          <div className="panel editor-preview-action-bar">
+          <div className="panel editor-preview-action-bar" style={{ marginBottom: 20 }}>
             <div className="row between wrap" style={{ gap: 12 }}>
               <div>
                 <span className="eyebrow green-text">BẢN XEM TRƯỚC CÂU HỎI & ĐỀ THI</span>
@@ -456,7 +456,7 @@ export function ExamEditor({
               </div>
             </div>
           </div>
-          <div className="panel" style={{ marginBottom: 16 }}>
+          <div className="panel editor-preview-info-panel" style={{ marginBottom: 20 }}>
             <div className="row between wrap" style={{ marginBottom: 12 }}>
               <span className="eyebrow green-text">THÔNG TIN ĐỀ THI</span>
             </div>

@@ -6314,3 +6314,16 @@ td {
 .block-text-paragraph:last-child {
   margin-bottom: 0;
 }
+
+/* ========================================================
+   CONTRIBUTION PREVIEW PANE SPACING
+   ======================================================== */
+.editor-preview-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.editor-preview-action-bar,
+.editor-preview-info-panel {
+  margin-bottom: 0;
+}
