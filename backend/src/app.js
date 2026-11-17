@@ -1053,6 +1053,23 @@ export function createApp(db, config) {
   app.get("/api/admin/exams", async (req, res) => {
     const { page, limit } = pagination(req),
       q = `%${String(req.query.q || "").slice(0, 100)}%`;
+    if (req.query.ids_only === "true") {
+      const rows = (
+        await db.query(
+          "SELECT id FROM exams WHERE status <> 'deleted' AND title ILIKE $1 ORDER BY updated_at DESC",
+          [q],
+        )
+      ).rows;
+      return res.json({ ids: rows.map((r) => r.id), total: rows.length });
+    }
+    const count = Number(
+      (
+        await db.query(
+          "SELECT count(*) AS count FROM exams WHERE status <> 'deleted' AND title ILIKE $1",
+          [q],
+        )
+      ).rows[0].count,
+    );
     res.json({
       items: (
         await db.query(
@@ -1060,6 +1077,7 @@ export function createApp(db, config) {
           [q, limit, (page - 1) * limit],
         )
       ).rows,
+      total: count,
       page,
       limit,
     });
@@ -1070,7 +1088,7 @@ export function createApp(db, config) {
         ids: z
           .array(uuid)
           .min(1)
-          .max(100)
+          .max(10000)
           .refine(
             (ids) =>
               new Set(ids.map((id) => id.toLowerCase())).size === ids.length,
@@ -1253,6 +1271,23 @@ export function createApp(db, config) {
         values.push(value);
         where += ` AND ${key === "type" ? "content->>'type'" : key === "difficulty" ? "content->>'difficulty'" : "status"}=$${values.length}`;
       }
+    if (req.query.ids_only === "true") {
+      const rows = (
+        await db.query(
+          `SELECT id FROM questions WHERE ${where} ORDER BY updated_at DESC`,
+          values,
+        )
+      ).rows;
+      return res.json({ ids: rows.map((r) => r.id), total: rows.length });
+    }
+    const count = Number(
+      (
+        await db.query(
+          `SELECT count(*) AS count FROM questions WHERE ${where}`,
+          values,
+        )
+      ).rows[0].count,
+    );
     res.json({
       items: (
         await db.query(
@@ -1260,6 +1295,7 @@ export function createApp(db, config) {
           [...values, limit, (page - 1) * limit],
         )
       ).rows,
+      total: count,
       page,
       limit,
     });
@@ -1270,7 +1306,7 @@ export function createApp(db, config) {
         ids: z
           .array(uuid)
           .min(1)
-          .max(100)
+          .max(10000)
           .refine(
             (ids) =>
               new Set(ids.map((id) => id.toLowerCase())).size === ids.length,

@@ -481,6 +481,9 @@ function ManageExams() {
   const selectMenuRef = useRef<HTMLDivElement>(null);
   const { data, error, loading } = useLoad<{
     items: (ExamCard & { content: ExamContent })[];
+    total?: number;
+    page?: number;
+    limit?: number;
   }>(`/admin/exams?q=${encodeURIComponent(search)}&page=${page}`, revision);
   useEffect(() => {
     if (!selectMenuOpen) return;
@@ -515,6 +518,20 @@ function ManageExams() {
       setPage(1);
       setRevision((n) => n + 1);
       setMessage(`Đã xóa ${result.deleted} đề và toàn bộ câu hỏi liên quan khỏi cơ sở dữ liệu.`);
+    } catch (e) {
+      setIssue(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function selectAllExams() {
+    setBusy(true);
+    try {
+      const res = await api<{ ids: string[]; total: number }>(
+        `/admin/exams?ids_only=true&q=${encodeURIComponent(search)}`,
+      );
+      setSelected(res.ids);
+      setSelectMenuOpen(false);
     } catch (e) {
       setIssue(e);
     } finally {
@@ -746,13 +763,34 @@ function ManageExams() {
                       onChange={(e) =>
                         setSelected(
                           e.target.checked
-                            ? data.items.map((exam) => exam.id)
-                            : [],
+                            ? Array.from(new Set([...selected, ...data.items.map((exam) => exam.id)]))
+                            : selected.filter((id) => !data.items.some((exam) => exam.id === id)),
                         )
                       }
                     />
                     <span>Chọn tất cả trong trang ({data.items.length})</span>
                   </label>
+                  <button
+                    type="button"
+                    className="admin-select-dropdown-item"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: "8px 12px",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      width: "100%",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "var(--green)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                    onClick={() => void selectAllExams()}
+                  >
+                    <span>✓ Chọn tất cả trong toàn bộ hệ thống ({data.total ?? data.items.length})</span>
+                  </button>
                   {selected.length > 0 && (
                     <button
                       type="button"
@@ -768,10 +806,20 @@ function ManageExams() {
                 </div>
               </div>
               {selected.length > 0 && (
-                <div className="admin-selection-badge">
+                <div className="admin-selection-badge" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <span>
-                    Đã chọn <strong>{selected.length}</strong> / {data.items.length} đề
+                    Đã chọn <strong>{selected.length}</strong> {data.total ? `/ ${data.total}` : ""} đề
                   </span>
+                  {Boolean(data.total && data.total > data.items.length && selected.length < data.total) && (
+                    <button
+                      type="button"
+                      className="text-link-subtle"
+                      style={{ fontWeight: 700, color: "var(--green)", textDecoration: "underline", cursor: "pointer" }}
+                      onClick={() => void selectAllExams()}
+                    >
+                      Chọn tất cả {data.total} đề trong toàn bộ hệ thống
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="text-link-subtle"
@@ -881,10 +929,28 @@ function ManageQuestions() {
 
   const { data, error, loading } = useLoad<{
     items: { id: string; content: Question; status: string; version: number }[];
+    total: number;
+    page: number;
+    limit: number;
   }>(
     `/admin/questions?page=${page}&q=${encodeURIComponent(query)}${kind ? `&type=${kind}` : ""}${difficulty ? `&difficulty=${difficulty}` : ""}${filterStatus ? `&status=${filterStatus}` : ""}`,
     revision,
   );
+
+  async function selectAllQuestions() {
+    setBusy(true);
+    try {
+      const res = await api<{ ids: string[]; total: number }>(
+        `/admin/questions?ids_only=true&q=${encodeURIComponent(query)}${kind ? `&type=${kind}` : ""}${difficulty ? `&difficulty=${difficulty}` : ""}${filterStatus ? `&status=${filterStatus}` : ""}`,
+      );
+      setSelected(res.ids);
+      setSelectMenuOpen(false);
+    } catch (e) {
+      setIssue(e);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!selectMenuOpen) return;
@@ -1142,7 +1208,15 @@ function ManageQuestions() {
                         setSelectMenuOpen(false);
                       }}
                     >
-                      Chọn tất cả trong trang ({data.items.length})
+                      Chọn trang hiện tại ({data.items.length} câu)
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-select-menu-item"
+                      style={{ fontWeight: 600, color: "var(--green)" }}
+                      onClick={() => void selectAllQuestions()}
+                    >
+                      ✓ Chọn tất cả trong toàn bộ ngân hàng ({data.total ?? data.items.length} câu)
                     </button>
                     {selected.length > 0 && (
                       <button
@@ -1159,16 +1233,34 @@ function ManageQuestions() {
                   </div>
                 )}
               </div>
-              <span className="admin-batch-counter">
+              <div className="admin-batch-counter" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 {selected.length > 0 ? (
                   <>
-                    Đã chọn <strong>{selected.length}</strong> /{" "}
-                    {data.items.length} câu hỏi
+                    <span>
+                      Đã chọn <strong>{selected.length}</strong> {data.total ? `/ ${data.total}` : ""} câu hỏi
+                    </span>
+                    {Boolean(data.total && data.total > data.items.length && selected.length < data.total) && (
+                      <button
+                        type="button"
+                        className="text-link-subtle"
+                        style={{ fontWeight: 700, color: "var(--green)", textDecoration: "underline", cursor: "pointer" }}
+                        onClick={() => void selectAllQuestions()}
+                      >
+                        Chọn tất cả {data.total} câu hỏi trong toàn bộ ngân hàng
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="text-link-subtle"
+                      onClick={() => setSelected([])}
+                    >
+                      Bỏ chọn
+                    </button>
                   </>
                 ) : (
-                  "Chưa chọn câu hỏi nào"
+                  <span>Chưa chọn câu hỏi nào</span>
                 )}
-              </span>
+              </div>
             </div>
             <div className="admin-batch-actions">
               <button
