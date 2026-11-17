@@ -164,8 +164,10 @@ export function CodeBlock({ language, code }: { language?: string; code: string 
   );
 }
 
-export function parseMathAndCode(text: string): React.ReactNode[] {
-  if (!text) return [];
+export function parseMathAndCode(text: unknown): React.ReactNode[] {
+  if (text === null || text === undefined) return [];
+  const rawStr = String(text);
+  if (!rawStr) return [];
 
   const tokenRegex =
     /```(?:([a-zA-Z0-9_-]+)\n)?([\s\S]+?)```|\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\$((?:\\\$|[^\$\n])+?)\$|\\\(([\s\S]+?)\\\)|`([^`\n]+)`/g;
@@ -175,9 +177,9 @@ export function parseMathAndCode(text: string): React.ReactNode[] {
   let match: RegExpExecArray | null;
   let key = 0;
 
-  while ((match = tokenRegex.exec(text)) !== null) {
+  while ((match = tokenRegex.exec(rawStr)) !== null) {
     if (match.index > lastIndex) {
-      nodes.push(text.slice(lastIndex, match.index));
+      nodes.push(rawStr.slice(lastIndex, match.index));
     }
 
     const [
@@ -220,8 +222,8 @@ export function parseMathAndCode(text: string): React.ReactNode[] {
     lastIndex = tokenRegex.lastIndex;
   }
 
-  if (lastIndex < text.length) {
-    nodes.push(text.slice(lastIndex));
+  if (lastIndex < rawStr.length) {
+    nodes.push(rawStr.slice(lastIndex));
   }
 
   return nodes;
@@ -327,9 +329,10 @@ export function AnswerDisplay({ value }: { value: string }) {
 }
 
 export function Blocks({ blocks }: { blocks?: Block[] }) {
+  if (!Array.isArray(blocks) || blocks.length === 0) return null;
   return (
     <div className="blocks">
-      {blocks?.map((b, i) =>
+      {blocks.filter(Boolean).map((b, i) =>
         b.type === "math" ? (
           <Suspense key={i} fallback={<code>{b.value}</code>}>
             <MathContent value={b.value || ""} inline={false} />
@@ -659,8 +662,14 @@ export function AnswerInput({
 }
 
 export function Feedback({ q }: { q: GradedQuestion }) {
+  if (!q) return null;
   const isCorrect = q.status === "correct";
   const isPending = q.status === "pending";
+  const safeAwarded =
+    typeof q.awarded === "number" && !isNaN(q.awarded)
+      ? Number(q.awarded.toFixed(2))
+      : 0;
+  const safePoints = q.points || 1;
 
   return (
     <div
@@ -684,12 +693,15 @@ export function Feedback({ q }: { q: GradedQuestion }) {
           </strong>
         </div>
         <span className="feedback-points">
-          <strong>{Number(q.awarded.toFixed(2))}</strong> / {q.points} điểm
+          <strong>{safeAwarded}</strong> / {safePoints} điểm
         </span>
       </div>
 
       {/* Prominent Correct Answer Showcase */}
-      {q.answer?.correct_option_ids && q.options && q.options.length > 0 && (
+      {Array.isArray(q.answer?.correct_option_ids) &&
+        q.answer.correct_option_ids.length > 0 &&
+        Array.isArray(q.options) &&
+        q.options.length > 0 && (
         <div className="correct-answer-showcase">
           <div className="showcase-label">
             <Check size={14} /> ĐÁP ÁN CHÍNH XÁC
@@ -713,7 +725,7 @@ export function Feedback({ q }: { q: GradedQuestion }) {
         </div>
       )}
 
-      {q.answer?.accepted && q.answer.accepted.length > 0 && (
+      {Array.isArray(q.answer?.accepted) && q.answer.accepted.length > 0 && (
         <div className="correct-answer-showcase">
           <div className="showcase-label">
             <Check size={14} /> ĐÁP ÁN CHẤP NHẬN
@@ -728,7 +740,7 @@ export function Feedback({ q }: { q: GradedQuestion }) {
         </div>
       )}
 
-      {q.statements && q.statements.length > 0 && (
+      {Array.isArray(q.statements) && q.statements.length > 0 && (
         <div className="correct-answer-showcase">
           <div className="showcase-label">
             <Check size={14} /> ĐÁP ÁN ĐÚNG / SAI
@@ -752,9 +764,9 @@ export function Feedback({ q }: { q: GradedQuestion }) {
           <strong>Lời giải chi tiết & Hướng dẫn</strong>
         </div>
         <div className="explanation-body">
-          {q.explanation &&
+          {Array.isArray(q.explanation) &&
           q.explanation.length > 0 &&
-          !q.explanation.every((b) => !b.value && !b.asset_id) ? (
+          !q.explanation.every((b) => !b?.value && !b?.asset_id) ? (
             <Blocks blocks={q.explanation} />
           ) : (
             <p

@@ -13,7 +13,7 @@ import {
   LayoutDashboard,
   LibraryBig,
   FileQuestion,
-  History,
+  GraduationCap,
   HeartHandshake,
   ShieldCheck,
   Sun,
@@ -38,7 +38,7 @@ const nav = [
   { to: "/", label: "Tổng quan", icon: LayoutDashboard },
   { to: "/exams", label: "Khám phá kho đề", icon: LibraryBig },
   { to: "/questions", label: "Ngân hàng câu hỏi", icon: FileQuestion },
-  { to: "/recent", label: "Bài làm gần đây", icon: History },
+  { to: "/recent", label: "Không gian học tập", icon: GraduationCap },
 ];
 function Layout() {
   const [theme, setTheme] = useState(
@@ -272,20 +272,34 @@ function Layout() {
 }
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
-  { error: boolean }
+  { error: Error | null }
 > {
-  state = { error: false };
-  static getDerivedStateFromError() {
-    return { error: true };
+  state: { error: Error | null } = { error: null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error("ErrorBoundary caught error:", error, info);
   }
   render() {
-    return this.state.error ? (
-      <div className="fatal">
+    const { error } = this.state;
+    return error ? (
+      <div className="fatal" style={{ padding: "48px 24px", maxWidth: 600, margin: "60px auto", textAlign: "center" }}>
         <h1>Trang gặp sự cố hiển thị.</h1>
         <p>Bài làm đã đồng bộ vẫn được giữ trên máy chủ.</p>
-        <button className="button" onClick={() => window.location.reload()}>
-          Tải lại trang
-        </button>
+        {error.message && (
+          <p style={{ color: "var(--danger, #ef4444)", fontFamily: "monospace", fontSize: 13, background: "rgba(239, 68, 68, 0.08)", padding: "10px 14px", borderRadius: 8, margin: "16px 0", textAlign: "left", wordBreak: "break-word" }}>
+            {error.message}
+          </p>
+        )}
+        <div className="row wrap center" style={{ gap: 12, justifyContent: "center", marginTop: 20 }}>
+          <button className="button" onClick={() => window.location.reload()}>
+            Tải lại trang
+          </button>
+          <a className="button secondary" href="/">
+            Về trang chủ
+          </a>
+        </div>
       </div>
     ) : (
       this.props.children

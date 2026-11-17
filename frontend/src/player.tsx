@@ -479,13 +479,38 @@ export function Results() {
       navigate(`/attempts/${id}`, { replace: true });
   }, [data, id, navigate]);
   if (loading) return <Loading />;
-  if (error || !data?.result) return <ErrorMessage error={error} />;
+  if (error) return <ErrorMessage error={error} />;
+  if (!data?.result) {
+    return (
+      <div className="panel" style={{ textAlign: "center", padding: "40px 20px" }}>
+        <h2>Chưa có kết quả chấm điểm.</h2>
+        <p className="muted">Bài làm đang được xử lý hoặc chưa được nộp hoàn tất.</p>
+        <Link to="/recent" className="button" style={{ marginTop: 16 }}>
+          Về Không gian học tập
+        </Link>
+      </div>
+    );
+  }
+
   const result = data.result;
+  const rawQuestions = Array.isArray(result?.questions) ? result.questions : [];
+  if (rawQuestions.length === 0) {
+    return (
+      <div className="panel" style={{ textAlign: "center", padding: "40px 20px" }}>
+        <h2>Không tìm thấy câu hỏi nào trong kết quả bài thi.</h2>
+        <p className="muted">Bài làm đã được ghi nhận trên máy chủ.</p>
+        <Link to="/recent" className="button" style={{ marginTop: 16 }}>
+          Về Không gian học tập
+        </Link>
+      </div>
+    );
+  }
+
   const qLower = query.trim().toLowerCase();
 
   const filteredIndices = useMemo(() => {
     const indices = new Set<number>();
-    result.questions.forEach((q, idx) => {
+    rawQuestions.forEach((q, idx) => {
       const matchesFilter =
         filter === "all" ||
         q.status === filter ||
@@ -510,22 +535,38 @@ export function Results() {
       }
     });
     return indices;
-  }, [result.questions, filter, qLower]);
+  }, [rawQuestions, filter, qLower]);
 
   const questions = useMemo(() => {
-    return result.questions.filter((_, idx) => filteredIndices.has(idx));
-  }, [result.questions, filteredIndices]);
+    return rawQuestions.filter((_, idx) => filteredIndices.has(idx));
+  }, [rawQuestions, filteredIndices]);
 
   const safeReviewIndex =
-    reviewIndex >= 0 && reviewIndex < result.questions.length ? reviewIndex : 0;
-  const currentQ = result.questions[safeReviewIndex] || result.questions[0];
-  const duration = Math.max(
-    0,
-    Math.min(
-      new Date(data.submitted_at!).getTime(),
-      data.expires_at ? new Date(data.expires_at).getTime() : Infinity,
-    ) - new Date(data.started_at).getTime(),
-  );
+    reviewIndex >= 0 && reviewIndex < rawQuestions.length ? reviewIndex : 0;
+  const currentQ = rawQuestions[safeReviewIndex] || rawQuestions[0];
+
+  const submittedTime = data.submitted_at
+    ? new Date(data.submitted_at).getTime()
+    : Date.now();
+  const startedTime = data.started_at
+    ? new Date(data.started_at).getTime()
+    : submittedTime;
+  const expiresTime = data.expires_at
+    ? new Date(data.expires_at).getTime()
+    : Infinity;
+  const calcDuration = Math.max(0, Math.min(submittedTime, expiresTime) - startedTime);
+  const duration = isNaN(calcDuration) ? 0 : calcDuration;
+
+  const safeScore =
+    typeof result.score === "number" && !isNaN(result.score) ? result.score : 0;
+  const safeEarned =
+    typeof result.earned === "number" && !isNaN(result.earned) ? result.earned : 0;
+  const safeTotal =
+    typeof result.total === "number" && !isNaN(result.total) ? result.total : 0;
+
+  const fmtPoints = (val: number | undefined | null) =>
+    typeof val === "number" && !isNaN(val) ? Number(val.toFixed(2)) : 0;
+
   async function retry() {
     setBusy(true);
     try {
@@ -544,7 +585,7 @@ export function Results() {
     <>
       <Link className="back-link" to="/recent">
         <ArrowLeft size={16} />
-        Bài làm gần đây
+        Không gian học tập
       </Link>
       <div className="page-heading">
         <div>
@@ -552,7 +593,7 @@ export function Results() {
             THÊM MỘT BƯỚC TRÊN HÀNH TRÌNH HỌC TẬP
           </span>
           <h1>Bạn đã hoàn thành bài!</h1>
-          <p>{data.snapshot.title}</p>
+          <p>{data.snapshot?.title || "Đề thi"}</p>
         </div>
         <button
           className="button secondary"
@@ -566,10 +607,10 @@ export function Results() {
       <div className="result-summary panel">
         <div
           className="score-ring"
-          style={{ "--score": `${result.score * 10}%` } as React.CSSProperties}
+          style={{ "--score": `${safeScore * 10}%` } as React.CSSProperties}
         >
           <div>
-            <strong>{result.score.toFixed(2)}</strong>
+            <strong>{safeScore.toFixed(2)}</strong>
             <span>/ 10 điểm</span>
           </div>
         </div>
@@ -578,12 +619,12 @@ export function Results() {
             {result.provisional ? "ĐIỂM TẠM TÍNH" : "KẾT QUẢ BÀI LÀM"}
           </span>
           <h2>
-            {result.score >= 8
+            {safeScore >= 8
               ? "Nỗ lực của bạn đã có kết quả!"
               : "Mỗi lần luyện tập, thêm một lần hiểu."}
           </h2>
           <p>
-            Đã đạt {Number(result.earned.toFixed(2))} / {result.total} điểm gốc
+            Đã đạt {fmtPoints(safeEarned)} / {safeTotal} điểm gốc
             · {Math.floor(duration / 60000)} phút{" "}
             {Math.floor(duration / 1000) % 60} giây
           </p>
@@ -704,18 +745,18 @@ export function Results() {
                   >
                     {currentQ.status === "correct" ? (
                       <>
-                        <Check size={14} /> Đúng (+{Number(currentQ.awarded.toFixed(2))}/{currentQ.points}đ)
+                        <Check size={14} /> Đúng (+{fmtPoints(currentQ.awarded)}/{currentQ.points || 1}đ)
                       </>
                     ) : currentQ.status === "wrong" ? (
                       <>
-                        <X size={14} /> Sai (0/{currentQ.points}đ)
+                        <X size={14} /> Sai (0/{currentQ.points || 1}đ)
                       </>
                     ) : currentQ.status === "partial" ? (
                       <>
-                        <AlertCircle size={14} /> Một phần (+{Number(currentQ.awarded.toFixed(2))}/{currentQ.points}đ)
+                        <AlertCircle size={14} /> Một phần (+{fmtPoints(currentQ.awarded)}/{currentQ.points || 1}đ)
                       </>
                     ) : currentQ.status === "blank" ? (
-                      <>⊘ Chưa làm (0/{currentQ.points}đ)</>
+                      <>⊘ Chưa làm (0/{currentQ.points || 1}đ)</>
                     ) : (
                       <>⏳ Chờ chấm</>
                     )}
@@ -869,7 +910,7 @@ export function Results() {
                             : isBlank
                               ? "Bỏ trống"
                               : "Chờ chấm"
-                    } (+${Number(item.awarded.toFixed(2))}/${item.points}đ)`}
+                    } (+${fmtPoints(item.awarded)}/${item.points || 1}đ)`}
                     aria-label={`Câu ${i + 1}`}
                   >
                     {i + 1}
@@ -972,21 +1013,21 @@ export function Results() {
                         <span className="question-number-pill question-badge-pill">
                           {isCorrect ? (
                             <>
-                              <Check size={14} /> CÂU {origIdx + 1} • ĐÚNG (+{Number(q.awarded.toFixed(2))}/{q.points}đ)
+                              <Check size={14} /> CÂU {origIdx + 1} • ĐÚNG (+{fmtPoints(q.awarded)}/{q.points || 1}đ)
                             </>
                           ) : isWrong ? (
                             q.status === "partial" ? (
                               <>
-                                <AlertCircle size={14} /> CÂU {origIdx + 1} • MỘT PHẦN (+{Number(q.awarded.toFixed(2))}/{q.points}đ)
+                                <AlertCircle size={14} /> CÂU {origIdx + 1} • MỘT PHẦN (+{fmtPoints(q.awarded)}/{q.points || 1}đ)
                               </>
                             ) : (
                               <>
-                                <X size={14} /> CÂU {origIdx + 1} • SAI (0/{q.points}đ)
+                                <X size={14} /> CÂU {origIdx + 1} • SAI (0/{q.points || 1}đ)
                               </>
                             )
                           ) : isBlank ? (
                             <>
-                              ⊘ CÂU {origIdx + 1} • CHƯA LÀM (0/{q.points}đ)
+                              ⊘ CÂU {origIdx + 1} • CHƯA LÀM (0/{q.points || 1}đ)
                             </>
                           ) : (
                             <>⏳ CÂU {origIdx + 1} • CHỜ CHẤM</>

@@ -496,9 +496,9 @@ export function Library() {
         <Loading />
       ) : data?.items.length ? (
         <>
-          <div className="exam-grid">
+          <div className="exam-row-list">
             {data.items.map((e) => (
-              <ExamTile key={e.id} exam={e} />
+              <ExamTile key={e.id} exam={e} horizontal />
             ))}
           </div>
           <Pagination
@@ -800,9 +800,9 @@ export function RecentPage() {
     <>
       <div className="page-heading">
         <div>
-          <h1>Học tập & Kho cá nhân</h1>
+          <h1>Không gian học tập</h1>
           <p className="muted small" style={{ margin: "4px 0 0" }}>
-            Quản lý lịch sử bài làm và các đề thi tự luyện bạn đã tạo riêng.
+            Quản lý tiến độ học tập, lịch sử làm bài và kho đề thi tự luyện cá nhân của bạn.
           </p>
         </div>
         <button
