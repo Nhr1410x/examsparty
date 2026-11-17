@@ -1,5 +1,5 @@
-import { lazy, Suspense, useState } from "react";
-import { Link } from "react-router-dom";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   BookOpen,
@@ -22,9 +22,11 @@ import {
 const MathContent = lazy(() => import("./math"));
 import { api, ApiError, download } from "./api";
 import {
+  Attempt,
   Block,
   ExamCard,
   GradedQuestion,
+  PersonalExamSubject,
   Question,
   Response,
   typeLabels,
@@ -1771,6 +1773,307 @@ export function QuestionEditor({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+export function GeneratePersonalExamModal({
+  open,
+  onClose,
+  onCreated,
+  initialSubject,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated?: (exam: ExamCard) => void;
+  initialSubject?: string;
+}) {
+  const navigate = useNavigate();
+  const [subjects, setSubjects] = useState<PersonalExamSubject[]>([]);
+  const [selectedSubject, setSelectedSubject] = useState(initialSubject || "");
+  const [questionCount, setQuestionCount] = useState(10);
+  const [timeLimit, setTimeLimit] = useState(20);
+  const [mode, setMode] = useState<"practice" | "exam">("practice");
+  const [customTitle, setCustomTitle] = useState("");
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setError(null);
+    setLoadingSubjects(true);
+    api<PersonalExamSubject[]>("/personal-exams/subjects")
+      .then((data) => {
+        setSubjects(data);
+        if (data.length > 0) {
+          const defaultSub =
+            initialSubject && data.some((s) => s.subject === initialSubject)
+              ? initialSubject
+              : data[0].subject;
+          setSelectedSubject(defaultSub);
+        }
+      })
+      .catch((err) => setError(err))
+      .finally(() => setLoadingSubjects(false));
+  }, [open, initialSubject]);
+
+  if (!open) return null;
+
+  const currentSubjectObj = subjects.find((s) => s.subject === selectedSubject);
+  const maxAvailable = currentSubjectObj?.available_questions || 10;
+
+  async function handleGenerate(startNow: boolean) {
+    if (!selectedSubject) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const exam = await api<ExamCard>("/personal-exams/generate", "POST", {
+        subject: selectedSubject,
+        question_count: Math.min(questionCount, maxAvailable),
+        time_limit_minutes: timeLimit,
+        title: customTitle.trim() || undefined,
+      });
+
+      if (startNow) {
+        const attempt = await api<Attempt>("/attempts", "POST", {
+          exam_id: exam.id,
+          mode,
+        });
+        onClose();
+        navigate(`/attempts/${attempt.id}`);
+      } else {
+        if (onCreated) onCreated(exam);
+        onClose();
+      }
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal-dialog generate-exam-dialog panel"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-gen-title"
+      >
+        <div className="modal-dialog-header">
+          <div className="row wrap" style={{ gap: 10, alignItems: "center" }}>
+            <span className="modal-icon-badge">
+              <Sparkles size={20} />
+            </span>
+            <div>
+              <h2 id="modal-gen-title" style={{ margin: 0, fontSize: "19px" }}>
+                Tạo đề tự luyện cá nhân
+              </h2>
+              <span className="small muted">
+                Tự động bốc câu hỏi từ kho đề theo môn • Chỉ lưu vào kho cá nhân của bạn
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onClose}
+            aria-label="Đóng hộp thoại"
+            title="Đóng"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <ErrorMessage error={error} />
+
+        <div className="modal-dialog-body">
+          {/* Môn học */}
+          <div className="field-group">
+            <label className="field-label">
+              <strong>1. Chọn môn học:</strong>
+            </label>
+            {loadingSubjects ? (
+              <Loading />
+            ) : subjects.length > 0 ? (
+              <div className="subject-select-grid">
+                {subjects.map((s) => {
+                  const tone = getSubjectTone(s.subject);
+                  const isSelected = selectedSubject === s.subject;
+                  return (
+                    <button
+                      key={s.subject}
+                      type="button"
+                      className={`subject-select-btn ${isSelected ? "selected" : ""}`}
+                      onClick={() => {
+                        setSelectedSubject(s.subject);
+                        if (questionCount > s.available_questions) {
+                          setQuestionCount(s.available_questions);
+                        }
+                      }}
+                    >
+                      <span className={`subject-dot-indicator tone-${tone}`} />
+                      <span className="subject-btn-name">{s.subject}</span>
+                      <span className="subject-q-count">
+                        {s.available_questions} câu có sẵn
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="small muted">
+                Chưa có môn học nào có câu hỏi trong kho đề.
+              </p>
+            )}
+          </div>
+
+          {/* Số câu hỏi */}
+          <div className="field-group">
+            <div
+              className="row between"
+              style={{ alignItems: "center", marginBottom: 6 }}
+            >
+              <label className="field-label" style={{ margin: 0 }}>
+                <strong>2. Số lượng câu hỏi:</strong>{" "}
+                <span className="green-text font-bold">
+                  {Math.min(questionCount, maxAvailable)} câu
+                </span>
+              </label>
+              <span className="small muted">
+                (Kho đề hiện có {maxAvailable} câu môn này)
+              </span>
+            </div>
+            <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
+              {[5, 10, 15, 20].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  className={`chip-btn ${questionCount === num ? "active" : ""}`}
+                  disabled={maxAvailable < num && num > 5}
+                  onClick={() => setQuestionCount(Math.min(num, maxAvailable))}
+                >
+                  {num} câu
+                </button>
+              ))}
+              <button
+                type="button"
+                className={`chip-btn ${questionCount === maxAvailable ? "active" : ""}`}
+                onClick={() => setQuestionCount(maxAvailable)}
+              >
+                Tất cả ({maxAvailable} câu)
+              </button>
+            </div>
+          </div>
+
+          {/* Thời gian làm bài */}
+          <div className="field-group">
+            <div
+              className="row between"
+              style={{ alignItems: "center", marginBottom: 6 }}
+            >
+              <label className="field-label" style={{ margin: 0 }}>
+                <strong>3. Thời gian làm bài:</strong>{" "}
+                <span className="green-text font-bold">{timeLimit} phút</span>
+              </label>
+            </div>
+            <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
+              {[15, 20, 30, 45, 60, 90].map((mins) => (
+                <button
+                  key={mins}
+                  type="button"
+                  className={`chip-btn ${timeLimit === mins ? "active" : ""}`}
+                  onClick={() => setTimeLimit(mins)}
+                >
+                  <Clock3 size={13} />
+                  {mins} phút
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Chế độ làm bài */}
+          <div className="field-group">
+            <label className="field-label">
+              <strong>4. Chế độ làm bài:</strong>
+            </label>
+            <div className="row wrap" style={{ gap: 10 }}>
+              <button
+                type="button"
+                className={`mode-select-card ${mode === "practice" ? "selected" : ""}`}
+                onClick={() => setMode("practice")}
+              >
+                <div className="mode-select-title">
+                  <BookOpen size={16} />
+                  <strong>Luyện tập tự do</strong>
+                </div>
+                <span className="small muted">
+                  Xem đáp án & giải thích ngay từng câu
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`mode-select-card ${mode === "exam" ? "selected" : ""}`}
+                onClick={() => setMode("exam")}
+              >
+                <div className="mode-select-title">
+                  <Clock3 size={16} />
+                  <strong>Thi thử bấm giờ</strong>
+                </div>
+                <span className="small muted">
+                  Tính giờ ngược, nộp bài mới biết kết quả
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Tên đề tùy chỉnh */}
+          <div className="field-group" style={{ marginBottom: 0 }}>
+            <label className="field">
+              <span className="small muted">Tên đề thi (tùy chọn):</span>
+              <input
+                value={customTitle}
+                onChange={(e) => setCustomTitle(e.target.value)}
+                placeholder={`Đề tự luyện ${selectedSubject || "môn học"} (${Math.min(questionCount, maxAvailable)} câu - ${timeLimit} phút)`}
+                maxLength={150}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="modal-dialog-footer">
+          <button
+            type="button"
+            className="button secondary"
+            disabled={busy}
+            onClick={onClose}
+          >
+            Hủy
+          </button>
+          <div className="row wrap" style={{ gap: 10 }}>
+            <button
+              type="button"
+              className="button secondary"
+              disabled={busy || !selectedSubject}
+              onClick={() => void handleGenerate(false)}
+              title="Tạo đề và lưu vào Kho cá nhân để làm sau"
+            >
+              Lưu vào kho cá nhân
+            </button>
+            <button
+              type="button"
+              className="button"
+              disabled={busy || !selectedSubject}
+              onClick={() => void handleGenerate(true)}
+            >
+              <Sparkles size={16} />
+              {busy ? "Đang tạo đề…" : "Tạo & Làm bài ngay →"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

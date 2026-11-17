@@ -42,6 +42,11 @@ export interface ExamContent {
   };
   questions: Question[];
 }
+export interface PersonalExamSubject {
+  subject: string;
+  available_questions: number;
+  grades: string[];
+}
 export interface ExamCard {
   id: string;
   title: string;
@@ -53,6 +58,7 @@ export interface ExamCard {
   time_limit_minutes: number;
   types: QuestionType[];
   updated_at: string;
+  created_at?: string;
   status?: string;
   content?: ExamContent;
   version?: number;

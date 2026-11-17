@@ -393,11 +393,23 @@ export function createApp(db, config) {
   app.get("/api/exams/:id", async (req, res) => {
     uuid.parse(req.params.id);
     const row = (
-      await db.query("SELECT * FROM exams WHERE id=$1 AND status='published'", [
+      await db.query("SELECT * FROM exams WHERE id=$1", [
         req.params.id,
       ])
     ).rows[0];
-    if (!row) throw httpError(404, "Không tìm thấy đề đã xuất bản.");
+    if (!row || row.status === "deleted")
+      throw httpError(404, "Không tìm thấy đề.");
+    if (row.status === "personal") {
+      const isOwner =
+        (row.owner_id && row.owner_id === req.session.id) ||
+        (req.user && row.author_id && row.author_id === req.user.id) ||
+        (row.content?.owner_id && row.content.owner_id === req.session.id);
+      if (!isOwner && req.user?.role !== "admin") {
+        throw httpError(404, "Không tìm thấy đề.");
+      }
+    } else if (row.status !== "published") {
+      throw httpError(404, "Không tìm thấy đề.");
+    }
     res.json({
       ...examCard(row),
       content: {
@@ -522,17 +534,187 @@ export function createApp(db, config) {
       result: row.status === "submitted" ? row.result : null,
     };
   };
+  app.get("/api/personal-exams/subjects", async (req, res) => {
+    const rows = (
+      await db.query(
+        "SELECT subject, grade, content->'questions' as questions FROM exams WHERE status='published'",
+      )
+    ).rows;
+    const subjectsMap = new Map();
+    for (const r of rows) {
+      const existing = subjectsMap.get(r.subject) || {
+        subject: r.subject,
+        questions: new Set(),
+        grades: new Set(),
+      };
+      if (r.grade) existing.grades.add(r.grade);
+      if (Array.isArray(r.questions)) {
+        for (const q of r.questions) {
+          existing.questions.add(JSON.stringify(q.prompt));
+        }
+      }
+      subjectsMap.set(r.subject, existing);
+    }
+    const result = Array.from(subjectsMap.values())
+      .map((s) => ({
+        subject: s.subject,
+        available_questions: s.questions.size,
+        grades: Array.from(s.grades).sort(),
+      }))
+      .sort((a, b) => a.subject.localeCompare(b.subject));
+    res.json(result);
+  });
+
+  app.post("/api/personal-exams/generate", limiter(30), async (req, res) => {
+    const body = z
+      .strictObject({
+        subject: z.string().min(1).max(50),
+        question_count: z.coerce.number().int().min(1).max(100).default(10),
+        time_limit_minutes: z.coerce.number().int().min(1).max(300).default(15),
+        title: z.string().max(200).optional(),
+        grade: z.string().max(20).optional(),
+      })
+      .parse(req.body);
+
+    const examRows = (
+      await db.query(
+        "SELECT content, grade FROM exams WHERE status='published' AND subject=$1",
+        [body.subject],
+      )
+    ).rows;
+
+    const pool = [];
+    const seen = new Set();
+    for (const row of examRows) {
+      if (Array.isArray(row.content?.questions)) {
+        for (const q of row.content.questions) {
+          const key = JSON.stringify(q.prompt);
+          if (!seen.has(key)) {
+            seen.add(key);
+            pool.push(q);
+          }
+        }
+      }
+    }
+
+    if (pool.length === 0) {
+      throw httpError(
+        400,
+        `Chưa có câu hỏi nào thuộc môn "${body.subject}" trong kho đề để tạo đề tự luyện.`,
+      );
+    }
+
+    // Shuffle and pick
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const count = Math.min(body.question_count, shuffled.length);
+    const selected = shuffled.slice(0, count).map((q, idx) => ({
+      ...q,
+      client_id: `q${idx + 1}`,
+      points: q.points || 1,
+    }));
+
+    const examId = randomUUID();
+    const now = new Date();
+    const examTitle =
+      body.title?.trim() ||
+      `Đề tự luyện ${body.subject} (${selected.length} câu - ${body.time_limit_minutes} phút)`;
+    const examGrade = body.grade?.trim() || examRows[0]?.grade || "12";
+
+    const content = {
+      title: examTitle,
+      subject: body.subject,
+      grade: examGrade,
+      description: `Đề thi tự luyện cá nhân gồm ${selected.length} câu hỏi môn ${body.subject}.`,
+      topics: [...new Set(selected.flatMap((q) => q.tags || []))],
+      settings: {
+        time_limit_minutes: body.time_limit_minutes,
+        shuffle_questions: true,
+        passing_score: Math.max(1, Math.round(selected.length * 0.5)),
+      },
+      questions: selected,
+      owner_id: req.session.id,
+      is_personal: true,
+    };
+
+    await db.query(
+      `INSERT INTO exams (id, title, subject, grade, description, content, status, version, author_id, owner_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'personal', 1, $7, $8, $9, $9)`,
+      [
+        examId,
+        content.title,
+        content.subject,
+        content.grade,
+        content.description,
+        JSON.stringify(content),
+        req.user?.id || null,
+        req.session.id,
+        now,
+      ],
+    );
+
+    const createdRow = (
+      await db.query("SELECT * FROM exams WHERE id=$1", [examId])
+    ).rows[0];
+
+    res.status(201).json(examCard(createdRow));
+  });
+
+  app.get("/api/personal-exams", async (req, res) => {
+    const rows = (
+      await db.query(
+        `SELECT * FROM exams 
+         WHERE status='personal' 
+           AND (owner_id=$1 OR (author_id IS NOT NULL AND author_id=$2) OR (content->>'owner_id')=$3)
+         ORDER BY created_at DESC`,
+        [req.session.id, req.user?.id || null, req.session.id],
+      )
+    ).rows;
+    res.json({ items: rows.map(examCard), total: rows.length });
+  });
+
+  app.delete("/api/personal-exams/:id", async (req, res) => {
+    uuid.parse(req.params.id);
+    const row = (
+      await db.query("SELECT * FROM exams WHERE id=$1 AND status='personal'", [
+        req.params.id,
+      ])
+    ).rows[0];
+    if (!row) throw httpError(404, "Không tìm thấy đề cá nhân.");
+    const isOwner =
+      (row.owner_id && row.owner_id === req.session.id) ||
+      (req.user && row.author_id && row.author_id === req.user.id) ||
+      (row.content?.owner_id && row.content.owner_id === req.session.id);
+    if (!isOwner && req.user?.role !== "admin") {
+      throw httpError(403, "Bạn không có quyền xóa đề thi này.");
+    }
+    await db.query("DELETE FROM attempts WHERE exam_id=$1", [req.params.id]);
+    await db.query("DELETE FROM exams WHERE id=$1", [req.params.id]);
+    res.json({ ok: true });
+  });
+
   app.post("/api/attempts", limiter(80), async (req, res) => {
     const { exam_id, mode } = z
       .strictObject({ exam_id: uuid, mode: z.enum(["practice", "exam"]) })
       .parse(req.body);
     const exam = (
       await db.query(
-        "SELECT content FROM exams WHERE id=$1 AND status='published'",
+        "SELECT * FROM exams WHERE id=$1",
         [exam_id],
       )
     ).rows[0];
-    if (!exam) throw httpError(404, "Không tìm thấy đề.");
+    if (!exam || exam.status === "deleted")
+      throw httpError(404, "Không tìm thấy đề.");
+    if (exam.status === "personal") {
+      const isOwner =
+        (exam.owner_id && exam.owner_id === req.session.id) ||
+        (req.user && exam.author_id && exam.author_id === req.user.id) ||
+        (exam.content?.owner_id && exam.content.owner_id === req.session.id);
+      if (!isOwner && req.user?.role !== "admin") {
+        throw httpError(404, "Không tìm thấy đề.");
+      }
+    } else if (exam.status !== "published") {
+      throw httpError(404, "Không tìm thấy đề.");
+    }
     const snapshot = makeSnapshot(exam.content, mode),
       id = randomUUID(),
       now = new Date(),

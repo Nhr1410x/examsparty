@@ -36,9 +36,12 @@ export async function migrate(db) {
     CREATE TABLE IF NOT EXISTS exams (
       id uuid PRIMARY KEY, title text NOT NULL, subject text NOT NULL, grade text NOT NULL,
       description text NOT NULL DEFAULT '', content jsonb NOT NULL, status text NOT NULL DEFAULT 'draft',
-      version integer NOT NULL DEFAULT 1, author_id uuid REFERENCES users(id), updated_at timestamptz NOT NULL DEFAULT now(), created_at timestamptz NOT NULL DEFAULT now()
+      version integer NOT NULL DEFAULT 1, author_id uuid REFERENCES users(id), owner_id uuid REFERENCES sessions(id),
+      updated_at timestamptz NOT NULL DEFAULT now(), created_at timestamptz NOT NULL DEFAULT now()
     );
+    ALTER TABLE exams ADD COLUMN IF NOT EXISTS owner_id uuid REFERENCES sessions(id);
     CREATE INDEX IF NOT EXISTS exams_filter ON exams(status,subject,grade);
+    CREATE INDEX IF NOT EXISTS exams_owner ON exams(owner_id,status);
     CREATE TABLE IF NOT EXISTS questions (
       id uuid PRIMARY KEY, content jsonb NOT NULL, status text NOT NULL DEFAULT 'draft', version integer NOT NULL DEFAULT 1,
       author_id uuid REFERENCES users(id), updated_at timestamptz NOT NULL DEFAULT now()

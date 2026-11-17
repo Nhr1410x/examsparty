@@ -24,6 +24,9 @@ import {
   Atom,
   Calculator,
   Feather,
+  Sparkles,
+  Trash2,
+  Lock,
 } from "lucide-react";
 import { api, date, useLoad } from "./api";
 import {
@@ -35,6 +38,7 @@ import {
   Loading,
   Notice,
   AnswerInput,
+  GeneratePersonalExamModal,
 } from "./components";
 import {
   ExamCard,
@@ -55,6 +59,7 @@ interface Catalog {
 }
 export function Home() {
   const [query, setQuery] = useState("");
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
   const navigate = useNavigate();
   const {
     data: exams,
@@ -113,6 +118,25 @@ export function Home() {
               Tìm đề <ArrowRight size={16} />
             </button>
           </form>
+          <div className="row wrap" style={{ gap: 10, marginTop: 14 }}>
+            <button
+              type="button"
+              className="button button-step-press"
+              onClick={() => setShowGenerateModal(true)}
+              style={{ fontSize: "14px", padding: "10px 18px" }}
+            >
+              <Sparkles size={16} />
+              Tạo đề tự luyện theo môn
+            </button>
+            <Link
+              to="/recent?tab=personal"
+              className="button secondary button-step-press"
+              style={{ fontSize: "14px", padding: "10px 18px" }}
+            >
+              <Lock size={15} />
+              Kho đề cá nhân
+            </Link>
+          </div>
           {currentSubjects.length > 0 && (
             <div className="quick-tags">
               <span className="quick-label">Môn học:</span>
@@ -244,6 +268,10 @@ export function Home() {
           <Empty />
         )}
       </section>
+      <GeneratePersonalExamModal
+        open={showGenerateModal}
+        onClose={() => setShowGenerateModal(false)}
+      />
     </>
   );
 }
@@ -323,6 +351,7 @@ function Stat({
 export function Library() {
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") || "");
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
   const { data, error, loading } = useLoad<{
     items: ExamCard[];
     total: number;
@@ -344,7 +373,17 @@ export function Library() {
         <div>
           <h1>Kho đề ôn tập</h1>
         </div>
-        <span className="count-label">{data?.total ?? "—"} đề</span>
+        <div className="row wrap" style={{ gap: 10, alignItems: "center" }}>
+          <button
+            type="button"
+            className="button small"
+            onClick={() => setShowGenerateModal(true)}
+          >
+            <Sparkles size={15} />
+            Tạo đề tự luyện cá nhân
+          </button>
+          <span className="count-label">{data?.total ?? "—"} đề</span>
+        </div>
       </div>
       <form
         className="search-box"
@@ -475,6 +514,10 @@ export function Library() {
       ) : (
         <Empty />
       )}
+      <GeneratePersonalExamModal
+        open={showGenerateModal}
+        onClose={() => setShowGenerateModal(false)}
+      />
     </>
   );
 }
@@ -707,51 +750,257 @@ export function Detail() {
 }
 
 export function RecentPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tab, setTab] = useState<"attempts" | "personal">(
+    searchParams.get("tab") === "personal" ? "personal" : "attempts",
+  );
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<unknown>(null);
+  const [personalKey, setPersonalKey] = useState(0);
+  const navigate = useNavigate();
+
   const { data, error, loading } = useLoad<{ items: Recent[] }>("/attempts");
+  const {
+    data: personalData,
+    error: personalError,
+    loading: personalLoading,
+  } = useLoad<{ items: ExamCard[]; total: number }>(
+    `/personal-exams?_k=${personalKey}`,
+  );
+
+  async function handleDeletePersonal(examId: string, title: string) {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa đề thi cá nhân "${title}"?`))
+      return;
+    setDeletingId(examId);
+    setDeleteError(null);
+    try {
+      await api(`/personal-exams/${examId}`, "DELETE");
+      setPersonalKey((k) => k + 1);
+    } catch (err) {
+      setDeleteError(err);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleStartPersonalExam(exam: ExamCard, mode: "practice" | "exam") {
+    try {
+      const attempt = await api<Attempt>("/attempts", "POST", {
+        exam_id: exam.id,
+        mode,
+      });
+      navigate(`/attempts/${attempt.id}`);
+    } catch (err) {
+      setDeleteError(err);
+    }
+  }
+
   return (
     <>
       <div className="page-heading">
         <div>
-          <h1>Bài làm gần đây</h1>
+          <h1>Học tập & Kho cá nhân</h1>
+          <p className="muted small" style={{ margin: "4px 0 0" }}>
+            Quản lý lịch sử bài làm và các đề thi tự luyện bạn đã tạo riêng.
+          </p>
         </div>
+        <button
+          type="button"
+          className="button"
+          onClick={() => setShowGenerateModal(true)}
+        >
+          <Sparkles size={16} />
+          Tạo đề tự luyện cá nhân
+        </button>
       </div>
-      <ErrorMessage error={error} />
-      {loading ? (
-        <Loading />
-      ) : data?.items.length ? (
-        <div className="recent-list">
-          {data.items.map((r) => (
-            <Link
-              className="recent-item panel"
-              key={r.id}
-              to={`/attempts/${r.id}${r.status === "submitted" ? "/results" : ""}`}
-            >
-              <span className="subject-icon green">
-                {r.mode === "practice" ? <BookOpen /> : <Timer />}
-              </span>
-              <div>
-                <h3>{r.title}</h3>
-                <p>
-                  {r.mode === "practice" ? "Luyện tập" : "Thi thử"} ·{" "}
-                  {date(r.started_at)}
-                </p>
+
+      <div
+        className="tabs"
+        role="tablist"
+        aria-label="Chuyển đổi kho đề và lịch sử"
+        style={{ marginBottom: 20 }}
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "attempts"}
+          className={tab === "attempts" ? "active" : ""}
+          onClick={() => {
+            setTab("attempts");
+            const next = new URLSearchParams(searchParams);
+            next.delete("tab");
+            setSearchParams(next);
+          }}
+        >
+          <Timer size={14} />
+          Lịch sử bài làm ({data?.items.length ?? 0})
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "personal"}
+          className={tab === "personal" ? "active" : ""}
+          onClick={() => {
+            setTab("personal");
+            const next = new URLSearchParams(searchParams);
+            next.set("tab", "personal");
+            setSearchParams(next);
+          }}
+        >
+          <Lock size={14} />
+          Kho đề cá nhân ({personalData?.items.length ?? 0})
+        </button>
+      </div>
+
+      {tab === "personal" ? (
+        <>
+          <ErrorMessage error={personalError || deleteError} />
+          {personalLoading ? (
+            <Loading />
+          ) : personalData?.items.length ? (
+            <div className="exam-row-list">
+              {personalData.items.map((exam) => {
+                const tone = getSubjectTone(exam.subject);
+                return (
+                  <article
+                    key={exam.id}
+                    className="exam-card exam-card-horizontal card-hover-lift"
+                  >
+                    <div className="exam-card-main">
+                      <div className="card-top">
+                        <span className={`subject-pill subject-${tone}`}>
+                          <span className="subject-dot" />
+                          {exam.subject}
+                        </span>
+                        <span className="exam-card-chip">
+                          <Clock3 size={13} />
+                          {exam.time_limit_minutes} phút
+                        </span>
+                        <span className="exam-card-chip">
+                          <FileQuestion size={13} />
+                          {exam.question_count} câu hỏi
+                        </span>
+                        {exam.grade && (
+                          <span className="exam-card-chip">
+                            Khối {exam.grade}
+                          </span>
+                        )}
+                        <span
+                          className="badge small"
+                          style={{
+                            marginLeft: "auto",
+                            background: "var(--subtle)",
+                          }}
+                        >
+                          <Lock size={12} /> Đề cá nhân
+                        </span>
+                      </div>
+                      <h3 className="exam-card-title">{exam.title}</h3>
+                      <p className="muted small" style={{ margin: "2px 0 0" }}>
+                        Ngày tạo: {date(exam.created_at || exam.updated_at)}
+                      </p>
+                    </div>
+                    <div className="card-footer exam-card-actions">
+                      <button
+                        type="button"
+                        className="button small secondary danger-text"
+                        disabled={deletingId === exam.id}
+                        onClick={() =>
+                          void handleDeletePersonal(exam.id, exam.title)
+                        }
+                        title="Xóa đề này khỏi kho cá nhân"
+                      >
+                        <Trash2 size={14} />
+                        Xóa đề
+                      </button>
+                      <button
+                        type="button"
+                        className="button small"
+                        onClick={() =>
+                          void handleStartPersonalExam(exam, "practice")
+                        }
+                      >
+                        <BookOpen size={14} />
+                        Luyện tập ngay →
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state-card">
+              <div className="empty-icon-wrap">
+                <Sparkles size={36} />
               </div>
-              <span className="badge">
-                {r.status === "submitted"
-                  ? `${r.score ?? "—"}/10`
-                  : r.mode === "exam" &&
-                    r.expires_at &&
-                    new Date(r.expires_at) < new Date()
-                    ? "Đã hết giờ"
-                    : "Tiếp tục học"}
-              </span>
-              <ArrowRight size={18} />
-            </Link>
-          ))}
-        </div>
+              <h3>Kho đề cá nhân chưa có đề nào</h3>
+              <p>
+                Bạn có thể tự tạo đề thi theo môn học, số lượng câu và thời gian
+                mong muốn. Đề chỉ lưu riêng cho bạn và không hiển thị trên toàn
+                hệ thống!
+              </p>
+              <button
+                type="button"
+                className="button"
+                onClick={() => setShowGenerateModal(true)}
+              >
+                <Sparkles size={16} />
+                Tạo đề tự luyện ngay
+              </button>
+            </div>
+          )}
+        </>
       ) : (
-        <Empty text="Hành trình của bạn bắt đầu từ một đề nhỏ." />
+        <>
+          <ErrorMessage error={error} />
+          {loading ? (
+            <Loading />
+          ) : data?.items.length ? (
+            <div className="recent-list">
+              {data.items.map((r) => (
+                <Link
+                  className="recent-item panel"
+                  key={r.id}
+                  to={`/attempts/${r.id}${r.status === "submitted" ? "/results" : ""}`}
+                >
+                  <span className="subject-icon green">
+                    {r.mode === "practice" ? <BookOpen /> : <Timer />}
+                  </span>
+                  <div>
+                    <h3>{r.title}</h3>
+                    <p>
+                      {r.mode === "practice" ? "Luyện tập" : "Thi thử"} ·{" "}
+                      {date(r.started_at)}
+                    </p>
+                  </div>
+                  <span className="badge">
+                    {r.status === "submitted"
+                      ? `${r.score ?? "—"}/10`
+                      : r.mode === "exam" &&
+                          r.expires_at &&
+                          new Date(r.expires_at) < new Date()
+                        ? "Đã hết giờ"
+                        : "Tiếp tục học"}
+                  </span>
+                  <ArrowRight size={18} />
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Empty text="Hành trình của bạn bắt đầu từ một đề nhỏ." />
+          )}
+        </>
       )}
+
+      <GeneratePersonalExamModal
+        open={showGenerateModal}
+        onClose={() => setShowGenerateModal(false)}
+        onCreated={() => {
+          setTab("personal");
+          setPersonalKey((k) => k + 1);
+        }}
+      />
     </>
   );
 }
