@@ -120,106 +120,110 @@ function Layout() {
       <a className="skip-link" href="#main">
         Đến nội dung chính
       </a>
-      {open && (
+      {!isAdmin && open && (
         <button
           className="nav-backdrop"
           aria-label="Đóng điều hướng"
           onClick={() => setOpen(false)}
         />
       )}
-      <aside className={`sidebar ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}>
-        <div className="sidebar-top-row">
-          <Link className="brand" to="/">
-            <span className="brand-mark">
-              <BookOpen size={24} />
-            </span>
-            <span>
-              exams<span className="brand-light">party</span>
-            </span>
-          </Link>
-          <button
-            className="icon-button sidebar-collapse-trigger button-step-press"
-            aria-label="Thu gọn thanh điều hướng"
-            title="Thu gọn menu"
-            onClick={() => setCollapsed(true)}
-          >
-            <PanelLeftClose size={18} />
-          </button>
-        </div>
-        <div className="sidebar-label">KHÔNG GIAN HỌC TẬP</div>
-        <nav aria-label="Điều hướng chính">
-          {nav.map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.to === "/"}>
-              <n.icon size={20} />
-              {n.label}
-              <ChevronRight className="nav-arrow" size={16} />
-            </NavLink>
-          ))}
-          <div className="nav-divider" />
-          <NavLink to="/contribute">
-            <HeartHandshake size={20} />
-            Đóng góp nội dung
-          </NavLink>
-          <NavLink to="/admin">
-            <ShieldCheck size={20} />
-            Quản trị hệ thống
-          </NavLink>
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="guest-info">
-            <span className="avatar">{user ? "A" : "K"}</span>
-            <div>
-              <strong>{user ? "Quản trị viên" : "Chào bạn học"}</strong>
-              <small>
-                {user ? user.email : "Học tập tự do"}
-              </small>
-            </div>
-            <span className="online-dot" />
-          </div>
-        </div>
-      </aside>
-      <div
-        className={`app-content ${collapsed ? "expanded" : ""} ${isAttempt ? "exam-mode" : ""} ${isAdmin ? "admin-mode" : ""}`}
-      >
-        <header className="topbar">
-          <div className="row">
-            <button
-              className="icon-button mobile-menu"
-              aria-label={open ? "Đóng menu" : "Mở menu"}
-              onClick={() => setOpen(!open)}
-            >
-              {open ? <X size={21} /> : <Menu size={21} />}
-            </button>
-            <button
-              className="icon-button sidebar-toggle-btn button-step-press"
-              aria-label={collapsed ? "Mở rộng menu" : "Thu gọn menu"}
-              title={collapsed ? "Mở rộng menu" : "Thu gọn menu"}
-              onClick={() => setCollapsed(!collapsed)}
-            >
-              {collapsed ? <PanelLeft size={19} /> : <PanelLeftClose size={19} />}
-            </button>
-            <span className="breadcrumb">
-              <strong>{title}</strong>
-            </span>
-            {isAttempt && (
-              <span className="exam-mode-tag">
-                <span className="online-dot" /> Chế độ tập trung
+      {!isAdmin && (
+        <aside className={`sidebar ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}>
+          <div className="sidebar-top-row">
+            <Link className="brand" to="/">
+              <span className="brand-mark">
+                <BookOpen size={24} />
               </span>
-            )}
-          </div>
-          <div className="row">
-            <button
-              className="icon-button theme-toggle"
-              aria-label={`Chuyển sang giao diện ${theme === "light" ? "tối" : "sáng"}`}
-              onClick={toggleTheme}
-            >
-              {theme === "light" ? <Moon size={19} /> : <Sun size={19} />}
-            </button>
-            <Link className="header-contribute" to="/contribute">
-              Đóng góp đề
+              <span>
+                exams<span className="brand-light">party</span>
+              </span>
             </Link>
+            <button
+              className="icon-button sidebar-collapse-trigger button-step-press"
+              aria-label="Thu gọn thanh điều hướng"
+              title="Thu gọn menu"
+              onClick={() => setCollapsed(true)}
+            >
+              <PanelLeftClose size={18} />
+            </button>
           </div>
-        </header>
+          <div className="sidebar-label">KHÔNG GIAN HỌC TẬP</div>
+          <nav aria-label="Điều hướng chính">
+            {nav.map((n) => (
+              <NavLink key={n.to} to={n.to} end={n.to === "/"}>
+                <n.icon size={20} />
+                {n.label}
+                <ChevronRight className="nav-arrow" size={16} />
+              </NavLink>
+            ))}
+            <div className="nav-divider" />
+            <NavLink to="/contribute">
+              <HeartHandshake size={20} />
+              Đóng góp nội dung
+            </NavLink>
+            <NavLink to="/admin">
+              <ShieldCheck size={20} />
+              Quản trị hệ thống
+            </NavLink>
+          </nav>
+          <div className="sidebar-bottom">
+            <div className="guest-info">
+              <span className="avatar">{user ? "A" : "K"}</span>
+              <div>
+                <strong>{user ? "Quản trị viên" : "Chào bạn học"}</strong>
+                <small>
+                  {user ? user.email : "Học tập tự do"}
+                </small>
+              </div>
+              <span className="online-dot" />
+            </div>
+          </div>
+        </aside>
+      )}
+      <div
+        className={`app-content ${collapsed || isAdmin ? "expanded" : ""} ${isAttempt ? "exam-mode" : ""} ${isAdmin ? "admin-mode" : ""}`}
+      >
+        {!isAdmin && (
+          <header className="topbar">
+            <div className="row">
+              <button
+                className="icon-button mobile-menu"
+                aria-label={open ? "Đóng menu" : "Mở menu"}
+                onClick={() => setOpen(!open)}
+              >
+                {open ? <X size={21} /> : <Menu size={21} />}
+              </button>
+              <button
+                className="icon-button sidebar-toggle-btn button-step-press"
+                aria-label={collapsed ? "Mở rộng menu" : "Thu gọn menu"}
+                title={collapsed ? "Mở rộng menu" : "Thu gọn menu"}
+                onClick={() => setCollapsed(!collapsed)}
+              >
+                {collapsed ? <PanelLeft size={19} /> : <PanelLeftClose size={19} />}
+              </button>
+              <span className="breadcrumb">
+                <strong>{title}</strong>
+              </span>
+              {isAttempt && (
+                <span className="exam-mode-tag">
+                  <span className="online-dot" /> Chế độ tập trung
+                </span>
+              )}
+            </div>
+            <div className="row">
+              <button
+                className="icon-button theme-toggle"
+                aria-label={`Chuyển sang giao diện ${theme === "light" ? "tối" : "sáng"}`}
+                onClick={toggleTheme}
+              >
+                {theme === "light" ? <Moon size={19} /> : <Sun size={19} />}
+              </button>
+              <Link className="header-contribute" to="/contribute">
+                Đóng góp đề
+              </Link>
+            </div>
+          </header>
+        )}
         {demo && (
           <div className="demo-banner">
             Bản xem thử trên máy • Dữ liệu trong bộ nhớ sẽ mất khi khởi động

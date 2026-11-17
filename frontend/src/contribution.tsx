@@ -4,6 +4,7 @@ import {
   Download,
   Eye,
   FileJson,
+  Pencil,
   Plus,
   Send,
   Upload,
@@ -32,15 +33,37 @@ export function ExamEditor({
   raw,
   onChange,
   initial = template,
+  defaultMode = "preview",
 }: {
   raw: string;
   onChange: (raw: string) => void;
   initial?: ExamContent;
+  defaultMode?: "preview" | "form" | "json";
 }) {
-  const [mode, setMode] = useState<"form" | "json">("json"),
-    [form, setForm] = useState(initial),
+  const [mode, setMode] = useState<"preview" | "form" | "json">(defaultMode),
+    [form, setForm] = useState<ExamContent>(() => {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return initial;
+      }
+    }),
     [issue, setIssue] = useState<unknown>(null),
     [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    try {
+      setForm(JSON.parse(raw));
+    } catch {}
+  }, [raw]);
+
+  let parsedContent: ExamContent = form;
+  try {
+    parsedContent = JSON.parse(raw);
+  } catch {
+    parsedContent = form;
+  }
+
   function update(content: ExamContent) {
     setForm(content);
     onChange(JSON.stringify(content, null, 2));
@@ -58,12 +81,16 @@ export function ExamEditor({
     setBusy(true);
     try {
       const content = JSON.parse(raw);
-      const result = await api<{ content: ExamContent }>(
-        "/contributions/validate",
-        "POST",
-        content,
-      );
-      setForm(result.content);
+      try {
+        const result = await api<{ content: ExamContent }>(
+          "/contributions/validate",
+          "POST",
+          content,
+        );
+        setForm(result.content);
+      } catch {
+        setForm(content);
+      }
       setMode("form");
     } catch (e) {
       setIssue(e);
@@ -77,11 +104,11 @@ export function ExamEditor({
         <div className="tabs">
           <button
             type="button"
-            className={mode === "json" ? "active" : ""}
-            onClick={() => setMode("json")}
+            className={mode === "preview" ? "active" : ""}
+            onClick={() => setMode("preview")}
           >
-            <FileJson size={16} />
-            JSON
+            <Eye size={15} />
+            Xem trước câu hỏi
           </button>
           <button
             type="button"
@@ -90,6 +117,14 @@ export function ExamEditor({
             onClick={() => void showForm()}
           >
             Biểu mẫu
+          </button>
+          <button
+            type="button"
+            className={mode === "json" ? "active" : ""}
+            onClick={() => setMode("json")}
+          >
+            <FileJson size={15} />
+            JSON
           </button>
         </div>
         <div className="row wrap">
@@ -114,8 +149,14 @@ export function ExamEditor({
                   setIssue(new Error("JSON tối đa 2 MB."));
                   return;
                 }
-                onChange(await f.text());
-                setMode("json");
+                const text = await f.text();
+                onChange(text);
+                try {
+                  setForm(JSON.parse(text));
+                  setMode("preview");
+                } catch {
+                  setMode("json");
+                }
                 e.target.value = "";
               }}
             />
@@ -134,7 +175,31 @@ export function ExamEditor({
         </div>
       </div>
       <ErrorMessage error={issue} />
-      {mode === "json" ? (
+      {mode === "preview" ? (
+        <div className="editor-preview-pane">
+          <div className="panel editor-preview-action-bar">
+            <div className="row between wrap" style={{ gap: 12 }}>
+              <div>
+                <span className="eyebrow green-text">BẢN XEM TRƯỚC CÂU HỎI & ĐỀ THI</span>
+                <h3>{parsedContent.title || "Chưa đặt tiêu đề"}</h3>
+                <p className="muted small">
+                  {parsedContent.subject} · {parsedContent.questions.length} câu hỏi · {parsedContent.settings?.time_limit_minutes || 45} phút
+                </p>
+              </div>
+              <button
+                type="button"
+                className="button secondary small"
+                disabled={busy}
+                onClick={() => void showForm()}
+              >
+                <Pencil size={14} />
+                Chuyển sang soạn thảo biểu mẫu
+              </button>
+            </div>
+          </div>
+          <ExamPreview content={parsedContent} showAnswers={true} />
+        </div>
+      ) : mode === "json" ? (
         <label className="field">
           Nội dung đề theo schema 1.0
           <textarea
@@ -331,8 +396,8 @@ export function ExamPreview({
         <span className="eyebrow green-text">BẢN XEM TRƯỚC</span>
         <h2>{content.title}</h2>
         <p>
-          {content.subject} · Lớp {content.grade} · {content.questions.length}{" "}
-          câu · {content.settings.time_limit_minutes} phút
+          {content.subject} · {content.questions.length} câu ·{" "}
+          {content.settings.time_limit_minutes} phút
         </p>
         <p>{content.description}</p>
       </div>

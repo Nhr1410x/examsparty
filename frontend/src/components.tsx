@@ -13,6 +13,7 @@ import {
   Plus,
   Trash2,
   Copy,
+  Sparkles,
 } from "lucide-react";
 const MathContent = lazy(() => import("./math"));
 import { api, ApiError, download } from "./api";
@@ -157,13 +158,175 @@ export function CodeBlock({ language, code }: { language?: string; code: string 
   );
 }
 
+export function parseMathAndCode(text: string): React.ReactNode[] {
+  if (!text) return [];
+
+  const tokenRegex =
+    /```(?:([a-zA-Z0-9_-]+)\n)?([\s\S]+?)```|\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\$((?:\\\$|[^\$\n])+?)\$|\\\(([\s\S]+?)\\\)|`([^`\n]+)`/g;
+
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = tokenRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    const [
+      ,
+      codeLang,
+      codeBlock,
+      dispMath1,
+      dispMath2,
+      inlineMath1,
+      inlineMath2,
+      inlineCode,
+    ] = match;
+
+    if (codeBlock !== undefined) {
+      nodes.push(
+        <CodeBlock key={key++} language={codeLang} code={codeBlock.trim()} />,
+      );
+    } else if (dispMath1 !== undefined || dispMath2 !== undefined) {
+      const math = (dispMath1 ?? dispMath2).trim();
+      nodes.push(
+        <Suspense key={key++} fallback={<code>$${math}$$</code>}>
+          <MathContent value={math} inline={false} />
+        </Suspense>,
+      );
+    } else if (inlineMath1 !== undefined || inlineMath2 !== undefined) {
+      const math = (inlineMath1 ?? inlineMath2).trim();
+      nodes.push(
+        <Suspense key={key++} fallback={<code>${math}$</code>}>
+          <MathContent value={math} inline={true} />
+        </Suspense>,
+      );
+    } else if (inlineCode !== undefined) {
+      nodes.push(
+        <code key={key++} className="inline-code-token">
+          {highlightCode(inlineCode)}
+        </code>,
+      );
+    }
+
+    lastIndex = tokenRegex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
+export function isLikelyLatex(str: string): boolean {
+  if (!str) return false;
+  const trimmed = str.trim();
+  if (
+    (trimmed.startsWith("$") && trimmed.endsWith("$")) ||
+    (trimmed.startsWith("\\[") && trimmed.endsWith("\\]")) ||
+    (trimmed.startsWith("\\(") && trimmed.endsWith("\\)"))
+  ) {
+    return true;
+  }
+  return /\\[a-zA-Z]+|[\^_]\{|\b(?:sin|cos|tan|cot|log|ln|lim|sum|int|sqrt|frac|alpha|beta|gamma|theta|pi|pm|times|div|leq|geq|neq|approx|equiv|to|rightarrow|Rightarrow|in|notin|subset|supset|cap|cup|forall|exists)\b|\^[0-9]+|\/[0-9]+/.test(
+    trimmed,
+  );
+}
+
+export function isLikelyCode(str: string): boolean {
+  if (!str) return false;
+  const trimmed = str.trim();
+  if (
+    (trimmed.startsWith("`") && trimmed.endsWith("`")) ||
+    trimmed.startsWith("```")
+  ) {
+    return true;
+  }
+  return /\b(?:def|return|class|import|from|function|const|let|var|console\.log|print|if|else|elif|for|while|try|catch|except)\b|[{}();]/.test(
+    trimmed,
+  );
+}
+
+export function cleanLatex(str: string): string {
+  let s = str.trim();
+  if (s.startsWith("$$") && s.endsWith("$$") && s.length >= 4) {
+    return s.slice(2, -2).trim();
+  }
+  if (s.startsWith("$") && s.endsWith("$") && s.length >= 2) {
+    return s.slice(1, -1).trim();
+  }
+  if (s.startsWith("\\[") && s.endsWith("\\]") && s.length >= 4) {
+    return s.slice(2, -2).trim();
+  }
+  if (s.startsWith("\\(") && s.endsWith("\\)") && s.length >= 4) {
+    return s.slice(2, -2).trim();
+  }
+  return s;
+}
+
+export function cleanCode(str: string): string {
+  let s = str.trim();
+  if (s.startsWith("```") && s.endsWith("```")) {
+    const lines = s.slice(3, -3).trim().split("\n");
+    if (lines.length > 0 && /^[a-zA-Z0-9]+$/.test(lines[0].trim())) {
+      return lines.slice(1).join("\n");
+    }
+    return lines.join("\n");
+  }
+  if (s.startsWith("`") && s.endsWith("`") && s.length >= 2) {
+    return s.slice(1, -1);
+  }
+  return s;
+}
+
+export function AnswerDisplay({ value }: { value: string }) {
+  if (!value) return null;
+  const trimmed = value.trim();
+
+  if (
+    trimmed.includes("$") ||
+    trimmed.includes("`") ||
+    trimmed.includes("\\[") ||
+    trimmed.includes("\\(")
+  ) {
+    return (
+      <span className="answer-smart-content">
+        {parseMathAndCode(value)}
+      </span>
+    );
+  }
+
+  if (isLikelyLatex(trimmed)) {
+    return (
+      <span className="answer-math-formula">
+        <Suspense fallback={<code>{trimmed}</code>}>
+          <MathContent value={cleanLatex(trimmed)} inline={true} />
+        </Suspense>
+      </span>
+    );
+  }
+
+  if (isLikelyCode(trimmed)) {
+    return (
+      <code className="inline-code-token">
+        {highlightCode(cleanCode(trimmed))}
+      </code>
+    );
+  }
+
+  return <span className="answer-text-content">{value}</span>;
+}
+
 export function Blocks({ blocks }: { blocks?: Block[] }) {
   return (
     <div className="blocks">
       {blocks?.map((b, i) =>
         b.type === "math" ? (
           <Suspense key={i} fallback={<code>{b.value}</code>}>
-            <MathContent value={b.value || ""} />
+            <MathContent value={b.value || ""} inline={false} />
           </Suspense>
         ) : b.type === "code" ? (
           <CodeBlock key={i} language={b.language} code={b.value || ""} />
@@ -175,7 +338,7 @@ export function Blocks({ blocks }: { blocks?: Block[] }) {
             loading="lazy"
           />
         ) : (
-          <p key={i}>{b.value}</p>
+          <p key={i}>{parseMathAndCode(b.value || "")}</p>
         ),
       )}
     </div>
@@ -391,6 +554,16 @@ export function AnswerInput({
   if (q.type === "short_answer") {
     const isFeedbackCorrect = feedback?.status === "correct";
     const isFeedbackWrong = feedback?.status === "wrong" || feedback?.status === "partial";
+    const strVal = typeof value === "string" ? value : "";
+    const hasMathOrCode =
+      strVal.trim().length > 0 &&
+      (isLikelyLatex(strVal) ||
+        isLikelyCode(strVal) ||
+        strVal.includes("$") ||
+        strVal.includes("`") ||
+        strVal.includes("\\[") ||
+        strVal.includes("\\("));
+
     return (
       <label className="field">
         Câu trả lời của bạn
@@ -399,9 +572,9 @@ export function AnswerInput({
             className={`short-answer-input ${isFeedbackCorrect ? "input-correct" : isFeedbackWrong ? "input-wrong" : ""}`}
             maxLength={2000}
             disabled={disabled}
-            value={typeof value === "string" ? value : ""}
+            value={strVal}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="Nhập đáp án…"
+            placeholder="Nhập đáp án (hỗ trợ công thức như \sqrt{2}, x^2 hoặc mã `code`)..."
           />
           {feedback && (
             <span className={`input-badge ${isFeedbackCorrect ? "badge-correct" : "badge-wrong"}`}>
@@ -410,6 +583,16 @@ export function AnswerInput({
             </span>
           )}
         </div>
+        {hasMathOrCode && (
+          <div className="short-answer-preview">
+            <span className="short-answer-preview-label">
+              <Sparkles size={12} /> Xem trước công thức / mã:
+            </span>
+            <div className="short-answer-preview-box">
+              <AnswerDisplay value={strVal} />
+            </div>
+          </div>
+        )}
       </label>
     );
   }
@@ -501,9 +684,9 @@ export function Feedback({ q }: { q: GradedQuestion }) {
           </div>
           <div className="showcase-accepted-pills">
             {q.answer.accepted.map((ans, idx) => (
-              <span className="accepted-pill" key={idx}>
-                <code>{ans}</code>
-              </span>
+              <div className="accepted-pill-rich" key={idx}>
+                <AnswerDisplay value={ans} />
+              </div>
             ))}
           </div>
         </div>
@@ -932,16 +1115,63 @@ export function QuestionEditor({
       {q.type === "short_answer" && (
         <>
           <label className="field">
-            Đáp án chấp nhận (mỗi dòng một đáp án)
+            <div className="row between wrap" style={{ gap: 8, marginBottom: 4 }}>
+              <span>Đáp án chấp nhận (mỗi dòng một đáp án)</span>
+              <div className="row" style={{ gap: 6 }}>
+                <button
+                  type="button"
+                  className="button secondary small mini-tool-btn"
+                  onClick={() => {
+                    const cur = q.answer?.accepted || [];
+                    update({
+                      answer: { ...q.answer, accepted: [...cur, "\\sqrt{2}"] },
+                    });
+                  }}
+                >
+                  <Plus size={12} /> Thêm công thức math mẫu
+                </button>
+                <button
+                  type="button"
+                  className="button secondary small mini-tool-btn"
+                  onClick={() => {
+                    const cur = q.answer?.accepted || [];
+                    update({
+                      answer: { ...q.answer, accepted: [...cur, "`return n * 2`"] },
+                    });
+                  }}
+                >
+                  <Plus size={12} /> Thêm mã code mẫu
+                </button>
+              </div>
+            </div>
             <textarea
+              rows={4}
               value={q.answer?.accepted?.join("\n") || ""}
               onChange={(e) =>
                 update({
                   answer: { ...q.answer, accepted: e.target.value.split("\n") },
                 })
               }
+              placeholder="Nhập các đáp án chấp nhận (hỗ trợ công thức \sqrt{2}, x^2 và mã `code`)..."
             />
           </label>
+          {q.answer?.accepted &&
+            q.answer.accepted.some((a) => a.trim().length > 0) && (
+              <div className="accepted-live-preview-section">
+                <span className="small muted">
+                  Xem trước các đáp án hiển thị (toán & code):
+                </span>
+                <div className="showcase-accepted-pills" style={{ marginTop: 6 }}>
+                  {q.answer.accepted
+                    .filter((a) => a.trim().length > 0)
+                    .map((ans, idx) => (
+                      <div className="accepted-pill-rich" key={idx}>
+                        <AnswerDisplay value={ans} />
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           <div className="row wrap">
             <label className="row">
               <input

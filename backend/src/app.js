@@ -1233,6 +1233,8 @@ export function createApp(db, config) {
         method: req.method,
         path: req.route?.path || "unmatched",
         code: err.code || err.name,
+        message: err.message,
+        stack: err.stack,
       });
     res.status(status).json({
       error:

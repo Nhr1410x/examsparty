@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ShieldCheck,
@@ -18,6 +18,11 @@ import {
   Settings,
   LayoutDashboard,
   ArrowLeft,
+  Trash2,
+  CheckSquare,
+  ChevronDown,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { api, date, useLoad } from "./api";
 import {
@@ -158,9 +163,19 @@ function AdminWorkspace({
   onLogout: () => void;
 }) {
   const [tab, setTab] = useState("overview"),
-    [issue, setIssue] = useState<unknown>(null);
+    [issue, setIssue] = useState<unknown>(null),
+    [theme, setTheme] = useState(
+      () => document.documentElement.dataset.theme || "light",
+    );
 
   const activeTabTitle = tabs.find(([v]) => v === tab)?.[1] || "Tổng quan";
+
+  function toggleTheme() {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("ep-theme", next);
+  }
 
   return (
     <div className="admin-portal-layout">
@@ -217,6 +232,17 @@ function AdminWorkspace({
         <div className="admin-content-header">
           <div>
             <h1>{activeTabTitle}</h1>
+          </div>
+          <div className="row" style={{ gap: 10 }}>
+            <button
+              type="button"
+              className="icon-button theme-toggle"
+              aria-label={`Chuyển sang giao diện ${theme === "light" ? "tối" : "sáng"}`}
+              title={`Chuyển sang giao diện ${theme === "light" ? "tối" : "sáng"}`}
+              onClick={toggleTheme}
+            >
+              {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
           </div>
         </div>
         <ErrorMessage error={issue} />
@@ -444,15 +470,28 @@ function ManageExams() {
     [editing, setEditing] = useState<string | null>(null),
     [raw, setRaw] = useState(JSON.stringify(template, null, 2)),
     [status, setStatus] = useState("draft"),
-    [preview, setPreview] = useState<ExamContent | null>(null),
     [selected, setSelected] = useState<string[]>([]),
     [issue, setIssue] = useState<unknown>(null),
     [message, setMessage] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [selectMenuOpen, setSelectMenuOpen] = useState(false);
+  const selectMenuRef = useRef<HTMLDivElement>(null);
   const { data, error, loading } = useLoad<{
     items: (ExamCard & { content: ExamContent })[];
   }>(`/admin/exams?q=${encodeURIComponent(search)}&page=${page}`, revision);
-  useEffect(() => setPreview(null), [raw]);
+  useEffect(() => {
+    if (!selectMenuOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (
+        selectMenuRef.current &&
+        !selectMenuRef.current.contains(e.target as Node)
+      ) {
+        setSelectMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [selectMenuOpen]);
   async function deleteSelected() {
     if (
       busy ||
@@ -540,18 +579,32 @@ function ManageExams() {
       {message && <Notice>{message}</Notice>}
       {editing ? (
         <>
-          <div className="panel">
-            <div className="row between">
-              <h3>{editing === "new" ? "Tạo đề mới" : "Chỉnh sửa đề"}</h3>
-              <button
-                className="button secondary small"
-                onClick={() => setEditing(null)}
-              >
-                Hủy
-              </button>
+          <div className="panel admin-edit-panel">
+            <div className="row between wrap" style={{ gap: 12 }}>
+              <div>
+                <span className="eyebrow green-text">QUẢN LÝ ĐỀ THI</span>
+                <h3>{editing === "new" ? "Tạo đề mới" : "Chỉnh sửa đề thi"}</h3>
+              </div>
+              <div className="row" style={{ gap: 8 }}>
+                <button
+                  className="button secondary small"
+                  onClick={() => setEditing(null)}
+                >
+                  <X size={15} />
+                  Hủy
+                </button>
+                <button
+                  className="button small"
+                  disabled={busy}
+                  onClick={() => void save()}
+                >
+                  <Save size={15} />
+                  {busy ? "Đang lưu…" : "Lưu đề"}
+                </button>
+              </div>
             </div>
-            <label className="field">
-              Trạng thái
+            <label className="field" style={{ marginTop: 14 }}>
+              Trạng thái đề thi
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
@@ -562,27 +615,18 @@ function ManageExams() {
               </select>
             </label>
           </div>
-          <ExamEditor key={editing} raw={raw} onChange={setRaw} />
-          <div className="row wrap">
+          <ExamEditor
+            key={editing}
+            raw={raw}
+            onChange={setRaw}
+            defaultMode="preview"
+          />
+          <div className="row wrap between" style={{ marginTop: 24, marginBottom: 24 }}>
             <button
               className="button secondary"
-              disabled={busy}
-              onClick={async () => {
-                try {
-                  const result = await api<{ content: ExamContent }>(
-                    "/contributions/validate",
-                    "POST",
-                    JSON.parse(raw),
-                  );
-                  setPreview(result.content);
-                  setIssue(null);
-                } catch (e) {
-                  setIssue(e);
-                }
-              }}
+              onClick={() => setEditing(null)}
             >
-              <Eye size={16} />
-              Kiểm tra & xem trước
+              Hủy
             </button>
             <button
               className="button"
@@ -593,36 +637,101 @@ function ManageExams() {
               {busy ? "Đang lưu…" : "Lưu đề"}
             </button>
           </div>
-          {preview && <ExamPreview content={preview} />}
         </>
       ) : loading ? (
         <Loading />
       ) : data?.items.length ? (
         <fieldset disabled={busy} aria-label="Danh sách đề thi">
-          <div className="row wrap between">
-            <label className="row">
-              <input
-                type="checkbox"
-                checked={data.items.every((exam) => selected.includes(exam.id))}
-                onChange={(e) =>
-                  setSelected(
-                    e.target.checked ? data.items.map((exam) => exam.id) : [],
-                  )
-                }
-              />
-              Chọn tất cả trong trang
-            </label>
-            <button
-              className="button danger small"
-              disabled={busy || !selected.length}
-              onClick={() => void deleteSelected()}
-            >
-              {busy ? "Đang xóa…" : `Xóa đã chọn (${selected.length})`}
-            </button>
+          <div className="admin-batch-bar">
+            <div className="admin-batch-left" ref={selectMenuRef}>
+              <div className="admin-select-anchor">
+                <button
+                  type="button"
+                  className={`button secondary small admin-select-trigger ${selectMenuOpen ? "active" : ""}`}
+                  onClick={() => setSelectMenuOpen((o) => !o)}
+                  aria-expanded={selectMenuOpen}
+                >
+                  <CheckSquare size={15} />
+                  <span>Chọn nhiều</span>
+                  <ChevronDown
+                    size={13}
+                    className={`select-chevron ${selectMenuOpen ? "open" : ""}`}
+                  />
+                </button>
+                <div
+                  className={`admin-select-dropdown ${selectMenuOpen ? "open" : ""}`}
+                  role="menu"
+                >
+                  <label className="admin-select-dropdown-item">
+                    <input
+                      type="checkbox"
+                      checked={
+                        data.items.length > 0 &&
+                        data.items.every((exam) => selected.includes(exam.id))
+                      }
+                      onChange={(e) =>
+                        setSelected(
+                          e.target.checked
+                            ? data.items.map((exam) => exam.id)
+                            : [],
+                        )
+                      }
+                    />
+                    <span>Chọn tất cả trong trang ({data.items.length})</span>
+                  </label>
+                  {selected.length > 0 && (
+                    <button
+                      type="button"
+                      className="admin-select-dropdown-clear"
+                      onClick={() => {
+                        setSelected([]);
+                        setSelectMenuOpen(false);
+                      }}
+                    >
+                      Bỏ chọn tất cả ({selected.length})
+                    </button>
+                  )}
+                </div>
+              </div>
+              {selected.length > 0 && (
+                <div className="admin-selection-badge">
+                  <span>
+                    Đã chọn <strong>{selected.length}</strong> / {data.items.length} đề
+                  </span>
+                  <button
+                    type="button"
+                    className="text-link-subtle"
+                    onClick={() => setSelected([])}
+                  >
+                    Bỏ chọn
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="admin-batch-right">
+              <button
+                className="button danger small admin-delete-btn"
+                disabled={busy || !selected.length}
+                onClick={() => void deleteSelected()}
+              >
+                <Trash2 size={14} />
+                <span>
+                  {busy
+                    ? "Đang xóa…"
+                    : selected.length
+                      ? `Xóa đã chọn (${selected.length})`
+                      : "Xóa đã chọn"}
+                </span>
+              </button>
+            </div>
           </div>
           <div className="admin-list">
             {data.items.map((exam) => (
-              <div className="panel review-item" key={exam.id}>
+              <div
+                className={`panel review-item ${selected.includes(exam.id) ? "selected" : ""}`}
+                key={exam.id}
+              >
                 <input
                   type="checkbox"
                   aria-label={`Chọn đề ${exam.title}`}
@@ -638,7 +747,7 @@ function ManageExams() {
                 <div>
                   <strong>{exam.title}</strong>
                   <p>
-                    {exam.subject} · Lớp {exam.grade} · v{exam.version} ·{" "}
+                    {exam.subject} · v{exam.version} ·{" "}
                     {exam.content.questions.length} câu
                   </p>
                 </div>
