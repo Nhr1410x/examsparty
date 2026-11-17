@@ -159,3 +159,119 @@ test("admin selects exams, confirms deletion and retains selection on failure", 
     dom.window.close();
   }
 });
+
+test("admin imports JSON file directly into database", async () => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', {
+    url: "http://localhost:5173/admin",
+  });
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    localStorage: dom.window.localStorage,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+  const originalFetch = globalThis.fetch;
+  let exams: any[] = [];
+  const createdExams: any[] = [];
+
+  globalThis.fetch = async (input, options) => {
+    const url = String(input);
+    let body: unknown = {};
+    let status = 200;
+    if (url === "/api/session") {
+      body = {
+        user: { id: "admin", email: "admin@example.com", role: "admin" },
+      };
+    } else if (url === "/api/admin/exams" && options?.method === "POST") {
+      const data = JSON.parse(String(options.body));
+      createdExams.push(data);
+      const newExam = {
+        id: "exam-imported",
+        title: data.content.title,
+        subject: data.content.subject,
+        grade: data.content.grade,
+        version: 1,
+        status: data.status,
+        content: data.content,
+      };
+      exams.push(newExam);
+      body = { id: "exam-imported" };
+      status = 201;
+    } else if (url.startsWith("/api/admin/exams?")) {
+      body = { items: exams };
+    }
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  const root = createRoot(document.getElementById("root")!);
+  const button = (text: string) =>
+    Array.from(document.querySelectorAll("button")).find((b) =>
+      b.textContent?.includes(text),
+    )!;
+
+  try {
+    await act(async () =>
+      root.render(
+        <MemoryRouter>
+          <Admin />
+        </MemoryRouter>,
+      ),
+    );
+    await act(async () => button("Quản lý đề").click());
+
+    const fileInput = document.querySelector<HTMLInputElement>(
+      'input[type="file"][accept="application/json,.json"]',
+    )!;
+    assert.ok(fileInput, "Direct JSON import file input exists");
+
+    const sampleJson = JSON.stringify({
+      title: "Đề kiểm tra 15 phút Số học",
+      subject: "Toán học",
+      questions: [
+        {
+          type: "single_choice",
+          prompt: [{ type: "text", value: "3 + 5 bằng bao nhiêu?" }],
+          options: [
+            { id: "a", content: [{ type: "text", value: "8" }] },
+            { id: "b", content: [{ type: "text", value: "9" }] },
+          ],
+          answer: { correct_option_ids: ["a"] },
+          points: 10,
+        },
+      ],
+    });
+
+    const fakeFile = {
+      name: "test-exam.json",
+      size: sampleJson.length,
+      text: async () => sampleJson,
+    } as unknown as File;
+
+    Object.defineProperty(fileInput, "files", {
+      value: [fakeFile],
+      configurable: true,
+    });
+
+    await act(async () => {
+      fileInput.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    });
+
+    assert.equal(createdExams.length, 1, "Sent exam to backend");
+    assert.equal(createdExams[0].status, "published");
+    assert.equal(
+      createdExams[0].content.title,
+      "Đề kiểm tra 15 phút Số học",
+    );
+    assert.match(
+      document.body.textContent || "",
+      /Đã nhập và lưu thành công 1 đề thi "Đề kiểm tra 15 phút Số học" vào cơ sở dữ liệu/,
+    );
+  } finally {
+    await act(async () => root.unmount());
+    globalThis.fetch = originalFetch;
+    dom.window.close();
+  }
+});

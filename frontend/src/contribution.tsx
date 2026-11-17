@@ -6,6 +6,7 @@ import {
   FileJson,
   Pencil,
   Plus,
+  Save,
   Send,
   Upload,
   ArrowRight,
@@ -24,6 +25,7 @@ import {
   emptyExam,
   emptyQuestion,
   ExamContent,
+  normalizeExamPayload,
   Submission,
   template,
   typeLabels,
@@ -34,11 +36,13 @@ export function ExamEditor({
   onChange,
   initial = template,
   defaultMode = "preview",
+  onDirectSave,
 }: {
   raw: string;
   onChange: (raw: string) => void;
   initial?: ExamContent;
   defaultMode?: "preview" | "form" | "json";
+  onDirectSave?: (content: ExamContent) => Promise<void> | void;
 }) {
   const [mode, setMode] = useState<"preview" | "form" | "json">(defaultMode),
     [form, setForm] = useState<ExamContent>(() => {
@@ -49,6 +53,7 @@ export function ExamEditor({
       }
     }),
     [issue, setIssue] = useState<unknown>(null),
+    [savedNotice, setSavedNotice] = useState<string>(""),
     [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -142,25 +147,81 @@ export function ExamEditor({
             <input
               type="file"
               accept="application/json,.json"
+              disabled={busy}
               onChange={async (e) => {
                 const f = e.target.files?.[0];
                 if (!f) return;
                 if (f.size > 2 * 1024 * 1024) {
-                  setIssue(new Error("JSON tối đa 2 MB."));
+                  setIssue(new Error("File JSON tối đa 2 MB."));
                   return;
                 }
+                setIssue(null);
+                setSavedNotice("");
                 const text = await f.text();
-                onChange(text);
                 try {
-                  setForm(JSON.parse(text));
+                  const rawParsed = JSON.parse(text);
+                  const normalized = normalizeExamPayload(rawParsed);
+                  const formatted = JSON.stringify(normalized, null, 2);
+                  onChange(formatted);
+                  setForm(normalized);
                   setMode("preview");
-                } catch {
+                  if (onDirectSave) {
+                    const saveNow = window.confirm(
+                      `Đã nạp file đề thi "${normalized.title}" (${normalized.questions.length} câu hỏi).\n\nBạn có muốn lưu ngay đề thi này vào cơ sở dữ liệu không?`,
+                    );
+                    if (saveNow) {
+                      setBusy(true);
+                      try {
+                        await onDirectSave(normalized);
+                        setSavedNotice(
+                          `Đã nhập và lưu đề "${normalized.title}" vào cơ sở dữ liệu thành công!`,
+                        );
+                      } catch (err) {
+                        setIssue(err);
+                      } finally {
+                        setBusy(false);
+                      }
+                    } else {
+                      setSavedNotice(
+                        `Đã nạp file JSON vào bản xem trước. Hãy nhấn "Lưu vào database" khi bạn muốn lưu.`,
+                      );
+                    }
+                  } else {
+                    setSavedNotice(`Đã nạp file JSON vào trình soạn thảo.`);
+                  }
+                } catch (err) {
+                  onChange(text);
                   setMode("json");
+                  setIssue(err);
                 }
                 e.target.value = "";
               }}
             />
           </label>
+          {onDirectSave && (
+            <button
+              type="button"
+              className="button small"
+              disabled={busy}
+              onClick={async () => {
+                setIssue(null);
+                setBusy(true);
+                try {
+                  await onDirectSave(parsedContent);
+                  setSavedNotice(
+                    `Đã lưu đề "${parsedContent.title}" vào cơ sở dữ liệu thành công!`,
+                  );
+                } catch (err) {
+                  setIssue(err);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <Save size={15} />
+              Lưu vào CSDL
+            </button>
+          )}
           <button
             type="button"
             className="button secondary small"
@@ -175,6 +236,7 @@ export function ExamEditor({
         </div>
       </div>
       <ErrorMessage error={issue} />
+      {savedNotice && <Notice>{savedNotice}</Notice>}
       {mode === "preview" ? (
         <div className="editor-preview-pane">
           <div className="panel editor-preview-action-bar">
@@ -186,15 +248,41 @@ export function ExamEditor({
                   {parsedContent.subject} · {parsedContent.questions.length} câu hỏi · {parsedContent.settings?.time_limit_minutes || 45} phút
                 </p>
               </div>
-              <button
-                type="button"
-                className="button secondary small"
-                disabled={busy}
-                onClick={() => void showForm()}
-              >
-                <Pencil size={14} />
-                Chuyển sang soạn thảo biểu mẫu
-              </button>
+              <div className="row wrap" style={{ gap: 8 }}>
+                {onDirectSave && (
+                  <button
+                    type="button"
+                    className="button small"
+                    disabled={busy}
+                    onClick={async () => {
+                      setIssue(null);
+                      setBusy(true);
+                      try {
+                        await onDirectSave(parsedContent);
+                        setSavedNotice(
+                          `Đã lưu đề "${parsedContent.title}" vào cơ sở dữ liệu thành công!`,
+                        );
+                      } catch (err) {
+                        setIssue(err);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    <Save size={14} />
+                    Lưu vào database
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="button secondary small"
+                  disabled={busy}
+                  onClick={() => void showForm()}
+                >
+                  <Pencil size={14} />
+                  Chuyển sang soạn thảo biểu mẫu
+                </button>
+              </div>
             </div>
           </div>
           <ExamPreview content={parsedContent} showAnswers={true} />

@@ -183,3 +183,145 @@ export const template: ExamContent = {
     },
   ],
 };
+
+export function normalizeExamPayload(data: any): ExamContent {
+  if (!data || typeof data !== "object") {
+    throw new Error("Dữ liệu đề thi không hợp lệ (phải là đối tượng JSON).");
+  }
+
+  const rawQuestions = Array.isArray(data.questions) ? data.questions : [];
+  const normalizedQuestions: Question[] =
+    rawQuestions.length > 0
+      ? rawQuestions.map((q: any, idx: number) => {
+          const cid = String(q.client_id || `q${idx + 1}`);
+          const type: QuestionType = [
+            "single_choice",
+            "multiple_choice",
+            "true_false",
+            "short_answer",
+            "essay",
+          ].includes(q.type)
+            ? q.type
+            : "single_choice";
+
+          const normalizeBlocks = (val: any): Block[] => {
+            if (Array.isArray(val)) {
+              return val.map((b) =>
+                typeof b === "string"
+                  ? { type: "text", value: b }
+                  : {
+                      type: b?.type || "text",
+                      value: b?.value || "",
+                      language: b?.language,
+                      asset_id: b?.asset_id,
+                      alt: b?.alt,
+                    },
+              );
+            }
+            if (typeof val === "string") {
+              return [{ type: "text", value: val }];
+            }
+            return [{ type: "text", value: "" }];
+          };
+
+          const question: Question = {
+            client_id: cid,
+            type,
+            prompt: normalizeBlocks(q.prompt),
+            explanation: normalizeBlocks(q.explanation),
+            points:
+              typeof q.points === "number" && q.points > 0 ? q.points : 1,
+            difficulty: ["easy", "medium", "hard"].includes(q.difficulty)
+              ? q.difficulty
+              : "medium",
+            tags: Array.isArray(q.tags) ? q.tags.map(String) : [],
+          };
+
+          if (type === "true_false" && Array.isArray(q.statements)) {
+            question.statements = q.statements.map((s: any, sIdx: number) => ({
+              id: String(s.id || String.fromCharCode(97 + sIdx)),
+              content: normalizeBlocks(s.content),
+              answer: typeof s.answer === "boolean" ? s.answer : true,
+            }));
+          } else if (Array.isArray(q.options)) {
+            question.options = q.options.map((opt: any, optIdx: number) => ({
+              id: String(opt.id || String.fromCharCode(97 + optIdx)),
+              content: normalizeBlocks(opt.content),
+            }));
+          }
+
+          if (q.answer && typeof q.answer === "object") {
+            question.answer = {
+              correct_option_ids: Array.isArray(q.answer.correct_option_ids)
+                ? q.answer.correct_option_ids.map(String)
+                : undefined,
+              accepted: Array.isArray(q.answer.accepted)
+                ? q.answer.accepted.map(String)
+                : undefined,
+              numeric_tolerance:
+                typeof q.answer.numeric_tolerance === "number"
+                  ? q.answer.numeric_tolerance
+                  : undefined,
+              case_sensitive:
+                typeof q.answer.case_sensitive === "boolean"
+                  ? q.answer.case_sensitive
+                  : undefined,
+              partial_credit:
+                typeof q.answer.partial_credit === "boolean"
+                  ? q.answer.partial_credit
+                  : undefined,
+            };
+          } else {
+            question.answer = { correct_option_ids: ["a"] };
+          }
+
+          if (q.rubric) question.rubric = String(q.rubric);
+
+          return question;
+        })
+      : [emptyQuestion(1)];
+
+  // Ensure unique client_ids
+  const seenIds = new Set<string>();
+  normalizedQuestions.forEach((q, idx) => {
+    if (seenIds.has(q.client_id) || !q.client_id) {
+      q.client_id = `q${idx + 1}_${Math.random().toString(36).slice(2, 6)}`;
+    }
+    seenIds.add(q.client_id);
+  });
+
+  // Ensure at least one question has positive points
+  if (!normalizedQuestions.some((q) => q.points > 0)) {
+    normalizedQuestions[0].points = 1;
+  }
+
+  let title = String(data.title || "Đề thi mới").trim();
+  if (title.length < 3) title = `${title} thi`;
+
+  return {
+    schema_version: "1.0",
+    title,
+    subject: String(data.subject || "Toán học").trim() || "Toán học",
+    grade: String(data.grade || "12").trim() || "12",
+    description: String(data.description || ""),
+    topics: Array.isArray(data.topics) ? data.topics.map(String) : [],
+    settings: {
+      time_limit_minutes:
+        typeof data.settings?.time_limit_minutes === "number" &&
+        data.settings.time_limit_minutes >= 1 &&
+        data.settings.time_limit_minutes <= 300
+          ? data.settings.time_limit_minutes
+          : 45,
+      shuffle_questions:
+        typeof data.settings?.shuffle_questions === "boolean"
+          ? data.settings.shuffle_questions
+          : true,
+      shuffle_options:
+        typeof data.settings?.shuffle_options === "boolean"
+          ? data.settings.shuffle_options
+          : true,
+      score_scale: 10,
+    },
+    questions: normalizedQuestions,
+  };
+}

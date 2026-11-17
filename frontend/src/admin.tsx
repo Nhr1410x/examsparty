@@ -23,6 +23,7 @@ import {
   ChevronDown,
   Sun,
   Moon,
+  Upload,
 } from "lucide-react";
 import { api, date, useLoad } from "./api";
 import {
@@ -40,6 +41,7 @@ import {
   emptyQuestion,
   ExamCard,
   ExamContent,
+  normalizeExamPayload,
   Question,
   Submission,
   template,
@@ -518,21 +520,70 @@ function ManageExams() {
       setBusy(false);
     }
   }
-  async function save() {
+  async function handleImportJson(file: File) {
+    if (file.size > 2 * 1024 * 1024) {
+      setIssue(new Error("File JSON tối đa 2 MB."));
+      return;
+    }
     setIssue(null);
     setMessage("");
     setBusy(true);
     try {
+      const text = await file.text();
+      let rawData: unknown;
+      try {
+        rawData = JSON.parse(text);
+      } catch {
+        throw new Error("File tải lên không phải là định dạng JSON hợp lệ.");
+      }
+
+      const items = Array.isArray(rawData) ? rawData : [rawData];
+      if (items.length === 0) {
+        throw new Error("File JSON rỗng, không chứa đề thi nào.");
+      }
+
+      let successCount = 0;
+      let lastTitle = "";
+      for (const item of items) {
+        const normalized = normalizeExamPayload(item);
+        await api("/admin/exams", "POST", {
+          content: normalized,
+          status: "published",
+        });
+        successCount++;
+        lastTitle = normalized.title;
+      }
+
+      setRevision((n) => n + 1);
+      setPage(1);
+      const titleInfo =
+        items.length === 1 && lastTitle ? ` "${lastTitle}"` : "";
+      setMessage(
+        `Đã nhập và lưu thành công ${successCount} đề thi${titleInfo} vào cơ sở dữ liệu!`,
+      );
+    } catch (e) {
+      setIssue(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function save(contentToSave?: ExamContent) {
+    setIssue(null);
+    setMessage("");
+    setBusy(true);
+    try {
+      const payload = contentToSave || normalizeExamPayload(JSON.parse(raw));
       await api(
         `/admin/exams${editing && editing !== "new" ? `/${editing}` : ""}`,
         editing === "new" ? "POST" : "PUT",
-        { content: JSON.parse(raw), status },
+        { content: payload, status },
       );
       setEditing(null);
       setRevision((n) => n + 1);
-      setMessage("Đã lưu đề và ghi nhật ký.");
+      setMessage(`Đã lưu đề "${payload.title}" vào cơ sở dữ liệu và ghi nhật ký.`);
     } catch (e) {
       setIssue(e);
+      throw e;
     } finally {
       setBusy(false);
     }
@@ -541,19 +592,40 @@ function ManageExams() {
     <>
       <div className="section-heading">
         <h2>Quản lý đề thi</h2>
-        <button
-          className="button small"
-          disabled={busy}
-          onClick={() => {
-            setEditing("new");
-            setRaw(JSON.stringify(template, null, 2));
-            setStatus("draft");
-            setMessage("");
-          }}
-        >
-          <Plus size={16} />
-          Tạo đề
-        </button>
+        <div className="row wrap" style={{ gap: 8 }}>
+          <label
+            className="button secondary small upload-label"
+            style={{ margin: 0, cursor: busy ? "not-allowed" : "pointer" }}
+            title="Chọn file JSON đề thi để lưu trực tiếp vào cơ sở dữ liệu"
+          >
+            <Upload size={16} />
+            Nhập JSON vào database
+            <input
+              type="file"
+              accept="application/json,.json"
+              disabled={busy}
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                await handleImportJson(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <button
+            className="button small"
+            disabled={busy}
+            onClick={() => {
+              setEditing("new");
+              setRaw(JSON.stringify(template, null, 2));
+              setStatus("draft");
+              setMessage("");
+            }}
+          >
+            <Plus size={16} />
+            Tạo đề
+          </button>
+        </div>
       </div>
       <form
         className="search-box"
@@ -620,6 +692,7 @@ function ManageExams() {
             raw={raw}
             onChange={setRaw}
             defaultMode="preview"
+            onDirectSave={save}
           />
           <div className="row wrap between" style={{ marginTop: 24, marginBottom: 24 }}>
             <button
