@@ -3160,6 +3160,253 @@ footer a {
   padding: 26px 30px;
 }
 
+/* ========================================================
+   REVIEW WORKSPACE (PLAYER REVIEW MODE)
+   ======================================================== */
+.review-heading-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 36px;
+  margin-bottom: 20px;
+}
+.review-player-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 24px;
+  align-items: start;
+}
+.review-question-panel {
+  padding: 30px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  transition: all 0.2s ease;
+}
+.review-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 7px;
+  line-height: 1.2;
+}
+.review-status-badge.status-correct {
+  background: var(--green-light);
+  color: var(--green);
+  border: 1px solid var(--green-border);
+}
+.review-status-badge.status-wrong {
+  background: var(--red-light);
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+.review-status-badge.status-partial {
+  background: var(--amber-light);
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+.review-status-badge.status-blank {
+  background: var(--subtle);
+  color: var(--muted);
+  border: 1px dashed var(--line-strong);
+}
+
+.review-question-nav {
+  position: sticky;
+  top: 20px;
+  align-self: start;
+  padding: 22px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.review-question-nav h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-heading);
+}
+
+.review-nav-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  margin: 12px 0 10px;
+  transition: all 0.2s ease;
+}
+.review-nav-search:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px var(--green-light);
+}
+.review-nav-search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: var(--text-body);
+  width: 100%;
+  padding: 0;
+}
+.review-nav-search input::placeholder {
+  color: var(--muted);
+}
+
+.review-filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.review-filter-pills button {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: var(--subtle);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.review-filter-pills button:hover {
+  border-color: var(--green);
+  color: var(--text-heading);
+}
+.review-filter-pills button.active {
+  background: var(--green-light);
+  border-color: var(--green);
+  color: var(--green);
+  font-weight: 700;
+}
+
+.review-question-numbers {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+.review-num-btn {
+  position: relative;
+  aspect-ratio: 1;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+.review-num-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+/* Câu đúng: ô màu xanh */
+.review-num-btn.review-btn-correct {
+  background: #059669;
+  color: #ffffff;
+  border-color: #059669;
+}
+.review-num-btn.review-btn-correct:hover {
+  background: #047857;
+}
+/* Câu sai: ô màu đỏ */
+.review-num-btn.review-btn-wrong {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+.review-num-btn.review-btn-wrong:hover {
+  background: #b91c1c;
+}
+/* Câu một phần: ô màu vàng hổ phách */
+.review-num-btn.review-btn-partial {
+  background: #d97706;
+  color: #ffffff;
+  border-color: #d97706;
+}
+/* Câu bỏ trống: viền nét đứt */
+.review-num-btn.review-btn-blank {
+  background: var(--surface);
+  color: var(--muted);
+  border: 1.5px dashed var(--line-strong);
+}
+.review-num-btn.review-btn-blank:hover {
+  color: var(--text-heading);
+  border-color: var(--text-heading);
+}
+/* Câu đang xem hiện tại */
+.review-num-btn.current {
+  outline: 2.5px solid var(--text-heading);
+  outline-offset: 2px;
+  transform: scale(1.08);
+  z-index: 2;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+.review-num-btn.dimmed {
+  opacity: 0.25;
+  filter: grayscale(0.7);
+}
+.review-num-btn.dimmed:hover {
+  opacity: 0.8;
+  filter: none;
+}
+
+.review-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted);
+}
+.review-legend .legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.legend-box.green {
+  background: #059669;
+}
+.legend-box.red {
+  background: #dc2626;
+}
+.legend-box.amber {
+  background: #d97706;
+}
+.legend-box.gray {
+  background: var(--surface);
+  border: 1.5px dashed var(--line-strong);
+}
+
+@media (max-width: 900px) {
+  .review-player-grid {
+    grid-template-columns: 1fr;
+  }
+  .review-question-nav {
+    position: static;
+    order: -1;
+    margin-bottom: 20px;
+  }
+}
+
 .page-tabs {
   margin-bottom: 25px;
   display: inline-flex;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -13,6 +13,9 @@ import {
   BookOpen,
   X,
   AlertCircle,
+  Eye,
+  LayoutDashboard,
+  ListFilter,
 } from "lucide-react";
 import { api, ApiError, useLoad } from "./api";
 import {
@@ -467,6 +470,8 @@ export function Results() {
   const { data, error, loading } = useLoad<Attempt>(`/attempts/${id}`);
   const [filter, setFilter] = useState("all"),
     [query, setQuery] = useState(""),
+    [reviewIndex, setReviewIndex] = useState(0),
+    [viewMode, setViewMode] = useState<"player" | "list">("player"),
     [issue, setIssue] = useState<unknown>(null),
     [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -477,25 +482,43 @@ export function Results() {
   if (error || !data?.result) return <ErrorMessage error={error} />;
   const result = data.result;
   const qLower = query.trim().toLowerCase();
-  const questions = result.questions.filter((q, idx) => {
-    const matchesFilter =
-      filter === "all" ||
-      q.status === filter ||
-      (filter === "wrong" && q.status === "partial");
-    if (!matchesFilter) return false;
-    if (!qLower) return true;
-    const questionNumber = `câu ${idx + 1}`;
-    const inNumber = questionNumber.includes(qLower) || String(idx + 1) === qLower;
-    const inPrompt = JSON.stringify(q.prompt).toLowerCase().includes(qLower);
-    const inExplanation = q.explanation
-      ? JSON.stringify(q.explanation).toLowerCase().includes(qLower)
-      : false;
-    const inOptions = q.options
-      ? JSON.stringify(q.options).toLowerCase().includes(qLower)
-      : false;
-    const inTags = q.tags ? q.tags.some((t) => t.toLowerCase().includes(qLower)) : false;
-    return inNumber || inPrompt || inExplanation || inOptions || inTags;
-  });
+
+  const filteredIndices = useMemo(() => {
+    const indices = new Set<number>();
+    result.questions.forEach((q, idx) => {
+      const matchesFilter =
+        filter === "all" ||
+        q.status === filter ||
+        (filter === "wrong" && q.status === "partial");
+      if (!matchesFilter) return;
+      if (!qLower) {
+        indices.add(idx);
+        return;
+      }
+      const questionNumber = `câu ${idx + 1}`;
+      const inNumber = questionNumber.includes(qLower) || String(idx + 1) === qLower;
+      const inPrompt = JSON.stringify(q.prompt).toLowerCase().includes(qLower);
+      const inExplanation = q.explanation
+        ? JSON.stringify(q.explanation).toLowerCase().includes(qLower)
+        : false;
+      const inOptions = q.options
+        ? JSON.stringify(q.options).toLowerCase().includes(qLower)
+        : false;
+      const inTags = q.tags ? q.tags.some((t) => t.toLowerCase().includes(qLower)) : false;
+      if (inNumber || inPrompt || inExplanation || inOptions || inTags) {
+        indices.add(idx);
+      }
+    });
+    return indices;
+  }, [result.questions, filter, qLower]);
+
+  const questions = useMemo(() => {
+    return result.questions.filter((_, idx) => filteredIndices.has(idx));
+  }, [result.questions, filteredIndices]);
+
+  const safeReviewIndex =
+    reviewIndex >= 0 && reviewIndex < result.questions.length ? reviewIndex : 0;
+  const currentQ = result.questions[safeReviewIndex] || result.questions[0];
   const duration = Math.max(
     0,
     Math.min(
@@ -579,6 +602,30 @@ export function Results() {
             </span>
             {result.pending > 0 && <span>{result.pending} chưa chấm</span>}
           </div>
+          <div className="row wrap" style={{ gap: 10, marginTop: 18 }}>
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                setViewMode("player");
+                document
+                  .getElementById("review-workspace")
+                  ?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              <Eye size={16} />
+              Xem lại bài làm
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              disabled={busy}
+              onClick={() => void retry()}
+            >
+              <RotateCcw size={16} />
+              Làm lại bài này
+            </button>
+          </div>
         </div>
       </div>
       {result.provisional && (
@@ -588,126 +635,396 @@ export function Results() {
         </Notice>
       )}
       <ErrorMessage error={issue} />
-      <div className="section-heading">
-        <h2>Nhìn lại từng câu hỏi</h2>
-        <span className="muted small">Hiểu vì sao, nhớ lâu hơn. Đáp án và giải thích chi tiết cho từng câu.</span>
-      </div>
-      <div className="review-tools">
-        <div className="tabs" role="group" aria-label="Lọc kết quả">
-          {[
-            ["all", `Tất cả (${result.questions.length})`],
-            ["wrong", `Sai / một phần (${result.wrong})`],
-            ["blank", `Bỏ trống (${result.blank})`],
-            ["correct", `Đúng (${result.correct})`],
-            ...(result.pending > 0 ? [["pending", `Chưa chấm (${result.pending})`]] : []),
-          ].map(([v, l]) => (
-            <button
-              key={v}
-              className={filter === v ? "active" : ""}
-              onClick={() => setFilter(v)}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
-        <div className="review-search-bar">
-          <Search size={18} />
-          <input
-            aria-label="Tìm câu trong kết quả"
-            placeholder="Tìm theo số câu (câu 1, 2...), nội dung, đáp án hoặc lời giải..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          {query && (
-            <button
-              type="button"
-              className="icon-button"
-              onClick={() => setQuery("")}
-              aria-label="Xóa từ khóa tìm kiếm"
-              title="Xóa tìm kiếm"
-            >
-              <X size={15} />
-            </button>
-          )}
-        </div>
-      </div>
-      {questions.length ? (
-        <div className="review-list">
-          {questions.map((q) => {
-            const origIdx = result.questions.indexOf(q);
-            const isCorrect = q.status === "correct";
-            const isWrong = q.status === "wrong" || q.status === "partial";
-            const isBlank = q.status === "blank";
 
-            return (
-              <article
-                className={`panel review-question-card ${
-                  isCorrect
-                    ? "card-status-correct"
-                    : isWrong
-                      ? q.status === "partial"
-                        ? "card-status-partial"
-                        : "card-status-wrong"
-                      : isBlank
-                        ? "card-status-blank"
-                        : "card-status-pending"
-                }`}
-                key={q.client_id}
+      <div id="review-workspace" className="section-heading review-heading-row">
+        <div>
+          <h2>Xem lại bài làm</h2>
+          <span className="muted small">
+            Đối chiếu bài làm của bạn với đáp án và lời giải chi tiết từng câu.
+          </span>
+        </div>
+        <div className="segmented-control" role="tablist">
+          <button
+            type="button"
+            className={viewMode === "player" ? "active" : ""}
+            onClick={() => setViewMode("player")}
+            title="Giao diện phòng thi: Duyệt từng câu kèm ô số câu màu xanh (đúng) và đỏ (sai)"
+          >
+            <LayoutDashboard size={15} />
+            Giao diện phòng thi
+          </button>
+          <button
+            type="button"
+            className={viewMode === "list" ? "active" : ""}
+            onClick={() => setViewMode("list")}
+            title="Danh sách toàn bộ các câu hỏi"
+          >
+            <ListFilter size={15} />
+            Danh sách toàn bộ
+          </button>
+        </div>
+      </div>
+
+      {viewMode === "player" ? (
+        <div className="player-grid review-player-grid">
+          {/* Main Question Panel (Left) */}
+          <div>
+            <article
+              className={`question-panel panel review-question-panel ${
+                currentQ.status === "correct"
+                  ? "card-status-correct"
+                  : currentQ.status === "wrong"
+                    ? "card-status-wrong"
+                    : currentQ.status === "partial"
+                      ? "card-status-partial"
+                      : "card-status-blank"
+              }`}
+            >
+              <div
+                className="row between wrap"
+                style={{ alignItems: "center", marginBottom: 16, gap: 10 }}
               >
-                <div
-                  className="row between wrap review-card-header"
-                  style={{ gap: 10, alignItems: "center", marginBottom: 16 }}
+                <div className="row wrap" style={{ alignItems: "center", gap: 10 }}>
+                  <span className="question-number-pill">
+                    CÂU {safeReviewIndex + 1}
+                  </span>
+                  <span className="question-total-count">
+                    / {result.questions.length} câu
+                  </span>
+                  <span
+                    className={`review-status-badge ${
+                      currentQ.status === "correct"
+                        ? "status-correct"
+                        : currentQ.status === "wrong"
+                          ? "status-wrong"
+                          : currentQ.status === "partial"
+                            ? "status-partial"
+                            : "status-blank"
+                    }`}
+                  >
+                    {currentQ.status === "correct" ? (
+                      <>
+                        <Check size={14} /> Đúng (+{Number(currentQ.awarded.toFixed(2))}/{currentQ.points}đ)
+                      </>
+                    ) : currentQ.status === "wrong" ? (
+                      <>
+                        <X size={14} /> Sai (0/{currentQ.points}đ)
+                      </>
+                    ) : currentQ.status === "partial" ? (
+                      <>
+                        <AlertCircle size={14} /> Một phần (+{Number(currentQ.awarded.toFixed(2))}/{currentQ.points}đ)
+                      </>
+                    ) : currentQ.status === "blank" ? (
+                      <>⊘ Chưa làm (0/{currentQ.points}đ)</>
+                    ) : (
+                      <>⏳ Chờ chấm</>
+                    )}
+                  </span>
+                </div>
+                <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
+                  <span className="question-type-tag">{typeLabels[currentQ.type]}</span>
+                  <span className="question-points-tag">{currentQ.points || 1} điểm</span>
+                </div>
+              </div>
+
+              <div className="question-content">
+                <Blocks blocks={currentQ.prompt} />
+              </div>
+
+              <div className="review-question-input" style={{ margin: "20px 0" }}>
+                <AnswerInput
+                  question={currentQ}
+                  value={currentQ.response}
+                  onChange={() => {}}
+                  disabled
+                  feedback={currentQ}
+                />
+              </div>
+
+              {/* Reveal answer and step-by-step solution */}
+              <Feedback q={currentQ} />
+
+              <div className="question-actions" style={{ marginTop: 28 }}>
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={safeReviewIndex === 0}
+                  onClick={() => setReviewIndex(safeReviewIndex - 1)}
                 >
-                  <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
-                    <span className="question-number-pill question-badge-pill">
-                      {isCorrect ? (
-                        <>
-                          <Check size={14} /> CÂU {origIdx + 1} • ĐÚNG (+{Number(q.awarded.toFixed(2))}/{q.points}đ)
-                        </>
-                      ) : isWrong ? (
-                        q.status === "partial" ? (
-                          <>
-                            <AlertCircle size={14} /> CÂU {origIdx + 1} • MỘT PHẦN (+{Number(q.awarded.toFixed(2))}/{q.points}đ)
-                          </>
-                        ) : (
-                          <>
-                            <X size={14} /> CÂU {origIdx + 1} • SAI (0/{q.points}đ)
-                          </>
-                        )
-                      ) : isBlank ? (
-                        <>
-                          ⊘ CÂU {origIdx + 1} • CHƯA LÀM (0/{q.points}đ)
-                        </>
-                      ) : (
-                        <>
-                          ⏳ CÂU {origIdx + 1} • CHỜ CHẤM
-                        </>
-                      )}
-                    </span>
-                    <span className="question-type-tag">{typeLabels[q.type]}</span>
-                    <span className="question-points-tag">{q.points || 1} điểm</span>
-                  </div>
-                  <Badge status={q.status} />
-                </div>
-                <div className="review-question-prompt">
-                  <Blocks blocks={q.prompt} />
-                </div>
-                <div className="review-question-input" style={{ margin: "16px 0" }}>
-                  <AnswerInput
-                    question={q}
-                    value={q.response}
-                    onChange={() => {}}
-                    disabled
-                    feedback={q}
-                  />
-                </div>
-                <Feedback q={q} />
-              </article>
-            );
-          })}
+                  <ArrowLeft size={16} />
+                  Câu trước
+                </button>
+                <span className="small muted">
+                  Câu {safeReviewIndex + 1} / {result.questions.length}
+                </span>
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={safeReviewIndex === result.questions.length - 1}
+                  onClick={() => setReviewIndex(safeReviewIndex + 1)}
+                >
+                  Câu tiếp
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+            </article>
+          </div>
+
+          {/* Right Navigator Panel */}
+          <aside className="panel question-nav review-question-nav">
+            <div className="row between" style={{ alignItems: "center" }}>
+              <h3>Hành trình bài làm</h3>
+              <span className="badge small">
+                {result.correct}/{result.questions.length} đúng
+              </span>
+            </div>
+            <p className="small muted" style={{ margin: "4px 0 12px" }}>
+              Nhấp số câu để xem bài làm, đáp án & giải thích.
+            </p>
+
+            {/* Search Bar */}
+            <div className="review-nav-search">
+              <Search size={14} />
+              <input
+                placeholder="Tìm câu (1, 2...), từ khóa..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Tìm kiếm câu hỏi"
+              />
+              {query && (
+                <button
+                  type="button"
+                  className="icon-button"
+                  style={{ width: 22, height: 22, padding: 0 }}
+                  onClick={() => setQuery("")}
+                  title="Xóa tìm kiếm"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            {/* Filter Pills */}
+            <div className="review-filter-pills">
+              <button
+                type="button"
+                className={filter === "all" ? "active" : ""}
+                onClick={() => setFilter("all")}
+              >
+                Tất cả ({result.questions.length})
+              </button>
+              <button
+                type="button"
+                className={filter === "correct" ? "active" : ""}
+                onClick={() => setFilter("correct")}
+              >
+                Đúng ({result.correct})
+              </button>
+              <button
+                type="button"
+                className={filter === "wrong" ? "active" : ""}
+                onClick={() => setFilter("wrong")}
+              >
+                Sai ({result.wrong})
+              </button>
+              {result.blank > 0 && (
+                <button
+                  type="button"
+                  className={filter === "blank" ? "active" : ""}
+                  onClick={() => setFilter("blank")}
+                >
+                  Bỏ trống ({result.blank})
+                </button>
+              )}
+            </div>
+
+            {/* Question Numbers 1, 2, 3... Grid */}
+            <div className="question-numbers review-question-numbers">
+              {result.questions.map((item, i) => {
+                const isCorrect = item.status === "correct";
+                const isWrong = item.status === "wrong";
+                const isPartial = item.status === "partial";
+                const isBlank = item.status === "blank";
+                const isCurrent = i === safeReviewIndex;
+                const isMatch = filteredIndices.has(i);
+
+                let statusClass = "review-btn-blank";
+                if (isCorrect) statusClass = "review-btn-correct";
+                else if (isWrong) statusClass = "review-btn-wrong";
+                else if (isPartial) statusClass = "review-btn-partial";
+
+                return (
+                  <button
+                    key={item.client_id || i}
+                    type="button"
+                    className={`review-num-btn ${statusClass} ${isCurrent ? "current" : ""} ${!isMatch ? "dimmed" : ""}`}
+                    onClick={() => setReviewIndex(i)}
+                    title={`Câu ${i + 1}: ${
+                      isCorrect
+                        ? "Đúng"
+                        : isWrong
+                          ? "Sai"
+                          : isPartial
+                            ? "Một phần"
+                            : isBlank
+                              ? "Bỏ trống"
+                              : "Chờ chấm"
+                    } (+${Number(item.awarded.toFixed(2))}/${item.points}đ)`}
+                    aria-label={`Câu ${i + 1}`}
+                  >
+                    {i + 1}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="review-legend">
+              <span className="legend-item">
+                <i className="legend-box green" /> Đúng ({result.correct})
+              </span>
+              <span className="legend-item">
+                <i className="legend-box red" /> Sai ({result.wrong})
+              </span>
+              {result.blank > 0 && (
+                <span className="legend-item">
+                  <i className="legend-box gray" /> Bỏ trống ({result.blank})
+                </span>
+              )}
+            </div>
+          </aside>
         </div>
       ) : (
-        <Empty text="Không tìm thấy câu hỏi nào phù hợp với bộ lọc hoặc từ khóa tìm kiếm." />
+        <>
+          <div className="review-tools">
+            <div className="tabs" role="group" aria-label="Lọc kết quả">
+              {[
+                ["all", `Tất cả (${result.questions.length})`],
+                ["wrong", `Sai / một phần (${result.wrong})`],
+                ["blank", `Bỏ trống (${result.blank})`],
+                ["correct", `Đúng (${result.correct})`],
+                ...(result.pending > 0
+                  ? [["pending", `Chưa chấm (${result.pending})`]]
+                  : []),
+              ].map(([v, l]) => (
+                <button
+                  key={v}
+                  type="button"
+                  className={filter === v ? "active" : ""}
+                  onClick={() => setFilter(v)}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+            <div className="review-search-bar">
+              <Search size={18} />
+              <input
+                aria-label="Tìm câu trong kết quả"
+                placeholder="Tìm theo số câu (câu 1, 2...), nội dung, đáp án hoặc lời giải..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {query && (
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => setQuery("")}
+                  aria-label="Xóa từ khóa tìm kiếm"
+                  title="Xóa tìm kiếm"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+          </div>
+          {questions.length ? (
+            <div className="review-list">
+              {questions.map((q) => {
+                const origIdx = result.questions.indexOf(q);
+                const isCorrect = q.status === "correct";
+                const isWrong = q.status === "wrong" || q.status === "partial";
+                const isBlank = q.status === "blank";
+
+                return (
+                  <article
+                    className={`panel review-question-card ${
+                      isCorrect
+                        ? "card-status-correct"
+                        : isWrong
+                          ? q.status === "partial"
+                            ? "card-status-partial"
+                            : "card-status-wrong"
+                          : isBlank
+                            ? "card-status-blank"
+                            : "card-status-pending"
+                    }`}
+                    key={q.client_id}
+                  >
+                    <div
+                      className="row between wrap review-card-header"
+                      style={{ gap: 10, alignItems: "center", marginBottom: 16 }}
+                    >
+                      <div
+                        className="row wrap"
+                        style={{ gap: 8, alignItems: "center" }}
+                      >
+                        <span className="question-number-pill question-badge-pill">
+                          {isCorrect ? (
+                            <>
+                              <Check size={14} /> CÂU {origIdx + 1} • ĐÚNG (+{Number(q.awarded.toFixed(2))}/{q.points}đ)
+                            </>
+                          ) : isWrong ? (
+                            q.status === "partial" ? (
+                              <>
+                                <AlertCircle size={14} /> CÂU {origIdx + 1} • MỘT PHẦN (+{Number(q.awarded.toFixed(2))}/{q.points}đ)
+                              </>
+                            ) : (
+                              <>
+                                <X size={14} /> CÂU {origIdx + 1} • SAI (0/{q.points}đ)
+                              </>
+                            )
+                          ) : isBlank ? (
+                            <>
+                              ⊘ CÂU {origIdx + 1} • CHƯA LÀM (0/{q.points}đ)
+                            </>
+                          ) : (
+                            <>⏳ CÂU {origIdx + 1} • CHỜ CHẤM</>
+                          )}
+                        </span>
+                        <span className="question-type-tag">
+                          {typeLabels[q.type]}
+                        </span>
+                        <span className="question-points-tag">
+                          {q.points || 1} điểm
+                        </span>
+                      </div>
+                      <Badge status={q.status} />
+                    </div>
+                    <div className="review-question-prompt">
+                      <Blocks blocks={q.prompt} />
+                    </div>
+                    <div
+                      className="review-question-input"
+                      style={{ margin: "16px 0" }}
+                    >
+                      <AnswerInput
+                        question={q}
+                        value={q.response}
+                        onChange={() => {}}
+                        disabled
+                        feedback={q}
+                      />
+                    </div>
+                    <Feedback q={q} />
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <Empty text="Không tìm thấy câu hỏi nào phù hợp với bộ lọc hoặc từ khóa tìm kiếm." />
+          )}
+        </>
       )}
     </>
   );
