@@ -736,18 +736,102 @@ export function Feedback({ q }: { q: GradedQuestion }) {
     </div>
   );
 }
+export function FormatGuidePanel({ onClose }: { onClose?: () => void }) {
+  return (
+    <div className="format-guide-panel">
+      <div className="format-guide-header">
+        <strong>
+          📖 Hướng dẫn định dạng đặc biệt (Toán KaTeX, Mã nguồn, Bảng Markdown)
+        </strong>
+        {onClose && (
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onClose}
+            aria-label="Đóng hướng dẫn"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
+      <div className="format-guide-grid">
+        <div className="format-guide-col">
+          <span className="format-guide-title">📐 Công thức Toán (KaTeX)</span>
+          <p className="format-guide-desc">
+            Kẹp giữa <code>$..$</code> (cùng dòng) hoặc <code>$$..$$</code> (khối riêng):
+          </p>
+          <ul className="format-guide-list">
+            <li>
+              <code>$x^2 - 4x + 3 = 0$</code> &rarr; phương trình
+            </li>
+            <li>
+              <code>$\frac&#123;a&#125;&#123;b&#125;$</code> &rarr; phân số
+            </li>
+            <li>
+              <code>$\sqrt&#123;x&#125;$</code> &rarr; căn bậc hai
+            </li>
+            <li>
+              <code>$\lim_&#123;x \to 0&#125; \frac&#123;\sin x&#125;&#123;x&#125;$</code> &rarr; giới hạn
+            </li>
+            <li>
+              <code>\alpha, \beta, \pi, \le, \ge, \neq, \in, \vec&#123;AB&#125;</code>
+            </li>
+          </ul>
+        </div>
+        <div className="format-guide-col">
+          <span className="format-guide-title">💻 Mã nguồn (Code) & Bảng</span>
+          <p className="format-guide-desc">Đoạn code & Bảng dữ liệu:</p>
+          <ul className="format-guide-list">
+            <li>
+              Nhấn nút <strong>Thêm Mã nguồn</strong> hoặc dùng cú pháp Markdown:{" "}
+              <code>```python ... ```</code>
+            </li>
+            <li>
+              Tạo bảng Markdown trong khối Văn bản:
+              <pre>
+                <code>
+                  {`| Cột 1 | Cột 2 |
+| :--- | :--- |
+| Dữ liệu 1 | Dữ liệu 2 |`}
+                </code>
+              </pre>
+            </li>
+          </ul>
+        </div>
+        <div className="format-guide-col">
+          <span className="format-guide-title">✨ Chữ nổi bật & Hình ảnh</span>
+          <p className="format-guide-desc">Định dạng đoạn văn:</p>
+          <ul className="format-guide-list">
+            <li>
+              <code>**in đậm**</code>, <code>*in nghiêng*</code>, <code>`mã code`</code>
+            </li>
+            <li>
+              Danh sách: gạch đầu dòng <code>- Mục 1</code>
+            </li>
+            <li>
+              Ảnh minh họa: bấm nút <strong>Thêm Ảnh</strong> (chọn PNG, JPG &le; 2 MB)
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function BlockEditor({
   value,
   onChange,
   label,
   allowSplit = false,
   defaultViewMode = "split",
+  minHeight,
 }: {
   value: Block[];
   onChange: (blocks: Block[]) => void;
   label: string;
   allowSplit?: boolean;
   defaultViewMode?: "edit" | "split" | "preview";
+  minHeight?: number;
 }) {
   const [error, setError] = useState<unknown>(null),
     [busy, setBusy] = useState(false),
@@ -773,7 +857,7 @@ export function BlockEditor({
   }
 
   const renderEditControls = () => (
-    <div className={`block-edit-controls ${allowSplit ? "block-editor-large" : ""}`}>
+    <div className={`block-edit-controls ${allowSplit || minHeight ? "block-editor-large" : ""}`}>
       {value.map((b, i) => (
         <div className="block-row" key={i}>
           <div className="block-value">
@@ -809,15 +893,21 @@ export function BlockEditor({
             ) : (
               <>
                 <textarea
-                  rows={b.type === "code" ? 6 : allowSplit ? 4 : 2}
+                  rows={b.type === "code" ? 8 : minHeight ? Math.round(minHeight / 24) : allowSplit ? 6 : 3}
                   style={
-                    allowSplit
+                    minHeight
                       ? {
-                          minHeight: b.type === "code" ? 140 : 120,
-                          fontSize: "14px",
-                          lineHeight: "1.6",
+                          minHeight,
+                          fontSize: "14.5px",
+                          lineHeight: "1.65",
                         }
-                      : undefined
+                      : allowSplit
+                        ? {
+                            minHeight: b.type === "code" ? 160 : 130,
+                            fontSize: "14px",
+                            lineHeight: "1.6",
+                          }
+                        : undefined
                   }
                   aria-label={`${label} — ${b.type}`}
                   placeholder={
@@ -970,83 +1060,7 @@ export function BlockEditor({
         <span className="field-label">{label}</span>
       )}
 
-      {allowSplit && showGuide && (
-        <div className="format-guide-panel">
-          <div className="format-guide-header">
-            <strong>
-              📖 Hướng dẫn định dạng đặc biệt (Toán KaTeX, Mã nguồn, Bảng Markdown)
-            </strong>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={() => setShowGuide(false)}
-              aria-label="Đóng hướng dẫn"
-            >
-              <X size={14} />
-            </button>
-          </div>
-          <div className="format-guide-grid">
-            <div className="format-guide-col">
-              <span className="format-guide-title">📐 Công thức Toán (KaTeX)</span>
-              <p className="format-guide-desc">
-                Kẹp giữa <code>$..$</code> (cùng dòng) hoặc <code>$$..$$</code> (khối riêng):
-              </p>
-              <ul className="format-guide-list">
-                <li>
-                  <code>$x^2 - 4x + 3 = 0$</code> &rarr; phương trình
-                </li>
-                <li>
-                  <code>$\frac&#123;a&#125;&#123;b&#125;$</code> &rarr; phân số
-                </li>
-                <li>
-                  <code>$\sqrt&#123;x&#125;$</code> &rarr; căn bậc hai
-                </li>
-                <li>
-                  <code>$\lim_&#123;x \to 0&#125; \frac&#123;\sin x&#125;&#123;x&#125;$</code> &rarr; giới hạn
-                </li>
-                <li>
-                  <code>\alpha, \beta, \pi, \le, \ge, \neq, \in, \vec&#123;AB&#125;</code>
-                </li>
-              </ul>
-            </div>
-            <div className="format-guide-col">
-              <span className="format-guide-title">💻 Mã nguồn (Code) & Bảng</span>
-              <p className="format-guide-desc">Đoạn code & Bảng dữ liệu:</p>
-              <ul className="format-guide-list">
-                <li>
-                  Nhấn nút <strong>Thêm Mã nguồn</strong> hoặc dùng cú pháp Markdown:{" "}
-                  <code>```python ... ```</code>
-                </li>
-                <li>
-                  Tạo bảng Markdown trong khối Văn bản:
-                  <pre>
-                    <code>
-                      {`| Cột 1 | Cột 2 |
-| :--- | :--- |
-| Dữ liệu 1 | Dữ liệu 2 |`}
-                    </code>
-                  </pre>
-                </li>
-              </ul>
-            </div>
-            <div className="format-guide-col">
-              <span className="format-guide-title">✨ Chữ nổi bật & Hình ảnh</span>
-              <p className="format-guide-desc">Định dạng đoạn văn:</p>
-              <ul className="format-guide-list">
-                <li>
-                  <code>**in đậm**</code>, <code>*in nghiêng*</code>, <code>`mã code`</code>
-                </li>
-                <li>
-                  Danh sách: gạch đầu dòng <code>- Mục 1</code>
-                </li>
-                <li>
-                  Ảnh minh họa: bấm nút <strong>Thêm Ảnh</strong> (chọn PNG, JPG &le; 2 MB)
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
+      {allowSplit && showGuide && <FormatGuidePanel onClose={() => setShowGuide(false)} />}
 
       {allowSplit ? (
         viewMode === "split" ? (
@@ -1065,16 +1079,203 @@ export function BlockEditor({
     </div>
   );
 }
+export function QuestionLivePreview({
+  q,
+  showAnswers = true,
+}: {
+  q: Question;
+  showAnswers?: boolean;
+}) {
+  const isSingle = q.type === "single_choice";
+  const isMultiple = q.type === "multiple_choice";
+  const isTrueFalse = q.type === "true_false";
+  const isShort = q.type === "short_answer";
+  const isEssay = q.type === "essay";
+
+  return (
+    <div className="question-live-preview-card">
+      <div className="question-live-preview-header">
+        <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
+          <span className="question-number-pill">CÂU {q.client_id?.toUpperCase() || "?"}</span>
+          <span className="question-type-tag">{typeLabels[q.type]}</span>
+          <span className="question-points-tag">{q.points || 1} điểm</span>
+          <span className="question-diff-tag">
+            {q.difficulty === "easy"
+              ? "Cơ bản"
+              : q.difficulty === "hard"
+                ? "Vận dụng"
+                : "Thông hiểu"}
+          </span>
+        </div>
+        <span className="preview-label-tag">Xem trước trực quan</span>
+      </div>
+
+      {/* 1. Phần câu hỏi (Question prompt) */}
+      <div className="preview-section-box prompt-box">
+        <div className="preview-section-title">
+          <span>NỘI DUNG CÂU HỎI</span>
+        </div>
+        {q.prompt.length === 0 || q.prompt.every((b) => !b.value && !b.asset_id) ? (
+          <p className="muted small" style={{ fontStyle: "italic", margin: "10px 0" }}>
+            (Chưa có nội dung câu hỏi. Hãy nhập văn bản hoặc công thức toán ở cột soạn thảo...)
+          </p>
+        ) : (
+          <div className="preview-prompt-content">
+            <Blocks blocks={q.prompt} />
+          </div>
+        )}
+      </div>
+
+      {/* 2. Phần đáp án & phương án lựa chọn */}
+      <div className="preview-section-box answers-box">
+        <div className="preview-section-title">
+          <span>ĐÁP ÁN & PHƯƠNG ÁN LỰA CHỌN</span>
+          {showAnswers && (isSingle || isMultiple || isTrueFalse || isShort) && (
+            <span className="correct-badge-pill">Đã đánh dấu đáp án đúng</span>
+          )}
+        </div>
+
+        {(isSingle || isMultiple) && (
+          <div className="preview-options-list">
+            {!q.options || q.options.length === 0 ? (
+              <p className="muted small" style={{ fontStyle: "italic", margin: "6px 0" }}>
+                (Chưa có phương án lựa chọn. Nhấn "Thêm phương án" ở bên soạn thảo)
+              </p>
+            ) : (
+              q.options.map((opt, idx) => {
+                const isCorrect = q.answer?.correct_option_ids?.includes(opt.id);
+                const letter = String.fromCharCode(65 + idx);
+                return (
+                  <div
+                    key={opt.id}
+                    className={`preview-option-row ${isCorrect ? "correct-option" : ""}`}
+                  >
+                    <div className="option-letter-badge">{letter}</div>
+                    <div className="option-content-body">
+                      {opt.content.length === 0 || opt.content.every((b) => !b.value && !b.asset_id) ? (
+                        <span className="muted small">(Trống)</span>
+                      ) : (
+                        <Blocks blocks={opt.content} />
+                      )}
+                    </div>
+                    {isCorrect && (
+                      <span className="option-correct-tag">
+                        <Check size={13} />
+                        Đáp án đúng
+                      </span>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {isTrueFalse && (
+          <div className="preview-statements-list">
+            {!q.statements || q.statements.length === 0 ? (
+              <p className="muted small" style={{ fontStyle: "italic", margin: "6px 0" }}>
+                (Chưa có nhận định. Nhấn "Thêm nhận định" ở bên soạn thảo)
+              </p>
+            ) : (
+              q.statements.map((stmt, idx) => (
+                <div key={stmt.id} className="preview-statement-row">
+                  <div className="statement-num-badge">Ý {idx + 1}</div>
+                  <div className="statement-body">
+                    {stmt.content.length === 0 || stmt.content.every((b) => !b.value && !b.asset_id) ? (
+                      <span className="muted small">(Trống)</span>
+                    ) : (
+                      <Blocks blocks={stmt.content} />
+                    )}
+                  </div>
+                  <span className={`statement-answer-tag ${stmt.answer ? "is-true" : "is-false"}`}>
+                    {stmt.answer ? "Đúng (True)" : "Sai (False)"}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {isShort && (
+          <div className="preview-short-answers">
+            <span className="small muted">Các đáp án được chấm đúng:</span>
+            {!q.answer?.accepted || q.answer.accepted.length === 0 || q.answer.accepted.every((a) => !a.trim()) ? (
+              <p className="muted small" style={{ fontStyle: "italic", marginTop: 4 }}>
+                (Chưa có đáp án chấp nhận)
+              </p>
+            ) : (
+              <div className="showcase-accepted-pills" style={{ marginTop: 8 }}>
+                {q.answer.accepted
+                  .filter((a) => a.trim().length > 0)
+                  .map((ans, idx) => (
+                    <div className="accepted-pill-rich correct" key={idx}>
+                      <Check size={12} />
+                      <AnswerDisplay value={ans} />
+                    </div>
+                  ))}
+              </div>
+            )}
+            <div className="row wrap" style={{ gap: 12, marginTop: 8, fontSize: "12px", color: "var(--muted)" }}>
+              <span>Phân biệt hoa/thường: {q.answer?.case_sensitive ? "Có" : "Không"}</span>
+              {q.answer?.numeric_tolerance !== undefined && (
+                <span>Dung sai số: ±{q.answer.numeric_tolerance}</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {isEssay && (
+          <div className="preview-essay-rubric">
+            <span className="small muted">Tiêu chí chấm tự luận:</span>
+            <div className="rubric-content-box" style={{ marginTop: 6 }}>
+              {q.rubric?.trim() ? (
+                <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{q.rubric}</p>
+              ) : (
+                <p className="muted small" style={{ fontStyle: "italic", margin: 0 }}>
+                  (Chưa có tiêu chí chấm tự luận)
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 3. Phần giải (Detailed solution & explanation) */}
+      <div className="preview-section-box explanation-box">
+        <div className="preview-section-title">
+          <span className="green-text">LỜI GIẢI CHI TIẾT & HƯỚNG DẪN</span>
+        </div>
+        {!q.explanation || q.explanation.length === 0 || q.explanation.every((b) => !b.value && !b.asset_id) ? (
+          <p className="muted small" style={{ fontStyle: "italic", margin: "8px 0" }}>
+            (Chưa có lời giải chi tiết. Hãy nhập ở mục "Lời giải chi tiết" bên soạn thảo)
+          </p>
+        ) : (
+          <div className="explanation-callout-panel">
+            <Blocks blocks={q.explanation} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function QuestionEditor({
   q,
   onChange,
   onRemove,
+  defaultViewMode = "split",
 }: {
   q: Question;
   onChange: (q: Question) => void;
   onRemove: () => void;
+  defaultViewMode?: "split" | "edit" | "preview";
 }) {
+  const [viewMode, setViewMode] = useState<"split" | "edit" | "preview">(defaultViewMode),
+    [showGuide, setShowGuide] = useState(false);
+
   const update = (patch: Partial<Question>) => onChange({ ...q, ...patch });
+
   function setType(type: Question["type"]) {
     const next = { ...q, type };
     delete next.options;
@@ -1096,32 +1297,9 @@ export function QuestionEditor({
       next.answer = { accepted: [""], case_sensitive: false };
     onChange(next);
   }
-  return (
-    <div className="question-editor panel">
-      <div
-        className="row between wrap"
-        style={{ marginBottom: 16, alignItems: "center" }}
-      >
-        <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
-          <span
-            className="question-number-pill"
-            style={{ fontSize: "14px", padding: "5px 12px" }}
-          >
-            CÂU {q.client_id?.toUpperCase()}
-          </span>
-          <span className="question-type-tag">{typeLabels[q.type]}</span>
-        </div>
-        <button
-          type="button"
-          className="button small secondary danger-text"
-          aria-label={`Xóa câu ${q.client_id}`}
-          onClick={onRemove}
-          title="Xóa câu hỏi này"
-        >
-          <Trash2 size={15} />
-          Xóa câu này
-        </button>
-      </div>
+
+  const renderEditForm = () => (
+    <div className="question-workspace-edit-col">
       <div className="form-grid">
         <label className="field">
           Dạng câu hỏi
@@ -1161,174 +1339,198 @@ export function QuestionEditor({
           </select>
         </label>
       </div>
-      <BlockEditor
-        label="Nội dung câu hỏi"
-        value={q.prompt}
-        onChange={(prompt) => update({ prompt })}
-        allowSplit={true}
-        defaultViewMode="split"
-      />
-      {q.options?.map((o, i) => (
-        <div className="option-editor" key={o.id}>
-          <div className="row between">
-            <label className="row">
-              <input
-                type={q.type === "single_choice" ? "radio" : "checkbox"}
-                name={`correct-${q.client_id}`}
-                checked={q.answer?.correct_option_ids?.includes(o.id) || false}
-                onChange={() =>
+
+      <div className="question-prompt-edit-wrap" style={{ marginTop: 12 }}>
+        <BlockEditor
+          label="Nội dung câu hỏi (Đề bài)"
+          value={q.prompt}
+          onChange={(prompt) => update({ prompt })}
+          allowSplit={false}
+          minHeight={240}
+        />
+      </div>
+
+      {/* Options for single_choice / multiple_choice */}
+      {(q.type === "single_choice" || q.type === "multiple_choice") && (
+        <div className="question-options-section" style={{ marginTop: 16 }}>
+          <span className="eyebrow" style={{ display: "block", marginBottom: 8 }}>
+            CÁC PHƯƠNG ÁN LỰA CHỌN
+          </span>
+          {q.options?.map((o, i) => (
+            <div className="option-editor" key={o.id}>
+              <div className="row between">
+                <label className="row" style={{ fontWeight: 600 }}>
+                  <input
+                    type={q.type === "single_choice" ? "radio" : "checkbox"}
+                    name={`correct-${q.client_id}`}
+                    checked={q.answer?.correct_option_ids?.includes(o.id) || false}
+                    onChange={() =>
+                      update({
+                        answer: {
+                          ...q.answer,
+                          correct_option_ids:
+                            q.type === "single_choice"
+                              ? [o.id]
+                              : q.answer?.correct_option_ids?.includes(o.id)
+                                ? q.answer.correct_option_ids.filter((id) => id !== o.id)
+                                : [...(q.answer?.correct_option_ids || []), o.id],
+                        },
+                      })
+                    }
+                  />
+                  Đáp án {String.fromCharCode(65 + i)} đúng
+                </label>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={`Xóa phương án ${o.id}`}
+                  onClick={() =>
+                    update({
+                      options: q.options!.filter((x) => x.id !== o.id),
+                      answer: {
+                        ...q.answer,
+                        correct_option_ids: q.answer?.correct_option_ids?.filter(
+                          (id) => id !== o.id,
+                        ),
+                      },
+                    })
+                  }
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <BlockEditor
+                label={`Phương án ${String.fromCharCode(65 + i)}`}
+                value={o.content}
+                onChange={(content) =>
                   update({
-                    answer: {
-                      ...q.answer,
-                      correct_option_ids:
-                        q.type === "single_choice"
-                          ? [o.id]
-                          : q.answer?.correct_option_ids?.includes(o.id)
-                            ? q.answer.correct_option_ids.filter(
-                                (id) => id !== o.id,
-                              )
-                            : [...(q.answer?.correct_option_ids || []), o.id],
+                    options: q.options!.map((v) =>
+                      v.id === o.id ? { ...v, content } : v,
+                    ),
+                  })
+                }
+                minHeight={70}
+              />
+            </div>
+          ))}
+          {q.options && q.options.length < 20 && (
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={() =>
+                update({
+                  options: [
+                    ...q.options!,
+                    {
+                      id: `o${Date.now()}`,
+                      content: [{ type: "text", value: "" }],
                     },
+                  ],
+                })
+              }
+            >
+              <Plus size={16} />
+              Thêm phương án
+            </button>
+          )}
+          {q.type === "multiple_choice" && (
+            <label className="row" style={{ marginTop: 10 }}>
+              <input
+                type="checkbox"
+                checked={q.answer?.partial_credit || false}
+                onChange={(e) =>
+                  update({
+                    answer: { ...q.answer, partial_credit: e.target.checked },
                   })
                 }
               />
-              Đáp án {String.fromCharCode(65 + i)} đúng
+              Điểm từng phần (chọn thừa bị trừ, tối thiểu 0)
             </label>
-            <button
-              type="button"
-              className="icon-button"
-              aria-label={`Xóa phương án ${o.id}`}
-              onClick={() =>
-                update({
-                  options: q.options!.filter((x) => x.id !== o.id),
-                  answer: {
-                    ...q.answer,
-                    correct_option_ids: q.answer?.correct_option_ids?.filter(
-                      (id) => id !== o.id,
-                    ),
-                  },
-                })
-              }
-            >
-              <X size={16} />
-            </button>
-          </div>
-          <BlockEditor
-            label={`Phương án ${String.fromCharCode(65 + i)}`}
-            value={o.content}
-            onChange={(content) =>
-              update({
-                options: q.options!.map((v) =>
-                  v.id === o.id ? { ...v, content } : v,
-                ),
-              })
-            }
-          />
+          )}
         </div>
-      ))}
-      {q.options && q.options.length < 20 && (
-        <button
-          type="button"
-          className="button secondary small"
-          onClick={() =>
-            update({
-              options: [
-                ...q.options!,
-                {
-                  id: `o${Date.now()}`,
-                  content: [{ type: "text", value: "" }],
-                },
-              ],
-            })
-          }
-        >
-          <Plus size={16} />
-          Thêm phương án
-        </button>
       )}
-      {q.type === "multiple_choice" && (
-        <label className="row">
-          <input
-            type="checkbox"
-            checked={q.answer?.partial_credit || false}
-            onChange={(e) =>
-              update({
-                answer: { ...q.answer, partial_credit: e.target.checked },
-              })
-            }
-          />
-          Điểm từng phần (chọn thừa bị trừ, tối thiểu 0)
-        </label>
-      )}
-      {q.statements?.map((s) => (
-        <div className="option-editor" key={s.id}>
-          <BlockEditor
-            label={`Nhận định ${s.id}`}
-            value={s.content}
-            onChange={(content) =>
-              update({
-                statements: q.statements!.map((v) =>
-                  v.id === s.id ? { ...v, content } : v,
-                ),
-              })
-            }
-          />
-          <div className="row between">
-            <label className="row">
-              Đáp án
-              <select
-                aria-label={`Đáp án ${s.id}`}
-                value={String(s.answer)}
-                onChange={(e) =>
+
+      {/* Statements for true_false */}
+      {q.type === "true_false" && (
+        <div className="question-statements-section" style={{ marginTop: 16 }}>
+          <span className="eyebrow" style={{ display: "block", marginBottom: 8 }}>
+            CÁC NHẬN ĐỊNH ĐÚNG / SAI
+          </span>
+          {q.statements?.map((s) => (
+            <div className="option-editor" key={s.id}>
+              <BlockEditor
+                label={`Nhận định ${s.id}`}
+                value={s.content}
+                onChange={(content) =>
                   update({
                     statements: q.statements!.map((v) =>
-                      v.id === s.id
-                        ? { ...v, answer: e.target.value === "true" }
-                        : v,
+                      v.id === s.id ? { ...v, content } : v,
                     ),
                   })
                 }
-              >
-                <option value="true">Đúng</option>
-                <option value="false">Sai</option>
-              </select>
-            </label>
+                minHeight={70}
+              />
+              <div className="row between" style={{ marginTop: 6 }}>
+                <label className="row">
+                  Đáp án:
+                  <select
+                    aria-label={`Đáp án ${s.id}`}
+                    value={String(s.answer)}
+                    onChange={(e) =>
+                      update({
+                        statements: q.statements!.map((v) =>
+                          v.id === s.id
+                            ? { ...v, answer: e.target.value === "true" }
+                            : v,
+                        ),
+                      })
+                    }
+                  >
+                    <option value="true">Đúng (True)</option>
+                    <option value="false">Sai (False)</option>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="button small secondary"
+                  onClick={() =>
+                    update({
+                      statements: q.statements!.filter((v) => v.id !== s.id),
+                    })
+                  }
+                >
+                  Xóa nhận định
+                </button>
+              </div>
+            </div>
+          ))}
+          {q.statements && q.statements.length < 20 && (
             <button
               type="button"
-              className="button small secondary"
+              className="button secondary small"
               onClick={() =>
                 update({
-                  statements: q.statements!.filter((v) => v.id !== s.id),
+                  statements: [
+                    ...q.statements!,
+                    {
+                      id: `s${Date.now()}`,
+                      content: [{ type: "text", value: "" }],
+                      answer: true,
+                    },
+                  ],
                 })
               }
             >
-              Xóa nhận định
+              <Plus size={16} />
+              Thêm nhận định
             </button>
-          </div>
+          )}
         </div>
-      ))}
-      {q.statements && q.statements.length < 20 && (
-        <button
-          type="button"
-          className="button secondary small"
-          onClick={() =>
-            update({
-              statements: [
-                ...q.statements!,
-                {
-                  id: `s${Date.now()}`,
-                  content: [{ type: "text", value: "" }],
-                  answer: true,
-                },
-              ],
-            })
-          }
-        >
-          Thêm nhận định
-        </button>
       )}
+
+      {/* Short answer */}
       {q.type === "short_answer" && (
-        <>
+        <div className="question-short-answer-section" style={{ marginTop: 16 }}>
           <label className="field">
             <div className="row between wrap" style={{ gap: 8, marginBottom: 4 }}>
               <span>Đáp án chấp nhận (mỗi dòng một đáp án)</span>
@@ -1370,24 +1572,7 @@ export function QuestionEditor({
               placeholder="Nhập các đáp án chấp nhận (hỗ trợ công thức \sqrt{2}, x^2 và mã `code`)..."
             />
           </label>
-          {q.answer?.accepted &&
-            q.answer.accepted.some((a) => a.trim().length > 0) && (
-              <div className="accepted-live-preview-section">
-                <span className="small muted">
-                  Xem trước các đáp án hiển thị (toán & code):
-                </span>
-                <div className="showcase-accepted-pills" style={{ marginTop: 6 }}>
-                  {q.answer.accepted
-                    .filter((a) => a.trim().length > 0)
-                    .map((ans, idx) => (
-                      <div className="accepted-pill-rich" key={idx}>
-                        <AnswerDisplay value={ans} />
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-          <div className="row wrap">
+          <div className="row wrap" style={{ gap: 14 }}>
             <label className="row">
               <input
                 type="checkbox"
@@ -1400,7 +1585,7 @@ export function QuestionEditor({
               />
               Phân biệt hoa/thường
             </label>
-            <label className="field">
+            <label className="field" style={{ flex: 1, minWidth: 200, margin: 0 }}>
               Dung sai số (để trống nếu so văn bản)
               <input
                 type="number"
@@ -1416,25 +1601,37 @@ export function QuestionEditor({
               />
             </label>
           </div>
-        </>
+        </div>
       )}
+
+      {/* Essay rubric */}
       {q.type === "essay" && (
-        <label className="field">
-          Tiêu chí chấm
-          <textarea
-            value={q.rubric || ""}
-            onChange={(e) => update({ rubric: e.target.value })}
-          />
-        </label>
+        <div className="question-essay-section" style={{ marginTop: 16 }}>
+          <label className="field">
+            Tiêu chí chấm tự luận (Rubric)
+            <textarea
+              rows={4}
+              value={q.rubric || ""}
+              onChange={(e) => update({ rubric: e.target.value })}
+              placeholder="Mô tả các bước cho điểm, tiêu chí đạt điểm tối đa..."
+            />
+          </label>
+        </div>
       )}
-      <BlockEditor
-        label="Lời giải chi tiết"
-        value={q.explanation}
-        onChange={(explanation) => update({ explanation })}
-        allowSplit={true}
-        defaultViewMode="split"
-      />
-      <label className="field">
+
+      {/* Explanation */}
+      <div className="question-explanation-edit-wrap" style={{ marginTop: 18 }}>
+        <BlockEditor
+          label="Lời giải chi tiết (Hiển thị cho học sinh sau khi nộp bài)"
+          value={q.explanation}
+          onChange={(explanation) => update({ explanation })}
+          allowSplit={false}
+          minHeight={160}
+        />
+      </div>
+
+      {/* Tags */}
+      <label className="field" style={{ marginTop: 16 }}>
         Thẻ chủ đề (cách nhau bằng dấu phẩy)
         <input
           value={q.tags.join(", ")}
@@ -1446,8 +1643,98 @@ export function QuestionEditor({
                 .filter(Boolean),
             })
           }
+          placeholder="Ví dụ: Đạo hàm, Hình học không gian, Python..."
         />
       </label>
+    </div>
+  );
+
+  return (
+    <div className="question-editor panel">
+      {/* 1. Header Toolbar with Mode Switcher & Tools */}
+      <div
+        className="row between wrap question-editor-top-bar"
+        style={{ marginBottom: 16, alignItems: "center", gap: 12 }}
+      >
+        <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
+          <span
+            className="question-number-pill"
+            style={{ fontSize: "14px", padding: "5px 12px" }}
+          >
+            CÂU {q.client_id?.toUpperCase()}
+          </span>
+          <span className="question-type-tag">{typeLabels[q.type]}</span>
+          <span className="question-points-tag">{q.points || 1} điểm</span>
+        </div>
+
+        <div className="row wrap" style={{ gap: 10, alignItems: "center" }}>
+          <div className="segmented-control" role="tablist">
+            <button
+              type="button"
+              className={viewMode === "split" ? "active" : ""}
+              onClick={() => setViewMode("split")}
+              title="Chia đôi màn hình: Soạn thảo bên trái, Xem trước đầy đủ bên phải"
+            >
+              <Columns size={13} />
+              <span>Chia đôi</span>
+            </button>
+            <button
+              type="button"
+              className={viewMode === "edit" ? "active" : ""}
+              onClick={() => setViewMode("edit")}
+              title="Chỉ hiển thị khung soạn thảo"
+            >
+              <Pencil size={13} />
+              <span>Chỉ soạn</span>
+            </button>
+            <button
+              type="button"
+              className={viewMode === "preview" ? "active" : ""}
+              onClick={() => setViewMode("preview")}
+              title="Chỉ hiển thị bản xem trước hoàn chỉnh"
+            >
+              <Eye size={13} />
+              <span>Chỉ xem</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className={`guide-toggle-btn ${showGuide ? "active" : ""}`}
+            onClick={() => setShowGuide(!showGuide)}
+            title="Xem bảng hướng dẫn viết công thức Toán KaTeX, Code, Bảng"
+          >
+            <HelpCircle size={14} />
+            <span>Hướng dẫn ký hiệu</span>
+          </button>
+
+          <button
+            type="button"
+            className="button small secondary danger-text"
+            aria-label={`Xóa câu ${q.client_id}`}
+            onClick={onRemove}
+            title="Xóa câu hỏi này"
+          >
+            <Trash2 size={15} />
+            <span>Xóa câu này</span>
+          </button>
+        </div>
+      </div>
+
+      {showGuide && <FormatGuidePanel onClose={() => setShowGuide(false)} />}
+
+      {/* Main Content Area: Split or Single Column */}
+      <div className={`question-workspace-container mode-${viewMode}`}>
+        {(viewMode === "split" || viewMode === "edit") && renderEditForm()}
+
+        {(viewMode === "split" || viewMode === "preview") && (
+          <div className="question-workspace-preview-col">
+            <div className="preview-sticky-container">
+              <QuestionLivePreview q={q} showAnswers={true} />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

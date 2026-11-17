@@ -3344,11 +3344,279 @@ footer a {
   margin-bottom: 10px;
 }
 .block-editor-large textarea {
-  min-height: 130px;
+  min-height: 200px;
   font-size: 14px;
   line-height: 1.6;
   font-family: inherit;
   resize: vertical;
+}
+
+/* Question Workspace Split & Live Preview */
+.question-workspace-container {
+  display: grid;
+  gap: 24px;
+  align-items: start;
+  margin-top: 14px;
+}
+.question-workspace-container.mode-split {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+.question-workspace-container.mode-edit {
+  grid-template-columns: 1fr;
+}
+.question-workspace-container.mode-preview {
+  grid-template-columns: 1fr;
+}
+@media (max-width: 980px) {
+  .question-workspace-container.mode-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.question-workspace-edit-col {
+  min-width: 0;
+}
+.question-workspace-preview-col {
+  min-width: 0;
+}
+.preview-sticky-container {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Prompt and explanation textarea height */
+.question-prompt-edit-wrap textarea {
+  min-height: 240px !important;
+  font-size: 14.5px;
+  line-height: 1.65;
+  font-family: inherit;
+  resize: vertical;
+}
+.question-explanation-edit-wrap textarea {
+  min-height: 160px !important;
+  font-size: 14px;
+  line-height: 1.6;
+  font-family: inherit;
+  resize: vertical;
+}
+
+/* Question Live Preview Card */
+.question-live-preview-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.04);
+}
+.question-live-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.question-diff-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--subtle);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 8px;
+}
+
+.preview-section-box {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  background: var(--subtle);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.preview-section-box:last-child {
+  margin-bottom: 0;
+}
+.preview-section-box.prompt-box {
+  background: var(--surface);
+  border-color: var(--line-strong);
+}
+.preview-section-box.answers-box {
+  background: var(--surface);
+}
+.preview-section-box.explanation-box {
+  background: var(--green-light);
+  border-color: var(--green-border);
+}
+
+.preview-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--line);
+}
+.preview-section-title .green-text {
+  color: var(--green-hover);
+}
+.correct-badge-pill {
+  font-size: 10.5px;
+  color: var(--green);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.preview-prompt-content {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--text-heading);
+}
+
+/* Options preview in live preview card */
+.preview-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.preview-option-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--subtle);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+.preview-option-row.correct-option {
+  background: var(--green-light);
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px var(--green-border);
+}
+.option-letter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-heading);
+  flex-shrink: 0;
+}
+.preview-option-row.correct-option .option-letter-badge {
+  background: var(--green);
+  color: #ffffff;
+  border-color: var(--green);
+}
+.option-content-body {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.option-correct-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--green-hover);
+  background: #ffffff;
+  border: 1px solid var(--green-border);
+  padding: 2px 7px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
+/* Statements preview in live preview card */
+.preview-statements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.preview-statement-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--subtle);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.statement-num-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.statement-body {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.statement-answer-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.statement-answer-tag.is-true {
+  background: var(--green-light);
+  color: var(--green);
+  border: 1px solid var(--green-border);
+}
+.statement-answer-tag.is-false {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+/* Short answer preview in live preview card */
+.accepted-pill-rich.correct {
+  background: var(--green-light);
+  border-color: var(--green-border);
+  color: var(--green-hover);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Explanation callout panel in live preview */
+.explanation-callout-panel {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text);
+}
+.rubric-content-box {
+  background: var(--subtle);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 /* Single question edit container */
