@@ -330,8 +330,9 @@ label {
 }
 code,
 pre {
-  font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 12px;
+  font-family: "Cascadia Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 400 !important;
 }
 pre {
   overflow: auto;
@@ -2165,42 +2166,54 @@ footer a {
 }
 .code-block pre {
   margin: 0;
-  padding: 16px;
+  padding: 16px 18px;
   background: #f8fafc;
   overflow-x: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 13px;
-  line-height: 1.6;
+  font-family: "Cascadia Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13.5px;
+  line-height: 1.65;
+  font-weight: 400 !important;
 }
 .code-block code {
   color: #0f172a;
+  font-family: inherit;
+  font-weight: 400 !important;
+}
+.code-block span {
+  font-weight: 400;
 }
 .tok-kw {
   color: #cf222e;
-  font-weight: 600;
+  font-weight: 600 !important;
 }
 .tok-str {
   color: #0a3069;
+  font-weight: 400 !important;
 }
 .tok-num {
   color: #0550ae;
+  font-weight: 400 !important;
 }
 .tok-bool {
   color: #cf222e;
-  font-weight: 600;
+  font-weight: 600 !important;
 }
 .tok-fn {
   color: #8250df;
+  font-weight: 400 !important;
 }
 .tok-com {
   color: #6e7781;
   font-style: italic;
+  font-weight: 400 !important;
 }
 .tok-punct {
   color: #24292f;
+  font-weight: 400 !important;
 }
 .tok-text {
   color: #0f172a;
+  font-weight: 400 !important;
 }
 
 /* Code Block - Dark Mode */
@@ -2329,10 +2342,11 @@ footer a {
   font-size: 9px;
 }
 .question-content {
-  font-size: 17px;
-  margin: 30px 0 25px;
-  font-weight: 550;
-  line-height: 1.9;
+  font-size: 16.5px;
+  margin: 26px 0 22px;
+  font-weight: 400;
+  line-height: 1.85;
+  color: var(--text-heading);
 }
 .options {
   display: flex;
@@ -2775,10 +2789,10 @@ footer a {
   background: rgba(0, 0, 0, 0.05);
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 5px;
-  font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 0.88em;
+  font-family: "Cascadia Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
   color: #047857;
-  font-weight: 600;
+  font-weight: 400 !important;
 }
 .answer-math-formula {
   display: inline-flex;
@@ -2846,6 +2860,7 @@ footer a {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.12);
   color: #34d399;
+  font-weight: 400 !important;
 }
 :root[data-theme="dark"] .short-answer-preview {
   background: rgba(16, 185, 129, 0.06);
@@ -2887,21 +2902,25 @@ footer a {
 
 .explanation-section {
   margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
+  padding: 16px 20px;
+  background: var(--subtle);
+  border: 1px solid var(--line);
+  border-radius: 10px;
 }
 .explanation-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 700;
-  color: var(--text-heading);
-  margin-bottom: 8px;
+  color: var(--green);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--line);
 }
 .explanation-body {
-  font-size: 13px;
-  line-height: 1.7;
+  font-size: 14px;
+  line-height: 1.75;
   color: var(--text);
 }
 .rubric-section {
@@ -3004,11 +3023,48 @@ footer a {
 }
 .review-tools {
   display: flex;
-  gap: 15px;
+  gap: 16px;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin: 24px 0 20px;
   flex-wrap: wrap;
+  padding: 14px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.review-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  background: var(--subtle);
+  border: 1px solid var(--line);
+  padding: 0 14px;
+  border-radius: 10px;
+  flex: 1;
+  min-width: 280px;
+  max-width: 520px;
+  transition: all 0.2s ease;
+}
+.review-search-bar:focus-within {
+  border-color: var(--green);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--green-light);
+  color: var(--text-heading);
+}
+.review-search-bar input {
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+  padding: 11px 0;
+  width: 100%;
+  color: var(--text-heading);
+  outline: none;
+}
+.review-search-bar input::placeholder {
+  color: var(--muted);
+  font-size: 13.5px;
 }
 .inline-search {
   display: flex;
@@ -3023,15 +3079,85 @@ footer a {
 .inline-search input {
   border: 0;
   background: transparent;
-  font-size: 11px;
-  padding: 12px 0;
+  font-size: 13px;
+  padding: 10px 0;
+}
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.review-question-card {
+  padding: 26px 30px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  transition: all 0.2s ease;
+}
+
+/* Câu đúng - Tô màu viền xanh lá & huy hiệu xanh */
+.review-question-card.card-status-correct {
+  border-color: var(--green-border);
+  border-left: 6px solid var(--green);
+  box-shadow: 0 2px 12px rgba(5, 150, 105, 0.05);
+}
+.review-question-card.card-status-correct .question-badge-pill {
+  background: var(--green) !important;
+  color: #ffffff !important;
+}
+
+/* Câu sai - Tô màu viền đỏ & huy hiệu đỏ */
+.review-question-card.card-status-wrong {
+  border-color: #fca5a5;
+  border-left: 6px solid #dc2626;
+  box-shadow: 0 2px 12px rgba(220, 38, 38, 0.05);
+}
+.review-question-card.card-status-wrong .question-badge-pill {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+/* Câu một phần - Tô viền hổ phách/cam */
+.review-question-card.card-status-partial {
+  border-color: #fde68a;
+  border-left: 6px solid #d97706;
+  box-shadow: 0 2px 12px rgba(217, 119, 6, 0.05);
+}
+.review-question-card.card-status-partial .question-badge-pill {
+  background: #d97706 !important;
+  color: #ffffff !important;
+}
+
+/* Câu chưa làm - Tô viền xám / slate */
+.review-question-card.card-status-blank {
+  border-color: var(--line-strong);
+  border-left: 6px solid #64748b;
+  background: var(--surface);
+}
+.review-question-card.card-status-blank .question-badge-pill {
+  background: #64748b !important;
+  color: #ffffff !important;
+}
+
+/* Câu tự luận chờ chấm */
+.review-question-card.card-status-pending {
+  border-color: #c7d2fe;
+  border-left: 6px solid #6366f1;
+}
+.review-question-card.card-status-pending .question-badge-pill {
+  background: #6366f1 !important;
+  color: #ffffff !important;
+}
+
+.review-question-prompt {
+  font-size: 15.5px;
+  line-height: 1.8;
+  color: var(--text-heading);
+  margin: 14px 0;
 }
 .review-list > .panel {
-  padding: 28px;
-}
-.review-list > .panel > .blocks {
-  font-size: 15px;
-  margin: 20px 0;
+  padding: 26px 30px;
 }
 
 .page-tabs {

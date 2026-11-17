@@ -716,17 +716,26 @@ export function Feedback({ q }: { q: GradedQuestion }) {
         </div>
       )}
 
-      {q.explanation?.length > 0 && (
-        <div className="explanation-section">
-          <div className="explanation-header">
-            <BookOpen size={16} />
-            <strong>Lời giải chi tiết</strong>
-          </div>
-          <div className="explanation-body">
-            <Blocks blocks={q.explanation} />
-          </div>
+      <div className="explanation-section">
+        <div className="explanation-header">
+          <BookOpen size={16} />
+          <strong>Lời giải chi tiết & Hướng dẫn</strong>
         </div>
-      )}
+        <div className="explanation-body">
+          {q.explanation &&
+          q.explanation.length > 0 &&
+          !q.explanation.every((b) => !b.value && !b.asset_id) ? (
+            <Blocks blocks={q.explanation} />
+          ) : (
+            <p
+              className="muted small"
+              style={{ fontStyle: "italic", margin: "6px 0 0 0" }}
+            >
+              (Chưa có lời giải chi tiết cho câu hỏi này. Bạn hãy đối chiếu với đáp án chính xác hiển thị ở trên)
+            </p>
+          )}
+        </div>
+      </div>
 
       {q.rubric && (
         <div className="rubric-section">

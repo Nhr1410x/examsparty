@@ -11,6 +11,8 @@ import {
   Search,
   Save,
   BookOpen,
+  X,
+  AlertCircle,
 } from "lucide-react";
 import { api, ApiError, useLoad } from "./api";
 import {
@@ -468,14 +470,27 @@ export function Results() {
   }, [data, id, navigate]);
   if (loading) return <Loading />;
   if (error || !data?.result) return <ErrorMessage error={error} />;
-  const result = data.result,
-    questions = result.questions.filter(
-      (q) =>
-        (filter === "all" ||
-          q.status === filter ||
-          (filter === "wrong" && q.status === "partial")) &&
-        JSON.stringify(q.prompt).toLowerCase().includes(query.toLowerCase()),
-    );
+  const result = data.result;
+  const qLower = query.trim().toLowerCase();
+  const questions = result.questions.filter((q, idx) => {
+    const matchesFilter =
+      filter === "all" ||
+      q.status === filter ||
+      (filter === "wrong" && q.status === "partial");
+    if (!matchesFilter) return false;
+    if (!qLower) return true;
+    const questionNumber = `câu ${idx + 1}`;
+    const inNumber = questionNumber.includes(qLower) || String(idx + 1) === qLower;
+    const inPrompt = JSON.stringify(q.prompt).toLowerCase().includes(qLower);
+    const inExplanation = q.explanation
+      ? JSON.stringify(q.explanation).toLowerCase().includes(qLower)
+      : false;
+    const inOptions = q.options
+      ? JSON.stringify(q.options).toLowerCase().includes(qLower)
+      : false;
+    const inTags = q.tags ? q.tags.some((t) => t.toLowerCase().includes(qLower)) : false;
+    return inNumber || inPrompt || inExplanation || inOptions || inTags;
+  });
   const duration = Math.max(
     0,
     Math.min(
@@ -570,16 +585,16 @@ export function Results() {
       <ErrorMessage error={issue} />
       <div className="section-heading">
         <h2>Nhìn lại từng câu hỏi</h2>
-        <span className="muted small">Hiểu vì sao, nhớ lâu hơn.</span>
+        <span className="muted small">Hiểu vì sao, nhớ lâu hơn. Đáp án và giải thích chi tiết cho từng câu.</span>
       </div>
       <div className="review-tools">
         <div className="tabs" role="group" aria-label="Lọc kết quả">
           {[
-            ["all", "Tất cả"],
-            ["wrong", "Sai / một phần"],
-            ["blank", "Bỏ trống"],
-            ["correct", "Đúng"],
-            ["pending", "Chưa chấm"],
+            ["all", `Tất cả (${result.questions.length})`],
+            ["wrong", `Sai / một phần (${result.wrong})`],
+            ["blank", `Bỏ trống (${result.blank})`],
+            ["correct", `Đúng (${result.correct})`],
+            ...(result.pending > 0 ? [["pending", `Chưa chấm (${result.pending})`]] : []),
           ].map(([v, l]) => (
             <button
               key={v}
@@ -590,40 +605,104 @@ export function Results() {
             </button>
           ))}
         </div>
-        <label className="inline-search">
-          <Search size={17} />
+        <div className="review-search-bar">
+          <Search size={18} />
           <input
             aria-label="Tìm câu trong kết quả"
-            placeholder="Tìm nội dung câu hỏi…"
+            placeholder="Tìm theo số câu (câu 1, 2...), nội dung, đáp án hoặc lời giải..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-        </label>
+          {query && (
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => setQuery("")}
+              aria-label="Xóa từ khóa tìm kiếm"
+              title="Xóa tìm kiếm"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
       </div>
       {questions.length ? (
         <div className="review-list">
-          {questions.map((q) => (
-            <article className="panel" key={q.client_id}>
-              <div className="row between">
-                <span className="question-label">
-                  CÂU {result.questions.indexOf(q) + 1} · {typeLabels[q.type]}
-                </span>
-                <Badge status={q.status} />
-              </div>
-              <Blocks blocks={q.prompt} />
-              <AnswerInput
-                question={q}
-                value={q.response}
-                onChange={() => {}}
-                disabled
-                feedback={q}
-              />
-              <Feedback q={q} />
-            </article>
-          ))}
+          {questions.map((q) => {
+            const origIdx = result.questions.indexOf(q);
+            const isCorrect = q.status === "correct";
+            const isWrong = q.status === "wrong" || q.status === "partial";
+            const isBlank = q.status === "blank";
+
+            return (
+              <article
+                className={`panel review-question-card ${
+                  isCorrect
+                    ? "card-status-correct"
+                    : isWrong
+                      ? q.status === "partial"
+                        ? "card-status-partial"
+                        : "card-status-wrong"
+                      : isBlank
+                        ? "card-status-blank"
+                        : "card-status-pending"
+                }`}
+                key={q.client_id}
+              >
+                <div
+                  className="row between wrap review-card-header"
+                  style={{ gap: 10, alignItems: "center", marginBottom: 16 }}
+                >
+                  <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
+                    <span className="question-number-pill question-badge-pill">
+                      {isCorrect ? (
+                        <>
+                          <Check size={14} /> CÂU {origIdx + 1} • ĐÚNG (+{Number(q.awarded.toFixed(2))}/{q.points}đ)
+                        </>
+                      ) : isWrong ? (
+                        q.status === "partial" ? (
+                          <>
+                            <AlertCircle size={14} /> CÂU {origIdx + 1} • MỘT PHẦN (+{Number(q.awarded.toFixed(2))}/{q.points}đ)
+                          </>
+                        ) : (
+                          <>
+                            <X size={14} /> CÂU {origIdx + 1} • SAI (0/{q.points}đ)
+                          </>
+                        )
+                      ) : isBlank ? (
+                        <>
+                          ⊘ CÂU {origIdx + 1} • CHƯA LÀM (0/{q.points}đ)
+                        </>
+                      ) : (
+                        <>
+                          ⏳ CÂU {origIdx + 1} • CHỜ CHẤM
+                        </>
+                      )}
+                    </span>
+                    <span className="question-type-tag">{typeLabels[q.type]}</span>
+                    <span className="question-points-tag">{q.points || 1} điểm</span>
+                  </div>
+                  <Badge status={q.status} />
+                </div>
+                <div className="review-question-prompt">
+                  <Blocks blocks={q.prompt} />
+                </div>
+                <div className="review-question-input" style={{ margin: "16px 0" }}>
+                  <AnswerInput
+                    question={q}
+                    value={q.response}
+                    onChange={() => {}}
+                    disabled
+                    feedback={q}
+                  />
+                </div>
+                <Feedback q={q} />
+              </article>
+            );
+          })}
         </div>
       ) : (
-        <Empty text="Không có câu hỏi trong bộ lọc này." />
+        <Empty text="Không tìm thấy câu hỏi nào phù hợp với bộ lọc hoặc từ khóa tìm kiếm." />
       )}
     </>
   );
