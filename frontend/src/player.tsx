@@ -474,37 +474,15 @@ export function Results() {
     [viewMode, setViewMode] = useState<"player" | "list">("player"),
     [issue, setIssue] = useState<unknown>(null),
     [busy, setBusy] = useState(false);
+
   useEffect(() => {
     if (data?.status === "active")
       navigate(`/attempts/${id}`, { replace: true });
   }, [data, id, navigate]);
-  if (loading) return <Loading />;
-  if (error) return <ErrorMessage error={error} />;
-  if (!data?.result) {
-    return (
-      <div className="panel" style={{ textAlign: "center", padding: "40px 20px" }}>
-        <h2>Chưa có kết quả chấm điểm.</h2>
-        <p className="muted">Bài làm đang được xử lý hoặc chưa được nộp hoàn tất.</p>
-        <Link to="/recent" className="button" style={{ marginTop: 16 }}>
-          Về Không gian học tập
-        </Link>
-      </div>
-    );
-  }
 
-  const result = data.result;
-  const rawQuestions = Array.isArray(result?.questions) ? result.questions : [];
-  if (rawQuestions.length === 0) {
-    return (
-      <div className="panel" style={{ textAlign: "center", padding: "40px 20px" }}>
-        <h2>Không tìm thấy câu hỏi nào trong kết quả bài thi.</h2>
-        <p className="muted">Bài làm đã được ghi nhận trên máy chủ.</p>
-        <Link to="/recent" className="button" style={{ marginTop: 16 }}>
-          Về Không gian học tập
-        </Link>
-      </div>
-    );
-  }
+  const rawQuestions = useMemo(() => {
+    return Array.isArray(data?.result?.questions) ? data.result.questions : [];
+  }, [data?.result?.questions]);
 
   const qLower = query.trim().toLowerCase();
 
@@ -540,6 +518,33 @@ export function Results() {
   const questions = useMemo(() => {
     return rawQuestions.filter((_, idx) => filteredIndices.has(idx));
   }, [rawQuestions, filteredIndices]);
+
+  if (loading) return <Loading />;
+  if (error) return <ErrorMessage error={error} />;
+  if (!data?.result) {
+    return (
+      <div className="panel" style={{ textAlign: "center", padding: "40px 20px" }}>
+        <h2>Chưa có kết quả chấm điểm.</h2>
+        <p className="muted">Bài làm đang được xử lý hoặc chưa được nộp hoàn tất.</p>
+        <Link to="/recent" className="button" style={{ marginTop: 16 }}>
+          Về Không gian học tập
+        </Link>
+      </div>
+    );
+  }
+
+  const result = data.result;
+  if (rawQuestions.length === 0) {
+    return (
+      <div className="panel" style={{ textAlign: "center", padding: "40px 20px" }}>
+        <h2>Không tìm thấy câu hỏi nào trong kết quả bài thi.</h2>
+        <p className="muted">Bài làm đã được ghi nhận trên máy chủ.</p>
+        <Link to="/recent" className="button" style={{ marginTop: 16 }}>
+          Về Không gian học tập
+        </Link>
+      </div>
+    );
+  }
 
   const safeReviewIndex =
     reviewIndex >= 0 && reviewIndex < rawQuestions.length ? reviewIndex : 0;
