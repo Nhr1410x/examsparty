@@ -172,3 +172,89 @@ test("documents page: list, selection, batch bar, and preview modal", async () =
     globalThis.fetch = originalFetch;
   }
 });
+
+test("documents page: dynamically renders configured subjects from API", async () => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', {
+    url: "http://localhost:5173/documents",
+  });
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    localStorage: dom.window.localStorage,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+
+  const customConfigured = [
+    {
+      id: "khtn",
+      name: "Khoa học Tự nhiên",
+      desc: "Tích hợp Lý, Hóa, Sinh",
+      tone: "chemistry",
+      icon: "Atom",
+      active: true,
+      count: 4,
+    },
+    {
+      id: "ktpl",
+      name: "Kinh tế & Pháp luật",
+      desc: "Chương trình mới",
+      tone: "amber",
+      icon: "Scale",
+      active: true,
+      count: 2,
+    },
+    {
+      id: "hidden-subj",
+      name: "Môn Đang Ẩn",
+      desc: "Không hiển thị cho học sinh",
+      tone: "default",
+      icon: "BookOpen",
+      active: false,
+      count: 0,
+    },
+  ];
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    if (url.includes("/api/documents/subjects")) {
+      return new Response(
+        JSON.stringify({
+          subjects: [
+            { subject: "Khoa học Tự nhiên", count: 4 },
+            { subject: "Kinh tế & Pháp luật", count: 2 },
+          ],
+          configured: customConfigured,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    return new Response(JSON.stringify({ items: [], total: 0 }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  try {
+    const rootEl = dom.window.document.getElementById("root")!;
+    const root = createRoot(rootEl);
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={["/documents"]}>
+          <DocumentsPage />
+        </MemoryRouter>,
+      );
+    });
+
+    // Active subjects should be visible in Hub
+    assert(rootEl.textContent?.includes("Khoa học Tự nhiên"));
+    assert(rootEl.textContent?.includes("Kinh tế & Pháp luật"));
+    // Hidden subject should NOT be visible
+    assert(!rootEl.textContent?.includes("Môn Đang Ẩn"));
+
+    root.unmount();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

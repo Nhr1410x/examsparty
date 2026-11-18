@@ -30,9 +30,13 @@ import {
   CheckCircle2,
   RotateCcw,
   ExternalLink,
+  ArrowUp,
+  ArrowDown,
+  SlidersHorizontal,
+  BookOpen,
 } from "lucide-react";
 import { api, date, useLoad } from "./api";
-import { formatFileSize, DocumentViewerModal } from "./documents";
+import { formatFileSize, DocumentViewerModal, SUBJECT_ICON_MAP } from "./documents";
 import {
   Badge,
   Blocks,
@@ -56,6 +60,8 @@ import {
   typeLabels,
   User,
   DocumentItem,
+  DocumentSubjectConfig,
+  DEFAULT_DOCUMENT_SUBJECTS,
   documentCategories,
 } from "./types";
 
@@ -1672,7 +1678,624 @@ function ManageQuestions() {
   );
 }
 
+function slugifySubject(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+const SUBJECT_ICON_OPTIONS = [
+  { id: "BookOpen", label: "Quyển sách (Mặc định)" },
+  { id: "Calculator", label: "Máy tính cầm tay (Toán học)" },
+  { id: "Atom", label: "Nguyên tử (Vật lý)" },
+  { id: "FlaskConical", label: "Bình tam giác (Hóa học)" },
+  { id: "Dna", label: "Chuỗi ADN (Sinh học)" },
+  { id: "Languages", label: "Ngôn ngữ (Tiếng Anh, Ngoại ngữ)" },
+  { id: "Landmark", label: "Di tích lịch sử (Lịch sử)" },
+  { id: "Globe", label: "Quả địa cầu (Địa lý)" },
+  { id: "Laptop", label: "Máy tính (Tin học / CNTT)" },
+  { id: "Scale", label: "Cán cân pháp luật (GDCD)" },
+  { id: "GraduationCap", label: "Mũ tốt nghiệp (ĐGNL / ĐGTD)" },
+  { id: "FileText", label: "Văn bản tài liệu" },
+  { id: "Sparkles", label: "Ngôi sao đặc biệt" },
+];
+
+const SUBJECT_TONE_OPTIONS = [
+  { id: "math", label: "Toán học (Xanh dương)" },
+  { id: "physics", label: "Vật lý (Xanh Cyan)" },
+  { id: "chemistry", label: "Hóa học (Xanh Ngọc)" },
+  { id: "biology", label: "Sinh học (Xanh Lá)" },
+  { id: "literature", label: "Ngữ văn (Lục Rừng)" },
+  { id: "english", label: "Tiếng Anh (Cam Vàng)" },
+  { id: "history", label: "Lịch sử (Đỏ Gạch)" },
+  { id: "geography", label: "Địa lý (Xanh Biển)" },
+  { id: "cs", label: "Tin học (Chàm Indigo)" },
+  { id: "amber", label: "GDCD (Hổ Phách)" },
+  { id: "purple", label: "ĐGNL (Tím Đậm)" },
+  { id: "default", label: "Tự động (Theo thuật toán)" },
+];
+
+function ManageDocumentSubjects({
+  subjects,
+  onUpdated,
+}: {
+  subjects: DocumentSubjectConfig[];
+  onUpdated: () => void;
+}) {
+  const [editing, setEditing] = useState<"new" | DocumentSubjectConfig | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<DocumentSubjectConfig | null>(null);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [issue, setIssue] = useState<unknown>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  // Form fields
+  const [formId, setFormId] = useState("");
+  const [formName, setFormName] = useState("");
+  const [formDesc, setFormDesc] = useState("");
+  const [formTone, setFormTone] = useState("default");
+  const [formIcon, setFormIcon] = useState("BookOpen");
+  const [formActive, setFormActive] = useState(true);
+
+  const startEdit = (sub: "new" | DocumentSubjectConfig) => {
+    if (sub === "new") {
+      setFormId("");
+      setFormName("");
+      setFormDesc("");
+      setFormTone("default");
+      setFormIcon("BookOpen");
+      setFormActive(true);
+    } else {
+      setFormId(sub.id);
+      setFormName(sub.name);
+      setFormDesc(sub.desc || "");
+      setFormTone(sub.tone || "default");
+      setFormIcon(sub.icon || "BookOpen");
+      setFormActive(sub.active !== false);
+    }
+    setEditing(sub);
+    setIssue(null);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const nameTrim = formName.trim();
+    if (!nameTrim) {
+      setIssue(new Error("Vui lòng nhập tên môn học."));
+      return;
+    }
+
+    const finalId = (formId.trim() || slugifySubject(nameTrim) || `mon-${Date.now()}`).toLowerCase();
+    const newConfig: DocumentSubjectConfig = {
+      id: finalId,
+      name: nameTrim,
+      desc: formDesc.trim(),
+      tone: formTone,
+      icon: formIcon,
+      active: formActive,
+    };
+
+    let updatedList: DocumentSubjectConfig[];
+    if (editing === "new") {
+      if (subjects.some((s) => s.id === finalId)) {
+        setIssue(new Error(`Mã môn "${finalId}" đã tồn tại. Vui lòng chọn mã khác.`));
+        return;
+      }
+      updatedList = [...subjects, newConfig];
+    } else {
+      updatedList = subjects.map((s) => (s.id === editing!.id ? newConfig : s));
+    }
+
+    setBusy(true);
+    setIssue(null);
+    try {
+      await api("/admin/documents/subjects", "PUT", { subjects: updatedList });
+      setMessage(editing === "new" ? "Đã thêm môn học mới thành công!" : "Đã cập nhật cấu hình môn học!");
+      setTimeout(() => setMessage(null), 3000);
+      setEditing(null);
+      onUpdated();
+    } catch (err: any) {
+      setIssue(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const moveSubject = async (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= subjects.length || busy) return;
+
+    const list = [...subjects];
+    const temp = list[index];
+    list[index] = list[targetIndex];
+    list[targetIndex] = temp;
+
+    setBusy(true);
+    setIssue(null);
+    try {
+      await api("/admin/documents/subjects", "PUT", { subjects: list });
+      onUpdated();
+    } catch (err: any) {
+      setIssue(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleActive = async (sub: DocumentSubjectConfig) => {
+    if (busy) return;
+    const list = subjects.map((s) => (s.id === sub.id ? { ...s, active: !s.active } : s));
+
+    setBusy(true);
+    setIssue(null);
+    try {
+      await api("/admin/documents/subjects", "PUT", { subjects: list });
+      setMessage(`Đã ${sub.active ? "ẩn" : "kích hoạt"} môn "${sub.name}".`);
+      setTimeout(() => setMessage(null), 3000);
+      onUpdated();
+    } catch (err: any) {
+      setIssue(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const executeDelete = async () => {
+    if (!deleteDialog || busy) return;
+    const list = subjects.filter((s) => s.id !== deleteDialog.id);
+    if (list.length === 0) {
+      setIssue(new Error("Cần có ít nhất 1 môn học trong danh mục."));
+      return;
+    }
+
+    setBusy(true);
+    setIssue(null);
+    try {
+      await api("/admin/documents/subjects", "PUT", { subjects: list });
+      setMessage(`Đã gỡ bỏ môn "${deleteDialog.name}".`);
+      setTimeout(() => setMessage(null), 3000);
+      setDeleteDialog(null);
+      onUpdated();
+    } catch (err: any) {
+      setIssue(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const executeReset = async () => {
+    if (busy) return;
+    setBusy(true);
+    setIssue(null);
+    try {
+      await api("/admin/documents/subjects/reset", "POST", {});
+      setMessage("Đã khôi phục danh mục 11 môn học mặc định!");
+      setTimeout(() => setMessage(null), 3000);
+      setResetConfirm(false);
+      onUpdated();
+    } catch (err: any) {
+      setIssue(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="admin-section-header">
+        <div>
+          <h2>Cấu hình danh mục môn tài liệu</h2>
+          <p className="meta-text">
+            Quản lý các môn học hiển thị ngoài kho tài liệu, tùy chỉnh tên, mô tả, biểu tượng, tone màu và thứ tự hiển thị
+          </p>
+        </div>
+        <div className="row" style={{ gap: 8 }}>
+          <button
+            type="button"
+            className="button secondary small"
+            onClick={() => setResetConfirm(true)}
+            disabled={busy}
+            title="Khôi phục 11 môn học chuẩn ban đầu"
+          >
+            <RotateCcw size={15} />
+            <span>Khôi phục mặc định</span>
+          </button>
+          <button
+            type="button"
+            className="button small"
+            onClick={() => startEdit("new")}
+            disabled={busy}
+          >
+            <Plus size={16} />
+            <span>Thêm môn học</span>
+          </button>
+        </div>
+      </div>
+
+      {message && <Notice>{message}</Notice>}
+      <ErrorMessage error={issue} />
+
+      <fieldset className="admin-table-container">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th style={{ width: 80, textAlign: "center" }}>Thứ tự</th>
+              <th>Môn học</th>
+              <th>Mô tả tóm tắt</th>
+              <th style={{ width: 140 }}>Tone màu</th>
+              <th style={{ width: 110, textAlign: "center" }}>Số tài liệu</th>
+              <th style={{ width: 120, textAlign: "center" }}>Hiển thị</th>
+              <th style={{ width: 100, textAlign: "right" }}>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {subjects.map((sub, index) => {
+              const tone = sub.tone && sub.tone !== "default" ? sub.tone : getSubjectTone(sub.name);
+              const IconComp = (sub.icon && SUBJECT_ICON_MAP[sub.icon]) || BookOpen;
+
+              return (
+                <tr key={sub.id} style={{ opacity: sub.active ? 1 : 0.6 }}>
+                  <td style={{ textAlign: "center" }}>
+                    <div className="row" style={{ justifyContent: "center", gap: 2 }}>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => moveSubject(index, "up")}
+                        disabled={index === 0 || busy}
+                        title="Di chuyển lên trên"
+                        style={{ padding: 4 }}
+                      >
+                        <ArrowUp size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => moveSubject(index, "down")}
+                        disabled={index === subjects.length - 1 || busy}
+                        title="Di chuyển xuống dưới"
+                        style={{ padding: 4 }}
+                      >
+                        <ArrowDown size={14} />
+                      </button>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 8,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "var(--subtle)",
+                          color: "var(--text)",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <IconComp size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 650, fontSize: 14 }}>{sub.name}</div>
+                        <small className="muted" style={{ fontFamily: "monospace", fontSize: 11 }}>
+                          ID: {sub.id}
+                        </small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        color: "var(--muted)",
+                        maxWidth: 320,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                      title={sub.desc}
+                    >
+                      {sub.desc || "—"}
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`subject-pill subject-${tone}`}>
+                      <span className="subject-dot" />
+                      {tone}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    <span className="badge" style={{ fontWeight: 600 }}>
+                      {sub.count || 0}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    <button
+                      type="button"
+                      className={`badge button-step-press ${sub.active ? "published" : "draft"}`}
+                      onClick={() => toggleActive(sub)}
+                      disabled={busy}
+                      title={sub.active ? "Bấm để ẩn môn này" : "Bấm để hiển thị môn này"}
+                      style={{ cursor: "pointer", border: "none" }}
+                    >
+                      {sub.active ? "Hiển thị" : "Đã ẩn"}
+                    </button>
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => startEdit(sub)}
+                        title="Chỉnh sửa môn học"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => setDeleteDialog(sub)}
+                        title="Xóa môn học"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </fieldset>
+
+      {/* Subject Edit / Add Modal */}
+      {editing && (
+        <div
+          className="modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !busy) setEditing(null);
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="modal-dialog">
+            <div className="modal-dialog-header">
+              <h3>{editing === "new" ? "Thêm môn học mới" : `Chỉnh sửa môn: ${editing.name}`}</h3>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setEditing(null)}
+                disabled={busy}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="modal-dialog-body form-grid">
+              <div className="grid col-2">
+                <label className="field">
+                  Tên môn học *
+                  <input
+                    type="text"
+                    required
+                    value={formName}
+                    onChange={(e) => {
+                      setFormName(e.target.value);
+                      if (editing === "new" && !formId) {
+                        setFormId(slugifySubject(e.target.value));
+                      }
+                    }}
+                    placeholder="VD: Khoa học Tự nhiên"
+                  />
+                </label>
+
+                <label className="field">
+                  Mã định danh (ID) *
+                  <input
+                    type="text"
+                    required
+                    value={formId}
+                    onChange={(e) => setFormId(e.target.value)}
+                    placeholder="VD: khtn"
+                    disabled={editing !== "new"}
+                  />
+                </label>
+              </div>
+
+              <label className="field">
+                Mô tả tóm tắt (hiển thị trên thẻ chọn môn)
+                <textarea
+                  rows={2}
+                  value={formDesc}
+                  onChange={(e) => setFormDesc(e.target.value)}
+                  placeholder="VD: Vật lý, Hóa học và Sinh học tích hợp theo CT GDPT mới..."
+                />
+              </label>
+
+              <div className="grid col-2">
+                <label className="field">
+                  Biểu tượng (Icon)
+                  <select
+                    value={formIcon}
+                    onChange={(e) => setFormIcon(e.target.value)}
+                  >
+                    {SUBJECT_ICON_OPTIONS.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="field">
+                  Tone màu chủ đạo
+                  <select
+                    value={formTone}
+                    onChange={(e) => setFormTone(e.target.value)}
+                  >
+                    {SUBJECT_TONE_OPTIONS.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={formActive}
+                  onChange={(e) => setFormActive(e.target.checked)}
+                  style={{ width: "auto" }}
+                />
+                <span style={{ fontWeight: 600 }}>Hiển thị môn này trong kho tài liệu học tập của học sinh</span>
+              </label>
+
+              <div className="modal-dialog-footer">
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => setEditing(null)}
+                  disabled={busy}
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="button" disabled={busy}>
+                  <Save size={16} />
+                  <span>{busy ? "Đang lưu…" : editing === "new" ? "Thêm môn học" : "Lưu thay đổi"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Subject Dialog */}
+      {deleteDialog && (
+        <div
+          className="modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !busy) setDeleteDialog(null);
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="modal-dialog">
+            <div className="modal-dialog-header">
+              <h3 style={{ color: "var(--danger)" }}>Xác nhận xóa môn học</h3>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setDeleteDialog(null)}
+                disabled={busy}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="modal-dialog-body">
+              <p>
+                Bạn có chắc chắn muốn xóa môn <strong>"{deleteDialog.name}"</strong> khỏi danh mục môn tài liệu không?
+              </p>
+              {deleteDialog.count && deleteDialog.count > 0 ? (
+                <div className="notice warning" style={{ marginTop: 12 }}>
+                  Môn này hiện đang có <strong>{deleteDialog.count}</strong> tài liệu liên kết. Việc xóa môn có thể khiến các tài liệu này không xuất hiện khi học sinh duyệt theo môn.
+                </div>
+              ) : null}
+            </div>
+            <div className="modal-dialog-footer">
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setDeleteDialog(null)}
+                disabled={busy}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="button danger"
+                onClick={executeDelete}
+                disabled={busy}
+              >
+                <Trash2 size={16} />
+                <span>{busy ? "Đang xóa…" : "Xác nhận xóa môn"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Confirmation Dialog */}
+      {resetConfirm && (
+        <div
+          className="modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !busy) setResetConfirm(false);
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="modal-dialog">
+            <div className="modal-dialog-header">
+              <h3>Khôi phục danh mục môn mặc định</h3>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setResetConfirm(false)}
+                disabled={busy}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="modal-dialog-body">
+              <p>
+                Thao tác này sẽ đặt lại danh mục môn tài liệu về 11 môn học chuẩn (Toán, Lý, Hóa, Sinh, Văn, Anh, Sử, Địa, Tin, GDCD, ĐGNL).
+              </p>
+              <p className="meta-text" style={{ marginTop: 8 }}>
+                Các tài liệu hiện có trong hệ thống sẽ không bị mất dữ liệu.
+              </p>
+            </div>
+            <div className="modal-dialog-footer">
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setResetConfirm(false)}
+                disabled={busy}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="button primary"
+                onClick={executeReset}
+                disabled={busy}
+              >
+                <RotateCcw size={16} />
+                <span>{busy ? "Đang xử lý…" : "Xác nhận khôi phục"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function ManageDocuments() {
+  const [docSubTab, setDocSubTab] = useState<"documents" | "subjects">("documents");
+  const [subjRevision, setSubjRevision] = useState(0);
+
+  const { data: subjData } = useLoad<{ subjects: DocumentSubjectConfig[] }>(
+    `/admin/documents/subjects?r=${subjRevision}`,
+  );
+  const configuredSubjects = subjData?.subjects || DEFAULT_DOCUMENT_SUBJECTS;
+
   const [revision, setRevision] = useState(0),
     [query, setQuery] = useState(""),
     [search, setSearch] = useState(""),
@@ -1693,7 +2316,7 @@ function ManageDocuments() {
   // Form state
   const [formTitle, setFormTitle] = useState(""),
     [formDesc, setFormDesc] = useState(""),
-    [formSubject, setFormSubject] = useState("Toán học"),
+    [formSubject, setFormSubject] = useState(configuredSubjects[0]?.name || "Toán học"),
     [formGrade, setFormGrade] = useState("12"),
     [formCategory, setFormCategory] = useState("theory"),
     [formAuthor, setFormAuthor] = useState("Examsparty"),
@@ -1708,7 +2331,7 @@ function ManageDocuments() {
     if (item === "new") {
       setFormTitle("");
       setFormDesc("");
-      setFormSubject("Toán học");
+      setFormSubject(configuredSubjects[0]?.name || "Toán học");
       setFormGrade("12");
       setFormCategory("theory");
       setFormAuthor("Examsparty");
@@ -1834,69 +2457,91 @@ function ManageDocuments() {
 
   return (
     <>
-      <div className="admin-section-header">
-        <div>
-          <h2>Quản lý tài liệu học tập</h2>
-          <p className="meta-text">Tải lên, biên soạn và quản lý các tài liệu ôn thi trực tuyến</p>
-        </div>
+      <div className="admin-subtabs-bar" role="tablist">
         <button
           type="button"
-          className="button small"
-          onClick={() => startEdit("new")}
-          disabled={busy}
+          className={`admin-subtab-btn ${docSubTab === "documents" ? "active" : ""}`}
+          onClick={() => setDocSubTab("documents")}
         >
-          <Plus size={16} />
-          <span>Tải tài liệu mới</span>
+          <BookMarked size={16} />
+          <span>Danh sách tài liệu</span>
+          {data?.total !== undefined && (
+            <span className="admin-subtab-badge">{data.total}</span>
+          )}
+        </button>
+        <button
+          type="button"
+          className={`admin-subtab-btn ${docSubTab === "subjects" ? "active" : ""}`}
+          onClick={() => setDocSubTab("subjects")}
+        >
+          <SlidersHorizontal size={16} />
+          <span>Cấu hình môn học</span>
+          <span className="admin-subtab-badge">{configuredSubjects.length}</span>
         </button>
       </div>
 
-      <div className="admin-filters-grid" style={{ marginBottom: 16 }}>
-        <form
-          className="search-row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSearch(query);
-            setPage(1);
+      {docSubTab === "subjects" ? (
+        <ManageDocumentSubjects
+          subjects={configuredSubjects}
+          onUpdated={() => {
+            setSubjRevision((r) => r + 1);
+            setRevision((r) => r + 1);
           }}
-        >
-          <input
-            placeholder="Tìm theo tiêu đề, tên file..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <button className="button secondary small" type="submit">
-            Tìm
-          </button>
-        </form>
+        />
+      ) : (
+        <>
+          <div className="admin-section-header">
+            <div>
+              <h2>Quản lý tài liệu học tập</h2>
+              <p className="meta-text">Tải lên, biên soạn và quản lý các tài liệu ôn thi trực tuyến</p>
+            </div>
+            <button
+              type="button"
+              className="button small"
+              onClick={() => startEdit("new")}
+              disabled={busy}
+            >
+              <Plus size={16} />
+              <span>Tải tài liệu mới</span>
+            </button>
+          </div>
 
-        <label className="field">
-          Lọc môn
-          <select
-            value={subject}
-            onChange={(e) => {
-              setSubject(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">Tất cả môn</option>
-            {[
-              "Toán học",
-              "Ngữ văn",
-              "Tiếng Anh",
-              "Vật lý",
-              "Hóa học",
-              "Sinh học",
-              "Tin học",
-              "Lịch sử",
-              "Địa lý",
-              "GDCD",
-            ].map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </label>
+          <div className="admin-filters-grid" style={{ marginBottom: 16 }}>
+            <form
+              className="search-row"
+              onSubmit={(e) => {
+                e.preventDefault();
+                setSearch(query);
+                setPage(1);
+              }}
+            >
+              <input
+                placeholder="Tìm theo tiêu đề, tên file..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <button className="button secondary small" type="submit">
+                Tìm
+              </button>
+            </form>
+
+            <label className="field">
+              Lọc môn
+              <select
+                value={subject}
+                onChange={(e) => {
+                  setSubject(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">Tất cả môn</option>
+                {configuredSubjects.map((s) => (
+                  <option key={s.id || s.name} value={s.name}>
+                    {s.name} {!s.active ? " (Đã ẩn)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
 
         <label className="field">
           Khối lớp
@@ -2006,20 +2651,9 @@ function ManageDocuments() {
                     value={formSubject}
                     onChange={(e) => setFormSubject(e.target.value)}
                   >
-                    {[
-                      "Toán học",
-                      "Ngữ văn",
-                      "Tiếng Anh",
-                      "Vật lý",
-                      "Hóa học",
-                      "Sinh học",
-                      "Tin học",
-                      "Lịch sử",
-                      "Địa lý",
-                      "GDCD",
-                    ].map((s) => (
-                      <option key={s} value={s}>
-                        {s}
+                    {configuredSubjects.map((s) => (
+                      <option key={s.id || s.name} value={s.name}>
+                        {s.name} {!s.active ? " (Đã ẩn)" : ""}
                       </option>
                     ))}
                   </select>
@@ -2410,6 +3044,8 @@ function ManageDocuments() {
           doc={previewDoc}
           onClose={() => setPreviewDoc(null)}
         />
+      )}
+        </>
       )}
     </>
   );

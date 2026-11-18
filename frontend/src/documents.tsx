@@ -30,7 +30,12 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { api } from "./api";
-import { DocumentItem, documentCategories } from "./types";
+import {
+  DocumentItem,
+  DocumentSubjectConfig,
+  DEFAULT_DOCUMENT_SUBJECTS,
+  documentCategories,
+} from "./types";
 import { getSubjectTone } from "./components";
 
 export function formatFileSize(bytes: number): string {
@@ -45,25 +50,21 @@ interface SubjectCount {
   count: number;
 }
 
-interface SubjectMeta {
-  name: string;
-  icon: any;
-  desc: string;
-}
-
-const ALL_SUBJECTS: SubjectMeta[] = [
-  { name: "Toán học", icon: Calculator, desc: "Đại số, Giải tích, Hình học không gian & Oxyz" },
-  { name: "Vật lý", icon: Atom, desc: "Dao động cơ, Sóng cơ, Dòng điện xoay chiều & Sóng ánh sáng" },
-  { name: "Hóa học", icon: FlaskConical, desc: "Hóa hữu cơ, Vô cơ, Kim loại & Phản ứng oxi hóa khử" },
-  { name: "Sinh học", icon: Dna, desc: "Di truyền học, Tiến hóa, Sinh thái học & Tế bào" },
-  { name: "Ngữ văn", icon: BookOpen, desc: "Phân tích tác phẩm, Sơ đồ luận điểm & Đề cương nghị luận" },
-  { name: "Tiếng Anh", icon: Languages, desc: "Trọng tâm ngữ pháp, Từ vựng chuyên đề & Cấu trúc câu" },
-  { name: "Lịch sử", icon: Landmark, desc: "Lịch sử Việt Nam, Thế giới hiện đại & Mốc thời gian trọng tâm" },
-  { name: "Địa lý", icon: Globe, desc: "Địa lý tự nhiên, Dân cư, Các vùng kinh tế & Kỹ năng Atlat" },
-  { name: "Tin học", icon: Laptop, desc: "Lập trình, Thuật toán, Cơ sở dữ liệu & Kiến thức tin học" },
-  { name: "GDCD", icon: Scale, desc: "Pháp luật và đời sống, Công dân với kinh tế" },
-  { name: "ĐGNL - ĐGTD", icon: GraduationCap, desc: "Đề cương tổng hợp tư duy định lượng & định tính" },
-];
+export const SUBJECT_ICON_MAP: Record<string, any> = {
+  Calculator,
+  Atom,
+  FlaskConical,
+  Dna,
+  BookOpen,
+  Languages,
+  Landmark,
+  Globe,
+  Laptop,
+  Scale,
+  GraduationCap,
+  FileText,
+  Sparkles,
+};
 
 const GRADE_OPTIONS = [
   { label: "Tất cả khối", value: "" },
@@ -230,6 +231,8 @@ export function DocumentsPage() {
   const [category, setCategory] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [availableSubjects, setAvailableSubjects] = useState<SubjectCount[]>([]);
+  const [subjectConfigs, setSubjectConfigs] =
+    useState<DocumentSubjectConfig[]>(DEFAULT_DOCUMENT_SUBJECTS);
 
   // Selection & Actions
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -242,12 +245,15 @@ export function DocumentsPage() {
     setSubject(urlSub);
   }, [searchParams]);
 
-  // Fetch subject counts
+  // Fetch subject counts and configured subjects
   useEffect(() => {
-    api<{ subjects: SubjectCount[] }>("/documents/subjects")
+    api<{ subjects: SubjectCount[]; configured?: DocumentSubjectConfig[] }>("/documents/subjects")
       .then((res) => {
         if (Array.isArray(res.subjects)) {
           setAvailableSubjects(res.subjects);
+        }
+        if (Array.isArray(res.configured) && res.configured.length > 0) {
+          setSubjectConfigs(res.configured);
         }
       })
       .catch(() => {});
@@ -354,6 +360,7 @@ export function DocumentsPage() {
   };
 
   const totalPages = Math.ceil(total / 12) || 1;
+  const activeSubjects = subjectConfigs.filter((s) => s.active !== false);
 
   return (
     <div className="documents-page">
@@ -374,17 +381,17 @@ export function DocumentsPage() {
           </div>
 
           <div className="subjects-hub-grid">
-            {ALL_SUBJECTS.map((s) => {
-              const tone = getSubjectTone(s.name);
+            {activeSubjects.map((s) => {
+              const tone = s.tone && s.tone !== "default" ? s.tone : getSubjectTone(s.name);
               const countObj = availableSubjects.find(
                 (sub) => sub.subject.toLowerCase() === s.name.toLowerCase(),
               );
-              const count = countObj?.count ?? 0;
-              const IconComponent = s.icon;
+              const count = countObj?.count ?? s.count ?? 0;
+              const IconComponent = (s.icon && SUBJECT_ICON_MAP[s.icon]) || BookOpen;
 
               return (
                 <div
-                  key={s.name}
+                  key={s.id || s.name}
                   className={`subject-hub-card subject-theme-${tone} card-hover-lift`}
                   onClick={() => handleSelectSubject(s.name)}
                   role="button"
@@ -451,10 +458,10 @@ export function DocumentsPage() {
             <div className="subject-quick-switcher">
               <span className="quick-switch-label">Đổi nhanh:</span>
               <div className="quick-switch-pills">
-                {ALL_SUBJECTS.filter((s) => s.name !== subject).slice(0, 5).map((s) => (
+                {activeSubjects.filter((s) => s.name !== subject).slice(0, 6).map((s) => (
                   <button
                     type="button"
-                    key={s.name}
+                    key={s.id || s.name}
                     className="quick-switch-pill"
                     onClick={() => handleSelectSubject(s.name)}
                   >

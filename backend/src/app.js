@@ -17,7 +17,7 @@ import {
   gradeAttempt,
   validResponse,
 } from "./domain.js";
-import { transaction } from "./db.js";
+import { transaction, defaultDocumentSubjects } from "./db.js";
 import { createZipArchive } from "./zip.js";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
@@ -1082,13 +1082,33 @@ export function createApp(db, config) {
   });
 
   app.get("/api/documents/subjects", async (req, res) => {
-    const rows = (
+    const countRows = (
       await db.query(
         "SELECT subject, count(*) as count FROM documents WHERE status='published' GROUP BY subject ORDER BY count DESC"
       )
     ).rows;
+
+    const countsMap = new Map();
+    for (const r of countRows) {
+      countsMap.set((r.subject || "").toLowerCase().trim(), Number(r.count));
+    }
+
+    const settingsRow = (
+      await db.query("SELECT value FROM settings WHERE key='document_subjects'")
+    ).rows[0];
+
+    const rawConfigured = Array.isArray(settingsRow?.value)
+      ? settingsRow.value
+      : defaultDocumentSubjects;
+
+    const configured = rawConfigured.map((s) => ({
+      ...s,
+      count: countsMap.get((s.name || "").toLowerCase().trim()) || 0,
+    }));
+
     res.json({
-      subjects: rows.map((r) => ({
+      configured,
+      subjects: countRows.map((r) => ({
         subject: r.subject,
         count: Number(r.count),
       })),
@@ -1305,6 +1325,87 @@ export function createApp(db, config) {
     });
   });
 
+  app.get("/api/admin/documents/subjects", async (req, res) => {
+    const countsMap = new Map();
+    const countRows = (
+      await db.query(
+        "SELECT subject, count(*) as count FROM documents WHERE status <> 'deleted' GROUP BY subject"
+      )
+    ).rows;
+    for (const r of countRows) {
+      countsMap.set((r.subject || "").toLowerCase().trim(), Number(r.count));
+    }
+
+    const settingsRow = (
+      await db.query("SELECT value FROM settings WHERE key='document_subjects'")
+    ).rows[0];
+
+    let list = Array.isArray(settingsRow?.value) ? settingsRow.value : [];
+    if (list.length === 0) {
+      list = defaultDocumentSubjects;
+    }
+
+    const subjects = list.map((s) => ({
+      ...s,
+      count: countsMap.get((s.name || "").toLowerCase().trim()) || 0,
+    }));
+
+    res.json({ subjects });
+  });
+
+  app.put("/api/admin/documents/subjects", async (req, res) => {
+    const subjectItemSchema = z.object({
+      id: z.string().trim().min(1).max(100),
+      name: z.string().trim().min(1).max(100),
+      desc: z.string().trim().max(500).default(""),
+      tone: z.string().max(50).optional().default("default"),
+      icon: z.string().max(50).optional().default("BookOpen"),
+      active: z.boolean().default(true),
+    });
+
+    const { subjects } = z
+      .object({
+        subjects: z.array(subjectItemSchema).min(1, "Phải có ít nhất 1 môn học"),
+      })
+      .parse(req.body);
+
+    await transaction(db, async (client) => {
+      await client.query(
+        "INSERT INTO settings (key, value) VALUES ('document_subjects', $1) ON CONFLICT (key) DO UPDATE SET value=$1",
+        [JSON.stringify(subjects)],
+      );
+      await audit(
+        client,
+        req,
+        "update",
+        "document_subjects",
+        null,
+        `Cập nhật danh mục môn tài liệu (${subjects.length} môn)`,
+      );
+    });
+
+    res.json({ ok: true, subjects });
+  });
+
+  app.post("/api/admin/documents/subjects/reset", async (req, res) => {
+    await transaction(db, async (client) => {
+      await client.query(
+        "INSERT INTO settings (key, value) VALUES ('document_subjects', $1) ON CONFLICT (key) DO UPDATE SET value=$1",
+        [JSON.stringify(defaultDocumentSubjects)],
+      );
+      await audit(
+        client,
+        req,
+        "reset",
+        "document_subjects",
+        null,
+        "Khôi phục danh mục môn tài liệu mặc định",
+      );
+    });
+
+    res.json({ ok: true, subjects: defaultDocumentSubjects });
+  });
+
   app.put("/api/admin/documents/:id", docUpload.single("file"), async (req, res) => {
     uuid.parse(req.params.id);
     const parsed = z
@@ -1385,6 +1486,7 @@ export function createApp(db, config) {
 
     res.json({ deleted: result.rowCount });
   });
+
   app.get("/api/admin/review-queue", async (req, res) => {
     const { page, limit } = pagination(req);
     const status = z

@@ -169,6 +169,30 @@ export const REPORT_REASONS = [
   { value: "display_error", label: "Lỗi hiển thị công thức / hình ảnh", desc: "Công thức toán bị vỡ hoặc ảnh minh họa không tải được" },
   { value: "other", label: "Vấn đề khác", desc: "Góp ý hoặc phản ánh các vấn đề khác về câu hỏi" },
 ] as const;
+
+export interface DocumentSubjectConfig {
+  id: string;
+  name: string;
+  desc: string;
+  tone?: string;
+  icon?: string;
+  active: boolean;
+  count?: number;
+}
+
+export const DEFAULT_DOCUMENT_SUBJECTS: DocumentSubjectConfig[] = [
+  { id: "toan-hoc", name: "Toán học", desc: "Đại số, Giải tích, Hình học không gian & Oxyz", tone: "math", icon: "Calculator", active: true },
+  { id: "vat-ly", name: "Vật lý", desc: "Dao động cơ, Sóng cơ, Dòng điện xoay chiều & Sóng ánh sáng", tone: "physics", icon: "Atom", active: true },
+  { id: "hoa-hoc", name: "Hóa học", desc: "Hóa hữu cơ, Vô cơ, Kim loại & Phản ứng oxi hóa khử", tone: "chemistry", icon: "FlaskConical", active: true },
+  { id: "sinh-hoc", name: "Sinh học", desc: "Di truyền học, Tiến hóa, Sinh thái học & Tế bào", tone: "biology", icon: "Dna", active: true },
+  { id: "ngu-van", name: "Ngữ văn", desc: "Phân tích tác phẩm, Sơ đồ luận điểm & Đề cương nghị luận", tone: "literature", icon: "BookOpen", active: true },
+  { id: "tieng-anh", name: "Tiếng Anh", desc: "Trọng tâm ngữ pháp, Từ vựng chuyên đề & Cấu trúc câu", tone: "english", icon: "Languages", active: true },
+  { id: "lich-su", name: "Lịch sử", desc: "Lịch sử Việt Nam, Thế giới hiện đại & Mốc thời gian trọng tâm", tone: "history", icon: "Landmark", active: true },
+  { id: "dia-ly", name: "Địa lý", desc: "Địa lý tự nhiên, Dân cư, Các vùng kinh tế & Kỹ năng Atlat", tone: "geography", icon: "Globe", active: true },
+  { id: "tin-hoc", name: "Tin học", desc: "Lập trình, Thuật toán, Cơ sở dữ liệu & Kiến thức tin học", tone: "cs", icon: "Laptop", active: true },
+  { id: "gdcd", name: "GDCD", desc: "Pháp luật và đời sống, Công dân với kinh tế", tone: "amber", icon: "Scale", active: true },
+  { id: "dgnl", name: "ĐGNL - ĐGTD", desc: "Đề cương tổng hợp tư duy định lượng & định tính", tone: "purple", icon: "GraduationCap", active: true },
+];
 export const emptyQuestion = (n = 1): Question => ({
   client_id: `q${n}`,
   type: "single_choice",

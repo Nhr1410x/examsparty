@@ -23,6 +23,20 @@ export function createDatabase(url, ssl = false) {
 
   return pool;
 }
+export const defaultDocumentSubjects = [
+  { id: "toan-hoc", name: "Toán học", desc: "Đại số, Giải tích, Hình học không gian & Oxyz", tone: "math", icon: "Calculator", active: true },
+  { id: "vat-ly", name: "Vật lý", desc: "Dao động cơ, Sóng cơ, Dòng điện xoay chiều & Sóng ánh sáng", tone: "physics", icon: "Atom", active: true },
+  { id: "hoa-hoc", name: "Hóa học", desc: "Hóa hữu cơ, Vô cơ, Kim loại & Phản ứng oxi hóa khử", tone: "chemistry", icon: "FlaskConical", active: true },
+  { id: "sinh-hoc", name: "Sinh học", desc: "Di truyền học, Tiến hóa, Sinh thái học & Tế bào", tone: "biology", icon: "Dna", active: true },
+  { id: "ngu-van", name: "Ngữ văn", desc: "Phân tích tác phẩm, Sơ đồ luận điểm & Đề cương nghị luận", tone: "literature", icon: "BookOpen", active: true },
+  { id: "tieng-anh", name: "Tiếng Anh", desc: "Trọng tâm ngữ pháp, Từ vựng chuyên đề & Cấu trúc câu", tone: "english", icon: "Languages", active: true },
+  { id: "lich-su", name: "Lịch sử", desc: "Lịch sử Việt Nam, Thế giới hiện đại & Mốc thời gian trọng tâm", tone: "history", icon: "Landmark", active: true },
+  { id: "dia-ly", name: "Địa lý", desc: "Địa lý tự nhiên, Dân cư, Các vùng kinh tế & Kỹ năng Atlat", tone: "geography", icon: "Globe", active: true },
+  { id: "tin-hoc", name: "Tin học", desc: "Lập trình, Thuật toán, Cơ sở dữ liệu & Kiến thức tin học", tone: "cs", icon: "Laptop", active: true },
+  { id: "gdcd", name: "GDCD", desc: "Pháp luật và đời sống, Công dân với kinh tế", tone: "amber", icon: "Scale", active: true },
+  { id: "dgnl", name: "ĐGNL - ĐGTD", desc: "Đề cương tổng hợp tư duy định lượng & định tính", tone: "purple", icon: "GraduationCap", active: true },
+];
+
 export async function migrate(db) {
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -103,6 +117,23 @@ export async function migrate(db) {
   `);
   await db.query(
     "INSERT INTO settings (key,value) VALUES ('policy','{\"contributions_enabled\":true}') ON CONFLICT (key) DO NOTHING",
+  );
+  const defaultDocumentSubjects = [
+    { id: "toan-hoc", name: "Toán học", desc: "Đại số, Giải tích, Hình học không gian & Oxyz", tone: "math", icon: "Calculator", active: true },
+    { id: "vat-ly", name: "Vật lý", desc: "Dao động cơ, Sóng cơ, Dòng điện xoay chiều & Sóng ánh sáng", tone: "physics", icon: "Atom", active: true },
+    { id: "hoa-hoc", name: "Hóa học", desc: "Hóa hữu cơ, Vô cơ, Kim loại & Phản ứng oxi hóa khử", tone: "chemistry", icon: "FlaskConical", active: true },
+    { id: "sinh-hoc", name: "Sinh học", desc: "Di truyền học, Tiến hóa, Sinh thái học & Tế bào", tone: "biology", icon: "Dna", active: true },
+    { id: "ngu-van", name: "Ngữ văn", desc: "Phân tích tác phẩm, Sơ đồ luận điểm & Đề cương nghị luận", tone: "literature", icon: "BookOpen", active: true },
+    { id: "tieng-anh", name: "Tiếng Anh", desc: "Trọng tâm ngữ pháp, Từ vựng chuyên đề & Cấu trúc câu", tone: "english", icon: "Languages", active: true },
+    { id: "lich-su", name: "Lịch sử", desc: "Lịch sử Việt Nam, Thế giới hiện đại & Mốc thời gian trọng tâm", tone: "history", icon: "Landmark", active: true },
+    { id: "dia-ly", name: "Địa lý", desc: "Địa lý tự nhiên, Dân cư, Các vùng kinh tế & Kỹ năng Atlat", tone: "geography", icon: "Globe", active: true },
+    { id: "tin-hoc", name: "Tin học", desc: "Lập trình, Thuật toán, Cơ sở dữ liệu & Kiến thức tin học", tone: "cs", icon: "Laptop", active: true },
+    { id: "gdcd", name: "GDCD", desc: "Pháp luật và đời sống, Công dân với kinh tế", tone: "amber", icon: "Scale", active: true },
+    { id: "dgnl", name: "ĐGNL - ĐGTD", desc: "Đề cương tổng hợp tư duy định lượng & định tính", tone: "purple", icon: "GraduationCap", active: true },
+  ];
+  await db.query(
+    "INSERT INTO settings (key,value) VALUES ('document_subjects', $1) ON CONFLICT (key) DO NOTHING",
+    [JSON.stringify(defaultDocumentSubjects)],
   );
   try {
     await db.query(`

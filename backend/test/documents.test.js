@@ -165,4 +165,39 @@ test("study hub documents: upload, list, filters, preview, single download, batc
 
   const checkDeleted = await publicAgent.get(`/api/documents/${doc1Id}`);
   assert.equal(checkDeleted.status, 404);
+
+  // 15. Admin views document subjects configuration
+  const adminSubjRes = await adminAgent.get("/api/admin/documents/subjects");
+  assert.equal(adminSubjRes.status, 200);
+  assert(Array.isArray(adminSubjRes.body.subjects));
+  assert(adminSubjRes.body.subjects.length >= 11);
+
+  // 16. Admin customizes document subjects (adds new subject & updates order)
+  const customList = [
+    {
+      id: "khtn",
+      name: "Khoa học Tự nhiên",
+      desc: "Vật lý, Hóa học, Sinh học tích hợp theo CT GDPT mới",
+      tone: "chemistry",
+      icon: "Atom",
+      active: true,
+    },
+    ...adminSubjRes.body.subjects,
+  ];
+  const updateSubjRes = await put(adminAgent, "/api/admin/documents/subjects").send({
+    subjects: customList,
+  });
+  assert.equal(updateSubjRes.status, 200);
+  assert.equal(updateSubjRes.body.subjects.length, customList.length);
+  assert.equal(updateSubjRes.body.subjects[0].name, "Khoa học Tự nhiên");
+
+  // 17. Public endpoint returns the customized subjects
+  const publicCustomSubj = await publicAgent.get("/api/documents/subjects");
+  assert.equal(publicCustomSubj.status, 200);
+  assert.equal(publicCustomSubj.body.configured[0].name, "Khoa học Tự nhiên");
+
+  // 18. Admin resets document subjects to default
+  const resetSubjRes = await post(adminAgent, "/api/admin/documents/subjects/reset").send({});
+  assert.equal(resetSubjRes.status, 200);
+  assert.equal(resetSubjRes.body.subjects[0].name, "Toán học");
 });
