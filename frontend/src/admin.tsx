@@ -2076,7 +2076,7 @@ function ManageDocumentSubjects({
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="modal-dialog-body form-grid">
+            <form onSubmit={handleSave} className="modal-dialog-body">
               <div className="grid col-2">
                 <label className="field">
                   Tên môn học *
