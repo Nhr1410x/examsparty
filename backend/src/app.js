@@ -1243,10 +1243,16 @@ export function createApp(db, config) {
     const conditions = [];
 
     if (status && status !== "all") {
-      values.push(status);
-      conditions.push(`status=$${values.length}`);
-    } else {
+      if (status === "active") {
+        conditions.push(`status IN ('published', 'draft')`);
+      } else {
+        values.push(status);
+        conditions.push(`status=$${values.length}`);
+      }
+    } else if (status === "all") {
       conditions.push(`status <> 'deleted'`);
+    } else {
+      conditions.push(`status IN ('published', 'draft')`);
     }
 
     if (subject) {
@@ -1561,6 +1567,37 @@ export function createApp(db, config) {
     res.json({ ok: true, id: req.params.id });
   });
 
+  app.delete("/api/admin/documents/:id", async (req, res) => {
+    uuid.parse(req.params.id);
+    const permanent = req.query.permanent !== "false" && req.body?.permanent !== false;
+    let result;
+    if (permanent) {
+      result = await db.query("DELETE FROM documents WHERE id=$1", [req.params.id]);
+    } else {
+      result = await db.query(
+        "UPDATE documents SET status='archived', updated_at=now() WHERE id=$1",
+        [req.params.id]
+      );
+    }
+
+    await db
+      .query(
+        "INSERT INTO settings (key, value) VALUES ('documents_seeded', 'true'::jsonb) ON CONFLICT (key) DO NOTHING"
+      )
+      .catch(() => {});
+
+    await audit(
+      db,
+      req,
+      permanent ? "delete" : "archive",
+      "documents",
+      req.params.id,
+      `${permanent ? "Xóa vĩnh viễn" : "Lưu trữ"} tài liệu`,
+    );
+
+    res.json({ deleted: result.rowCount });
+  });
+
   app.delete("/api/admin/documents", async (req, res) => {
     const { ids, permanent } = z
       .object({
@@ -1582,6 +1619,21 @@ export function createApp(db, config) {
         ids
       );
     }
+
+    await db
+      .query(
+        "INSERT INTO settings (key, value) VALUES ('documents_seeded', 'true'::jsonb) ON CONFLICT (key) DO NOTHING"
+      )
+      .catch(() => {});
+
+    await audit(
+      db,
+      req,
+      permanent ? "delete" : "archive",
+      "documents",
+      null,
+      `${permanent ? "Xóa vĩnh viễn" : "Lưu trữ"} ${ids.length} tài liệu`,
+    );
 
     res.json({ deleted: result.rowCount });
   });

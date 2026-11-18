@@ -2312,13 +2312,13 @@ function ManageDocuments() {
     [subject, setSubject] = useState(""),
     [grade, setGrade] = useState(""),
     [category, setCategory] = useState(""),
-    [status, setStatus] = useState("all"),
+    [status, setStatus] = useState("active"),
     [page, setPage] = useState(1),
     [selected, setSelected] = useState<string[]>([]),
     [editing, setEditing] = useState<"new" | DocumentItem | null>(null),
     [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null),
     [deleteDialog, setDeleteDialog] = useState<{ ids: string[] } | null>(null),
-    [deleteMode, setDeleteMode] = useState<"archive" | "permanent">("archive"),
+    [deleteMode, setDeleteMode] = useState<"archive" | "permanent">("permanent"),
     [busy, setBusy] = useState(false),
     [issue, setIssue] = useState<unknown>(null),
     [message, setMessage] = useState<string | null>(null);
@@ -2710,10 +2710,11 @@ function ManageDocuments() {
               setPage(1);
             }}
           >
-            <option value="all">Mọi trạng thái</option>
+            <option value="active">Đang hiển thị (Xuất bản + Nháp)</option>
             <option value="published">Đã xuất bản</option>
             <option value="draft">Bản nháp</option>
-            <option value="archived">Lưu trữ</option>
+            <option value="archived">Kho lưu trữ (Đã ẩn)</option>
+            <option value="all">Tất cả trạng thái</option>
           </select>
         </label>
       </div>
@@ -3099,7 +3100,10 @@ function ManageDocuments() {
                   <button
                     type="button"
                     className="admin-delete-btn"
-                    onClick={() => setDeleteDialog({ ids: selected })}
+                    onClick={() => {
+                      setDeleteMode("permanent");
+                      setDeleteDialog({ ids: selected });
+                    }}
                   >
                     <Trash2 size={14} />
                     <span>Xóa ({selected.length})</span>
@@ -3199,7 +3203,10 @@ function ManageDocuments() {
                           <button
                             type="button"
                             className="icon-button"
-                            onClick={() => setDeleteDialog({ ids: [doc.id] })}
+                            onClick={() => {
+                              setDeleteMode("permanent");
+                              setDeleteDialog({ ids: [doc.id] });
+                            }}
                             title="Xóa tài liệu"
                           >
                             <Trash2 size={15} />
@@ -3263,33 +3270,6 @@ function ManageDocuments() {
             <div className="modal-dialog-body">
               <div className="delete-options-container">
                 <div
-                  className={`delete-option-card ${deleteMode === "archive" ? "selected archive" : ""}`}
-                  onClick={() => setDeleteMode("archive")}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="delete-option-header">
-                    <div className="delete-option-icon archive">
-                      <Archive size={18} />
-                    </div>
-                    <div className="delete-option-title-row">
-                      <div className="delete-option-title">Chuyển vào lưu trữ</div>
-                      <span className="delete-option-badge safe">An toàn</span>
-                    </div>
-                    <input
-                      type="radio"
-                      name="deleteDocMode"
-                      checked={deleteMode === "archive"}
-                      onChange={() => setDeleteMode("archive")}
-                      className="delete-option-radio"
-                    />
-                  </div>
-                  <p className="delete-option-desc">
-                    Đặt trạng thái tài liệu thành <strong>"Lưu trữ"</strong>. Tài liệu sẽ ẩn khỏi góc học tập công khai nhưng dữ liệu vẫn được bảo toàn.
-                  </p>
-                </div>
-
-                <div
                   className={`delete-option-card ${deleteMode === "permanent" ? "selected danger" : ""}`}
                   onClick={() => setDeleteMode("permanent")}
                   role="button"
@@ -3301,7 +3281,7 @@ function ManageDocuments() {
                     </div>
                     <div className="delete-option-title-row">
                       <div className="delete-option-title">Xóa vĩnh viễn khỏi Database</div>
-                      <span className="delete-option-badge danger">Không thể hoàn tác</span>
+                      <span className="delete-option-badge danger">Khuyên dùng khi muốn xóa hẳn</span>
                     </div>
                     <input
                       type="radio"
@@ -3312,7 +3292,34 @@ function ManageDocuments() {
                     />
                   </div>
                   <p className="delete-option-desc">
-                    Xóa <strong>hoàn toàn tập tin và bản ghi khỏi cơ sở dữ liệu</strong>. Dung lượng lưu trữ sẽ được giải phóng ngay lập tức.
+                    Xóa <strong>hoàn toàn tập tin và bản ghi khỏi cơ sở dữ liệu</strong>. Khi push code hay khởi động lại server, tài liệu sẽ không bao giờ xuất hiện lại.
+                  </p>
+                </div>
+
+                <div
+                  className={`delete-option-card ${deleteMode === "archive" ? "selected archive" : ""}`}
+                  onClick={() => setDeleteMode("archive")}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="delete-option-header">
+                    <div className="delete-option-icon archive">
+                      <Archive size={18} />
+                    </div>
+                    <div className="delete-option-title-row">
+                      <div className="delete-option-title">Chuyển vào kho lưu trữ</div>
+                      <span className="delete-option-badge safe">Tạm ẩn</span>
+                    </div>
+                    <input
+                      type="radio"
+                      name="deleteDocMode"
+                      checked={deleteMode === "archive"}
+                      onChange={() => setDeleteMode("archive")}
+                      className="delete-option-radio"
+                    />
+                  </div>
+                  <p className="delete-option-desc">
+                    Đặt trạng thái tài liệu thành <strong>"Lưu trữ"</strong>. Tài liệu sẽ ẩn khỏi góc học tập công khai và danh sách đang hoạt động (có thể xem trong bộ lọc "Kho lưu trữ").
                   </p>
                 </div>
               </div>

@@ -228,4 +228,40 @@ test("study hub documents: upload, list, filters, preview, single download, batc
   const listAfterBatch = await publicAgent.get("/api/documents?subject=Toán học");
   assert(listAfterBatch.body.items.some((d) => d.title === "Bai 1 Ham So"));
   assert(listAfterBatch.body.items.some((d) => d.title === "Bai 2 Cuc Tri"));
+
+  const batchDoc1Id = batchFolderRes.body.documents[0].id;
+  const batchDoc2Id = batchFolderRes.body.documents[1].id;
+
+  // 20. Admin archives a document (soft delete)
+  const archiveRes = await del(adminAgent, "/api/admin/documents").send({
+    ids: [batchDoc1Id],
+    permanent: false,
+  });
+  assert.equal(archiveRes.status, 200);
+
+  // Active list (default or status=active) must NOT contain the archived doc
+  const activeAdminList = await adminAgent.get("/api/admin/documents?status=active");
+  assert.equal(activeAdminList.status, 200);
+  assert(!activeAdminList.body.items.some((d) => d.id === batchDoc1Id));
+
+  // Archived list specifically returns it
+  const archivedAdminList = await adminAgent.get("/api/admin/documents?status=archived");
+  assert.equal(archivedAdminList.status, 200);
+  assert(archivedAdminList.body.items.some((d) => d.id === batchDoc1Id));
+
+  // 21. Permanent delete completely removes documents
+  const permDelRes = await del(adminAgent, "/api/admin/documents").send({
+    ids: [batchDoc1Id, batchDoc2Id],
+    permanent: true,
+  });
+  assert.equal(permDelRes.status, 200);
+
+  // Clean up all other documents in DB to test seed prevention on restart
+  await db.query("DELETE FROM documents");
+
+  // Re-run seed: should NOT re-insert documents because documents_seeded flag is present
+  await seed(db, config);
+
+  const docCountAfterSeed = (await db.query("SELECT count(*) as count FROM documents")).rows[0].count;
+  assert.equal(Number(docCountAfterSeed), 0, "Seed must not recreate deleted documents on server restart");
 });

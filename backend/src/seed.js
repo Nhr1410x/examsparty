@@ -311,67 +311,79 @@ export async function seed(db, config) {
     }
   }
 
-  // Seed initial sample documents if table is empty
-  const docCheck = await db.query("SELECT id FROM documents LIMIT 1").catch(() => ({ rowCount: 1 }));
-  if (!docCheck.rowCount) {
-    const samplePdfData = Buffer.from(
-      "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000056 00000 n \n0000000115 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n197\n%%EOF\n"
-    );
+  // Seed initial sample documents only if never seeded before
+  const seededCheck = await db
+    .query("SELECT value FROM settings WHERE key='documents_seeded'")
+    .catch(() => null);
 
-    const initialDocs = [
-      {
-        title: "Sổ tay công thức Toán học 12 — Giải tích & Hình học",
-        description: "Hệ thống toàn bộ công thức Nguyên hàm, Tích phân, Số phức và Hình học Oxyz trọng tâm thi THPT Quốc gia.",
-        subject: "Toán học",
-        grade: "12",
-        category: "theory",
-        file_name: "So-tay-cong-thuc-Toan-12.pdf",
-        mime_type: "application/pdf",
-        file_size: samplePdfData.length,
-        author_name: "Tổ Toán Examsparty",
-      },
-      {
-        title: "Sơ đồ tư duy Vật lý 12 — Trọn bộ 7 chương cốt lõi",
-        description: "Tổng hợp trực quan các kiến thức Dao động cơ, Sóng cơ, Dòng điện xoay chiều và Sóng ánh sáng.",
-        subject: "Vật lý",
-        grade: "12",
-        category: "mindmap",
-        file_name: "So-do-tu-duy-Vat-ly-12.pdf",
-        mime_type: "application/pdf",
-        file_size: samplePdfData.length,
-        author_name: "Ban Chuyên Môn",
-      },
-      {
-        title: "Đề cương trọng tâm Ngữ văn 12 — Kiến thức tác phẩm",
-        description: "Phân tích dàn ý chi tiết và luận điểm các bài văn, thơ trọng tâm trong chương trình THPT.",
-        subject: "Ngữ văn",
-        grade: "12",
-        category: "outline",
-        file_name: "De-cuong-trong-tam-Ngu-van-12.pdf",
-        mime_type: "application/pdf",
-        file_size: samplePdfData.length,
-        author_name: "Tổ Ngữ Văn Examsparty",
-      },
-    ];
+  if (!seededCheck?.rows?.[0]) {
+    const docCheck = await db.query("SELECT id FROM documents LIMIT 1").catch(() => ({ rowCount: 1 }));
+    if (!docCheck.rowCount) {
+      const samplePdfData = Buffer.from(
+        "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000056 00000 n \n0000000115 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n197\n%%EOF\n"
+      );
 
-    for (const d of initialDocs) {
-      await db.query(
-        `INSERT INTO documents (id, title, description, subject, grade, category, file_name, mime_type, file_size, data, author_name, status, views_count, downloads_count)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'published', 45, 18)`,
-        [
-          randomUUID(),
-          d.title,
-          d.description,
-          d.subject,
-          d.grade,
-          d.category,
-          d.file_name,
-          d.mime_type,
-          d.file_size,
-          samplePdfData,
-          d.author_name,
-        ]
-      ).catch(() => {});
+      const initialDocs = [
+        {
+          title: "Sổ tay công thức Toán học 12 — Giải tích & Hình học",
+          description: "Hệ thống toàn bộ công thức Nguyên hàm, Tích phân, Số phức và Hình học Oxyz trọng tâm thi THPT Quốc gia.",
+          subject: "Toán học",
+          grade: "12",
+          category: "theory",
+          file_name: "So-tay-cong-thuc-Toan-12.pdf",
+          mime_type: "application/pdf",
+          file_size: samplePdfData.length,
+          author_name: "Tổ Toán Examsparty",
+        },
+        {
+          title: "Sơ đồ tư duy Vật lý 12 — Trọn bộ 7 chương cốt lõi",
+          description: "Tổng hợp trực quan các kiến thức Dao động cơ, Sóng cơ, Dòng điện xoay chiều và Sóng ánh sáng.",
+          subject: "Vật lý",
+          grade: "12",
+          category: "mindmap",
+          file_name: "So-do-tu-duy-Vat-ly-12.pdf",
+          mime_type: "application/pdf",
+          file_size: samplePdfData.length,
+          author_name: "Ban Chuyên Môn",
+        },
+        {
+          title: "Đề cương trọng tâm Ngữ văn 12 — Kiến thức tác phẩm",
+          description: "Phân tích dàn ý chi tiết và luận điểm các bài văn, thơ trọng tâm trong chương trình THPT.",
+          subject: "Ngữ văn",
+          grade: "12",
+          category: "outline",
+          file_name: "De-cuong-trong-tam-Ngu-van-12.pdf",
+          mime_type: "application/pdf",
+          file_size: samplePdfData.length,
+          author_name: "Tổ Ngữ Văn Examsparty",
+        },
+      ];
+
+      for (const d of initialDocs) {
+        await db.query(
+          `INSERT INTO documents (id, title, description, subject, grade, category, file_name, mime_type, file_size, data, author_name, status, views_count, downloads_count)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'published', 45, 18)`,
+          [
+            randomUUID(),
+            d.title,
+            d.description,
+            d.subject,
+            d.grade,
+            d.category,
+            d.file_name,
+            d.mime_type,
+            d.file_size,
+            samplePdfData,
+            d.author_name,
+          ]
+        ).catch(() => {});
+      }
     }
+
+    await db
+      .query(
+        "INSERT INTO settings (key, value) VALUES ('documents_seeded', 'true'::jsonb) ON CONFLICT (key) DO NOTHING"
+      )
+      .catch(() => {});
   }
 }

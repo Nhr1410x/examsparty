@@ -136,6 +136,14 @@ export async function migrate(db) {
     [JSON.stringify(defaultDocumentSubjects)],
   );
   try {
+    const existingDocs = await db.query("SELECT id FROM documents LIMIT 1");
+    if (existingDocs.rowCount > 0) {
+      await db.query(
+        "INSERT INTO settings (key, value) VALUES ('documents_seeded', 'true'::jsonb) ON CONFLICT (key) DO NOTHING",
+      );
+    }
+  } catch {}
+  try {
     await db.query(`
       ALTER TABLE reports ALTER COLUMN exam_id DROP NOT NULL;
       ALTER TABLE reports ADD COLUMN IF NOT EXISTS question_id uuid REFERENCES questions(id);
