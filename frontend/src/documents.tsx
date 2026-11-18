@@ -16,6 +16,11 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Folder,
+  FolderOpen,
+  FolderDown,
   ArrowLeft,
   Calculator,
   Atom,
@@ -35,6 +40,8 @@ import {
   DocumentSubjectConfig,
   DEFAULT_DOCUMENT_SUBJECTS,
   documentCategories,
+  GRADE_OPTIONS,
+  formatGrade,
 } from "./types";
 import { getSubjectTone } from "./components";
 
@@ -65,15 +72,6 @@ export const SUBJECT_ICON_MAP: Record<string, any> = {
   FileText,
   Sparkles,
 };
-
-const GRADE_OPTIONS = [
-  { label: "Tất cả khối", value: "" },
-  { label: "Lớp 12", value: "12" },
-  { label: "Lớp 11", value: "11" },
-  { label: "Lớp 10", value: "10" },
-  { label: "ĐGNL - ĐGTD", value: "dgnl" },
-  { label: "Tốt nghiệp THPT", value: "thpt_quoc_gia" },
-];
 
 export function DocumentViewerModal({
   doc,
@@ -359,6 +357,204 @@ export function DocumentsPage() {
     }
   };
 
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+
+  const toggleFolder = (folderName: string) => {
+    setExpandedFolders((prev) => ({
+      ...prev,
+      [folderName]: !prev[folderName],
+    }));
+  };
+
+  // Auto-expand all folders when user searches
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const all: Record<string, boolean> = {};
+      for (const d of documents) {
+        if (d.folder_name?.trim()) {
+          all[d.folder_name.trim()] = true;
+        }
+      }
+      setExpandedFolders(all);
+    }
+  }, [searchQuery, documents]);
+
+  const handleDownloadFolder = async (folderName: string, docs: DocumentItem[]) => {
+    const ids = docs.map((d) => d.id);
+    if (!ids.length || downloadingZip) return;
+    setDownloadingZip(true);
+    try {
+      const response = await fetch("/api/documents/batch-download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, folder_name: folderName, subject }),
+      });
+      if (!response.ok) throw new Error("Không thể tải tập tin ZIP.");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Examsparty_${folderName.replace(/\s+/g, "_")}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (e: any) {
+      alert(e.message || "Lỗi khi tải tập tin ZIP.");
+    } finally {
+      setDownloadingZip(false);
+    }
+  };
+
+  // Group documents by folder
+  const folderMap = new Map<string, DocumentItem[]>();
+  const standaloneDocs: DocumentItem[] = [];
+
+  for (const doc of documents) {
+    const fName = doc.folder_name?.trim();
+    if (fName) {
+      if (!folderMap.has(fName)) folderMap.set(fName, []);
+      folderMap.get(fName)!.push(doc);
+    } else {
+      standaloneDocs.push(doc);
+    }
+  }
+
+  const folderGroups = Array.from(folderMap.entries()).map(([name, docs]) => ({
+    name,
+    docs,
+    totalSize: docs.reduce((acc, d) => acc + (d.file_size || 0), 0),
+    grades: Array.from(new Set(docs.map((d) => d.grade).filter(Boolean))),
+  }));
+
+  const renderDocumentRow = (doc: DocumentItem, isNested = false) => {
+    const isSelected = selectedIds.includes(doc.id);
+    const isPdf =
+      doc.mime_type?.includes("pdf") ||
+      doc.file_name?.toLowerCase().endsWith(".pdf");
+
+    return (
+      <article
+        key={doc.id}
+        className={`doc-horizontal-row ${isNested ? "nested" : ""} ${isSelected ? "selected" : ""} card-hover-lift`}
+      >
+        {/* Left section: Checkbox + Icon + Info */}
+        <div className="doc-row-left">
+          <button
+            type="button"
+            className={`doc-row-checkbox ${isSelected ? "checked" : ""}`}
+            onClick={() => toggleSelect(doc.id)}
+            aria-label={isSelected ? "Bỏ chọn tài liệu này" : "Chọn tài liệu này để tải"}
+          >
+            {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+          </button>
+
+          <div
+            className={`doc-format-box ${isPdf ? "pdf" : "doc"}`}
+            onClick={() => setPreviewDoc(doc)}
+            title="Bấm để xem trực tiếp"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setPreviewDoc(doc);
+              }
+            }}
+          >
+            <FileText size={22} />
+            <span className="doc-format-label">
+              {isPdf ? "PDF" : doc.file_name.split(".").pop()?.toUpperCase() || "DOC"}
+            </span>
+          </div>
+
+          <div className="doc-row-info">
+            <div className="doc-row-title-line">
+              <h3
+                className="doc-row-title"
+                title={doc.title}
+                onClick={() => setPreviewDoc(doc)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setPreviewDoc(doc);
+                  }
+                }}
+              >
+                {doc.title}
+              </h3>
+              <div className="doc-row-tags">
+                <span className={`subject-pill subject-${getSubjectTone(doc.subject)}`}>
+                  <span className="subject-dot" />
+                  {doc.subject}
+                </span>
+                <span className="doc-grade-tag">
+                  {formatGrade(doc.grade)}
+                </span>
+                <span className="doc-category-tag">
+                  {documentCategories[doc.category] || doc.category}
+                </span>
+                {!isNested && doc.folder_name && (
+                  <span className="doc-folder-tag-pill" title={`Thuộc thư mục: ${doc.folder_name}`}>
+                    <Folder size={11} /> {doc.folder_name}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <p className="doc-row-desc">
+              {doc.description ||
+                `Tài liệu ${doc.subject} khối ${formatGrade(doc.grade)} tổng hợp đầy đủ kiến thức ôn thi trọng tâm.`}
+            </p>
+
+            <div className="doc-row-submeta">
+              <span className="doc-author-name">
+                Nguồn: <strong>{doc.author_name || "Examsparty"}</strong>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right section: Stats & Actions */}
+        <div className="doc-row-right">
+          <div className="doc-row-stats">
+            <span className="doc-size-badge">{formatFileSize(doc.file_size)}</span>
+            <div className="doc-stats-counts">
+              <span className="doc-stat-item" title={`${doc.views_count} lượt xem`}>
+                <Eye size={13} /> {doc.views_count}
+              </span>
+              <span className="doc-stat-item" title={`${doc.downloads_count} lượt tải`}>
+                <Download size={13} /> {doc.downloads_count}
+              </span>
+            </div>
+          </div>
+
+          <div className="doc-row-actions">
+            <button
+              type="button"
+              className="button secondary small doc-action-btn button-step-press"
+              onClick={() => setPreviewDoc(doc)}
+              title="Xem trước toàn màn hình"
+            >
+              <Eye size={14} />
+              <span>Xem trực tiếp</span>
+            </button>
+            <a
+              href={`/api/documents/${doc.id}/download`}
+              className="button small doc-action-btn button-step-press"
+              title="Tải tập tin về máy"
+            >
+              <Download size={14} />
+              <span>Tải về</span>
+            </a>
+          </div>
+        </div>
+      </article>
+    );
+  };
+
   const totalPages = Math.ceil(total / 12) || 1;
   const activeSubjects = subjectConfigs.filter((s) => s.active !== false);
 
@@ -625,116 +821,123 @@ export function DocumentsPage() {
               </div>
             ) : (
               <>
-                {/* HORIZONTAL ROWS (Dàn theo chiều ngang) */}
+                {/* HORIZONTAL ROWS & FOLDER GROUPING (Gom theo thư mục & Dàn theo chiều ngang) */}
                 <div className="documents-horizontal-list">
-                  {documents.map((doc) => {
-                    const isSelected = selectedIds.includes(doc.id);
-                    const isPdf =
-                      doc.mime_type?.includes("pdf") ||
-                      doc.file_name?.toLowerCase().endsWith(".pdf");
+                  {/* Folders List (Nếu có tài liệu thuộc thư mục) */}
+                  {folderGroups.map((folder) => {
+                    const isExpanded = !!expandedFolders[folder.name];
+                    const allFolderIds = folder.docs.map((d) => d.id);
+                    const isAllFolderSelected =
+                      allFolderIds.length > 0 &&
+                      allFolderIds.every((id) => selectedIds.includes(id));
 
                     return (
-                      <article
-                        key={doc.id}
-                        className={`doc-horizontal-row ${isSelected ? "selected" : ""} card-hover-lift`}
+                      <div
+                        key={folder.name}
+                        className={`doc-folder-card ${isExpanded ? "expanded" : ""} card-hover-lift`}
                       >
-                        {/* Left section: Checkbox + Icon + Info */}
-                        <div className="doc-row-left">
-                          <button
-                            type="button"
-                            className={`doc-row-checkbox ${isSelected ? "checked" : ""}`}
-                            onClick={() => toggleSelect(doc.id)}
-                            aria-label={isSelected ? "Bỏ chọn tài liệu này" : "Chọn tài liệu này để tải"}
-                          >
-                            {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
-                          </button>
-
-                          <div
-                            className={`doc-format-box ${isPdf ? "pdf" : "doc"}`}
-                            onClick={() => setPreviewDoc(doc)}
-                            title="Bấm để xem trực tiếp"
-                            role="button"
-                            tabIndex={0}
-                          >
-                            <FileText size={22} />
-                            <span className="doc-format-label">
-                              {isPdf ? "PDF" : doc.file_name.split(".").pop()?.toUpperCase() || "DOC"}
-                            </span>
-                          </div>
-
-                          <div className="doc-row-info">
-                            <div className="doc-row-title-line">
-                              <h3
-                                className="doc-row-title"
-                                title={doc.title}
-                                onClick={() => setPreviewDoc(doc)}
-                              >
-                                {doc.title}
-                              </h3>
-                              <div className="doc-row-tags">
-                                <span className={`subject-pill subject-${getSubjectTone(doc.subject)}`}>
-                                  <span className="subject-dot" />
-                                  {doc.subject}
+                        <div
+                          className="doc-folder-header"
+                          onClick={() => toggleFolder(folder.name)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              toggleFolder(folder.name);
+                            }
+                          }}
+                          aria-expanded={isExpanded}
+                        >
+                          <div className="doc-folder-left">
+                            <div className="doc-folder-icon-box">
+                              {isExpanded ? <FolderOpen size={24} /> : <Folder size={24} />}
+                            </div>
+                            <div className="doc-folder-info">
+                              <div className="doc-folder-title-row">
+                                <h3 className="doc-folder-title">{folder.name}</h3>
+                                <span className="doc-folder-badge">
+                                  <Archive size={12} /> {folder.docs.length} bài học
                                 </span>
-                                <span className="doc-grade-tag">
-                                  Lớp {doc.grade === "dgnl" ? "ĐGNL" : doc.grade === "thpt_quoc_gia" ? "THPT" : doc.grade}
-                                </span>
-                                <span className="doc-category-tag">
-                                  {documentCategories[doc.category] || doc.category}
+                              </div>
+                              <div className="doc-folder-meta">
+                                <span>{formatFileSize(folder.totalSize)}</span>
+                                <span>•</span>
+                                <span>
+                                  {folder.grades.map((g) => formatGrade(g)).join(", ") || subject}
                                 </span>
                               </div>
                             </div>
-
-                            <p className="doc-row-desc">
-                              {doc.description ||
-                                `Tài liệu ${doc.subject} khối ${doc.grade} tổng hợp đầy đủ kiến thức ôn thi trọng tâm.`}
-                            </p>
-
-                            <div className="doc-row-submeta">
-                              <span className="doc-author-name">
-                                Nguồn: <strong>{doc.author_name || "Examsparty"}</strong>
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Right section: Stats & Actions */}
-                        <div className="doc-row-right">
-                          <div className="doc-row-stats">
-                            <span className="doc-size-badge">{formatFileSize(doc.file_size)}</span>
-                            <div className="doc-stats-counts">
-                              <span className="doc-stat-item" title={`${doc.views_count} lượt xem`}>
-                                <Eye size={13} /> {doc.views_count}
-                              </span>
-                              <span className="doc-stat-item" title={`${doc.downloads_count} lượt tải`}>
-                                <Download size={13} /> {doc.downloads_count}
-                              </span>
-                            </div>
                           </div>
 
-                          <div className="doc-row-actions">
+                          <div className="doc-folder-right" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
-                              className="button secondary small doc-action-btn button-step-press"
-                              onClick={() => setPreviewDoc(doc)}
-                              title="Xem trước toàn màn hình"
+                              className="button secondary small doc-folder-dl-btn button-step-press"
+                              onClick={() => void handleDownloadFolder(folder.name, folder.docs)}
+                              disabled={downloadingZip}
+                              title={`Tải trọn bộ thư mục "${folder.name}" dưới dạng .ZIP`}
                             >
-                              <Eye size={14} />
-                              <span>Xem trực tiếp</span>
+                              <FolderDown size={14} />
+                              <span>Tải cả thư mục (.ZIP)</span>
                             </button>
-                            <a
-                              href={`/api/documents/${doc.id}/download`}
-                              className="button small doc-action-btn button-step-press"
-                              title="Tải tập tin về máy"
+
+                            <button
+                              type="button"
+                              className="doc-folder-toggle-btn"
+                              onClick={() => toggleFolder(folder.name)}
+                              aria-label={isExpanded ? "Thu gọn thư mục" : "Mở thư mục"}
                             >
-                              <Download size={14} />
-                              <span>Tải về</span>
-                            </a>
+                              <span>{isExpanded ? "Thu gọn" : `Xem ${folder.docs.length} bài`}</span>
+                              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </button>
                           </div>
                         </div>
-                      </article>
+
+                        {/* Expanded Folder Content */}
+                        {isExpanded && (
+                          <div className="doc-folder-content animate-fade-in">
+                            <div className="doc-folder-content-header">
+                              <span>
+                                Danh sách tài liệu trong thư mục <strong>"{folder.name}"</strong> ({folder.docs.length} bài)
+                              </span>
+                              <button
+                                type="button"
+                                className="admin-clear-link"
+                                onClick={() => {
+                                  if (isAllFolderSelected) {
+                                    setSelectedIds((prev) =>
+                                      prev.filter((id) => !allFolderIds.includes(id)),
+                                    );
+                                  } else {
+                                    setSelectedIds((prev) =>
+                                      Array.from(new Set([...prev, ...allFolderIds])),
+                                    );
+                                  }
+                                }}
+                              >
+                                {isAllFolderSelected ? "Bỏ chọn thư mục này" : "Chọn hết thư mục"}
+                              </button>
+                            </div>
+
+                            <div className="doc-folder-items">
+                              {folder.docs.map((doc) => renderDocumentRow(doc, true))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
+
+                  {/* Section Divider if both folders and standalone docs exist */}
+                  {folderGroups.length > 0 && standaloneDocs.length > 0 && (
+                    <div className="doc-section-divider">
+                      <span>Tài liệu riêng lẻ ({standaloneDocs.length})</span>
+                    </div>
+                  )}
+
+                  {/* Standalone Documents (Tài liệu không nằm trong thư mục) */}
+                  {standaloneDocs.map((doc) => renderDocumentRow(doc, false))}
                 </div>
 
                 {/* Pagination */}

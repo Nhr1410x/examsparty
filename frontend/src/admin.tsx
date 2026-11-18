@@ -66,6 +66,7 @@ import {
   DocumentSubjectConfig,
   DEFAULT_DOCUMENT_SUBJECTS,
   documentCategories,
+  formatGrade,
 } from "./types";
 
 export function Admin() {
@@ -2334,6 +2335,7 @@ function ManageDocuments() {
   // Form state
   const [formTitle, setFormTitle] = useState(""),
     [formDesc, setFormDesc] = useState(""),
+    [formFolderName, setFormFolderName] = useState(""),
     [formSubject, setFormSubject] = useState(configuredSubjects[0]?.name || "Toán học"),
     [formGrade, setFormGrade] = useState("12"),
     [formCategory, setFormCategory] = useState("theory"),
@@ -2354,6 +2356,7 @@ function ManageDocuments() {
     if (item === "new") {
       setFormTitle("");
       setFormDesc("");
+      setFormFolderName("");
       setFormSubject(configuredSubjects[0]?.name || "Toán học");
       setFormGrade("12");
       setFormCategory("theory");
@@ -2364,6 +2367,7 @@ function ManageDocuments() {
       setUploadMode("single");
       setFormTitle(item.title);
       setFormDesc(item.description || "");
+      setFormFolderName(item.folder_name || "");
       setFormSubject(item.subject);
       setFormGrade(item.grade);
       setFormCategory(item.category);
@@ -2388,6 +2392,14 @@ function ManageDocuments() {
     if (!validFiles.length) {
       setIssue(new Error("Không tìm thấy tập tin tài liệu hợp lệ trong thư mục đã chọn."));
       return;
+    }
+
+    const firstRel = (validFiles[0] as any).webkitRelativePath;
+    if (firstRel && firstRel.includes("/")) {
+      const topDir = firstRel.split("/")[0];
+      if (topDir && !formFolderName) {
+        setFormFolderName(cleanDocumentTitle(topDir));
+      }
     }
 
     const items = validFiles.map((file) => {
@@ -2420,6 +2432,7 @@ function ManageDocuments() {
       setIssue(null);
       try {
         const formData = new FormData();
+        formData.append("folder_name", formFolderName.trim());
         formData.append("subject", formSubject);
         formData.append("grade", formGrade);
         formData.append("category", formCategory);
@@ -2430,6 +2443,7 @@ function ManageDocuments() {
           name: item.file.name,
           title: item.title,
           relativePath: item.relativePath,
+          folder_name: formFolderName.trim(),
         }));
         formData.append("metadata", JSON.stringify(metadata));
 
@@ -2478,6 +2492,7 @@ function ManageDocuments() {
       const formData = new FormData();
       formData.append("title", finalTitle);
       formData.append("description", formDesc.trim());
+      formData.append("folder_name", formFolderName.trim());
       formData.append("subject", formSubject);
       formData.append("grade", formGrade);
       formData.append("category", formCategory);
@@ -2675,6 +2690,7 @@ function ManageDocuments() {
             }}
           >
             <option value="">Tất cả khối</option>
+            <option value="dai_hoc">Đại học</option>
             <option value="12">Lớp 12</option>
             <option value="11">Lớp 11</option>
             <option value="10">Lớp 10</option>
@@ -2938,6 +2954,7 @@ function ManageDocuments() {
                     value={formGrade}
                     onChange={(e) => setFormGrade(e.target.value)}
                   >
+                    <option value="dai_hoc">Đại học</option>
                     <option value="12">Lớp 12</option>
                     <option value="11">Lớp 11</option>
                     <option value="10">Lớp 10</option>
@@ -2946,6 +2963,16 @@ function ManageDocuments() {
                   </select>
                 </label>
               </div>
+
+              <label className="field">
+                Thư mục gom nhóm (Tùy chọn)
+                <input
+                  type="text"
+                  value={formFolderName}
+                  onChange={(e) => setFormFolderName(e.target.value)}
+                  placeholder="VD: Chương 1 - Khảo sát hàm số (để gom nhóm tài liệu hiển thị gọn gàng)..."
+                />
+              </label>
 
               <div className="grid col-2">
                 <label className="field">
@@ -3149,9 +3176,14 @@ function ManageDocuments() {
                       </td>
                       <td>
                         <div style={{ fontWeight: 600 }}>{doc.title}</div>
-                        <small className="muted" style={{ display: "block" }}>
-                          {doc.file_name}
-                        </small>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2, flexWrap: "wrap" }}>
+                          <small className="muted">{doc.file_name}</small>
+                          {doc.folder_name && (
+                            <span className="admin-folder-tag" title={`Thư mục: ${doc.folder_name}`}>
+                              <Folder size={11} /> {doc.folder_name}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <span className={`subject-pill subject-${getSubjectTone(doc.subject)}`}>
@@ -3159,7 +3191,7 @@ function ManageDocuments() {
                           {doc.subject}
                         </span>
                       </td>
-                      <td>Lớp {doc.grade === "dgnl" ? "ĐGNL" : doc.grade === "thpt_quoc_gia" ? "THPT" : doc.grade}</td>
+                      <td>{formatGrade(doc.grade)}</td>
                       <td>{documentCategories[doc.category] || doc.category}</td>
                       <td>{formatFileSize(doc.file_size)}</td>
                       <td>

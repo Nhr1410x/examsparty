@@ -258,3 +258,146 @@ test("documents page: dynamically renders configured subjects from API", async (
     globalThis.fetch = originalFetch;
   }
 });
+
+test("documents page: groups documents into folders and supports Đại học grade", async () => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', {
+    url: "http://localhost:5173/documents?subject=To%C3%A1n%20h%E1%BB%8Dc",
+  });
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    localStorage: dom.window.localStorage,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+
+  const folderDocs: DocumentItem[] = [
+    {
+      id: "doc-f1",
+      title: "Bài 1: Tính đơn điệu",
+      description: "Lý thuyết khảo sát hàm số",
+      folder_name: "Chương 1 - Ứng dụng đạo hàm",
+      subject: "Toán học",
+      grade: "dai_hoc",
+      category: "theory",
+      file_name: "bai-1.pdf",
+      mime_type: "application/pdf",
+      file_size: 1024 * 1024,
+      views_count: 10,
+      downloads_count: 2,
+      status: "published",
+      author_name: "Examsparty",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: "doc-f2",
+      title: "Bài 2: Cực trị hàm số",
+      description: "Các dạng bài tập cực trị",
+      folder_name: "Chương 1 - Ứng dụng đạo hàm",
+      subject: "Toán học",
+      grade: "dai_hoc",
+      category: "exercise",
+      file_name: "bai-2.pdf",
+      mime_type: "application/pdf",
+      file_size: 1024 * 1024 * 1.5,
+      views_count: 12,
+      downloads_count: 4,
+      status: "published",
+      author_name: "Examsparty",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: "doc-single",
+      title: "Đề thi thử tổng hợp",
+      description: "Đề thi riêng lẻ không nằm trong thư mục",
+      folder_name: null,
+      subject: "Toán học",
+      grade: "12",
+      category: "exercise",
+      file_name: "de-thi.pdf",
+      mime_type: "application/pdf",
+      file_size: 1024 * 500,
+      views_count: 30,
+      downloads_count: 15,
+      status: "published",
+      author_name: "Examsparty",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ];
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    if (url.includes("/api/documents/subjects")) {
+      return new Response(JSON.stringify({ subjects: [{ subject: "Toán học", count: 3 }] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (url.includes("/api/documents")) {
+      return new Response(JSON.stringify({ items: folderDocs, total: 3, page: 1 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({}), { status: 200 });
+  };
+
+  try {
+    const rootEl = dom.window.document.getElementById("root")!;
+    const root = createRoot(rootEl);
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={["/documents?subject=To%C3%A1n%20h%E1%BB%8Dc"]}>
+          <DocumentsPage />
+        </MemoryRouter>,
+      );
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    // Verify "Đại học" grade pill is present in toolbar
+    const gradePills = Array.from(rootEl.querySelectorAll(".grade-pill"));
+    const uniPill = gradePills.find((p) => p.textContent?.trim() === "Đại học");
+    assert.ok(uniPill, "Toolbar must include 'Đại học' grade pill");
+
+    // Verify folder card is rendered rather than exploding everything flatly
+    const folderCard = rootEl.querySelector(".doc-folder-card");
+    assert.ok(folderCard, "Should render a folder card grouping documents");
+    assert(folderCard.textContent?.includes("Chương 1 - Ứng dụng đạo hàm"));
+    assert(folderCard.textContent?.includes("2 bài học"));
+
+    // Verify "Tải cả thư mục (.ZIP)" button exists on folder
+    const folderDlBtn = folderCard.querySelector(".doc-folder-dl-btn");
+    assert.ok(folderDlBtn, "Folder card should offer a 1-click batch download (.ZIP) button");
+
+    // Initially the folder is collapsed, clicking header expands it
+    const folderHeader = folderCard.querySelector(".doc-folder-header") as HTMLElement;
+    assert.ok(folderHeader);
+
+    await act(async () => {
+      folderHeader.click();
+    });
+
+    // After expanding, the 2 nested document rows are visible
+    const nestedRows = folderCard.querySelectorAll(".doc-horizontal-row.nested");
+    assert.equal(nestedRows.length, 2, "Folder should expand to show its 2 lessons");
+
+    // Check that grade shows "Đại học"
+    assert(nestedRows[0].textContent?.includes("Đại học"));
+
+    // Standalone document should also be rendered separately
+    const standaloneRow = rootEl.querySelector(".doc-horizontal-row:not(.nested)");
+    assert.ok(standaloneRow, "Standalone document should be rendered outside the folder");
+    assert(standaloneRow.textContent?.includes("Đề thi thử tổng hợp"));
+
+    root.unmount();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

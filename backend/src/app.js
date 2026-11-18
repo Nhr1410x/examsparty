@@ -1039,6 +1039,7 @@ export function createApp(db, config) {
     const subject = req.query.subject ? String(req.query.subject).trim() : null;
     const grade = req.query.grade ? String(req.query.grade).trim() : null;
     const category = req.query.category ? String(req.query.category).trim() : null;
+    const folder = req.query.folder ? String(req.query.folder).trim() : null;
     const q = req.query.q ? String(req.query.q).trim() : null;
 
     const values = ["published"];
@@ -1056,9 +1057,13 @@ export function createApp(db, config) {
       values.push(category);
       where += ` AND category=$${values.length}`;
     }
+    if (folder) {
+      values.push(folder);
+      where += ` AND folder_name=$${values.length}`;
+    }
     if (q) {
       values.push(`%${q}%`);
-      where += ` AND (title ILIKE $${values.length} OR description ILIKE $${values.length} OR file_name ILIKE $${values.length})`;
+      where += ` AND (title ILIKE $${values.length} OR description ILIKE $${values.length} OR file_name ILIKE $${values.length} OR folder_name ILIKE $${values.length})`;
     }
 
     const total = Number(
@@ -1069,7 +1074,7 @@ export function createApp(db, config) {
     values.push(limit, offset);
     const rows = (
       await db.query(
-        `SELECT id, title, description, subject, grade, category, file_name, mime_type, file_size, thumbnail_url, views_count, downloads_count, author_name, created_at, updated_at
+        `SELECT id, title, description, folder_name, subject, grade, category, file_name, mime_type, file_size, thumbnail_url, views_count, downloads_count, author_name, created_at, updated_at
          FROM documents
          WHERE ${where}
          ORDER BY created_at DESC
@@ -1119,7 +1124,7 @@ export function createApp(db, config) {
     uuid.parse(req.params.id);
     const row = (
       await db.query(
-        "SELECT id, title, description, subject, grade, category, file_name, mime_type, file_size, thumbnail_url, views_count, downloads_count, author_name, created_at, updated_at FROM documents WHERE id=$1 AND status='published'",
+        "SELECT id, title, description, folder_name, subject, grade, category, file_name, mime_type, file_size, thumbnail_url, views_count, downloads_count, author_name, created_at, updated_at FROM documents WHERE id=$1 AND status='published'",
         [req.params.id]
       )
     ).rows[0];
@@ -1169,17 +1174,37 @@ export function createApp(db, config) {
   });
 
   app.post("/api/documents/batch-download", limiter(20), async (req, res) => {
-    const { ids } = z
-      .object({ ids: z.array(z.string().uuid()).min(1).max(50) })
+    const parsed = z
+      .object({
+        ids: z.array(z.string().uuid()).min(1).max(100).optional(),
+        folder_name: z.string().trim().optional(),
+        subject: z.string().trim().optional(),
+      })
+      .refine((data) => (data.ids && data.ids.length > 0) || data.folder_name, {
+        message: "Cần cung cấp danh sách id hoặc tên thư mục để tải",
+      })
       .parse(req.body);
 
-    const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
-    const rows = (
-      await db.query(
-        `SELECT id, file_name, data FROM documents WHERE id IN (${placeholders}) AND status <> 'deleted'`,
-        ids
-      )
-    ).rows;
+    let rows = [];
+    let zipName = "Examsparty_Tai_Lieu.zip";
+    if (parsed.ids && parsed.ids.length > 0) {
+      const placeholders = parsed.ids.map((_, i) => `$${i + 1}`).join(",");
+      rows = (
+        await db.query(
+          `SELECT id, file_name, data FROM documents WHERE id IN (${placeholders}) AND status <> 'deleted'`,
+          parsed.ids
+        )
+      ).rows;
+    } else if (parsed.folder_name) {
+      const values = [parsed.folder_name];
+      let query = "SELECT id, file_name, data FROM documents WHERE folder_name=$1 AND status='published'";
+      if (parsed.subject) {
+        values.push(parsed.subject);
+        query += ` AND subject=$${values.length}`;
+      }
+      rows = (await db.query(query, values)).rows;
+      zipName = `Examsparty_${parsed.folder_name.replace(/[^a-zA-Z0-9_\u00C0-\u1EF9]+/g, "_")}.zip`;
+    }
 
     if (!rows.length) throw httpError(404, "Không tìm thấy tài liệu nào để tải.");
 
@@ -1187,11 +1212,13 @@ export function createApp(db, config) {
       rows.map((r) => ({ name: r.file_name, data: r.data }))
     );
 
-    db.query(`UPDATE documents SET downloads_count = downloads_count + 1 WHERE id IN (${placeholders})`, ids).catch(() => {});
+    const docIds = rows.map((r) => r.id);
+    const idPlaceholders = docIds.map((_, i) => `$${i + 1}`).join(",");
+    db.query(`UPDATE documents SET downloads_count = downloads_count + 1 WHERE id IN (${idPlaceholders})`, docIds).catch(() => {});
 
     res.set({
       "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="Examsparty_Tai_Lieu.zip"`,
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(zipName)}"`,
       "X-Content-Type-Options": "nosniff",
     }).send(zipBuffer);
   });
@@ -1236,6 +1263,7 @@ export function createApp(db, config) {
     const subject = req.query.subject ? String(req.query.subject).trim() : null;
     const grade = req.query.grade ? String(req.query.grade).trim() : null;
     const category = req.query.category ? String(req.query.category).trim() : null;
+    const folder = req.query.folder ? String(req.query.folder).trim() : null;
     const status = req.query.status ? String(req.query.status).trim() : null;
     const q = req.query.q ? String(req.query.q).trim() : null;
 
@@ -1267,9 +1295,13 @@ export function createApp(db, config) {
       values.push(category);
       conditions.push(`category=$${values.length}`);
     }
+    if (folder) {
+      values.push(folder);
+      conditions.push(`folder_name=$${values.length}`);
+    }
     if (q) {
       values.push(`%${q}%`);
-      conditions.push(`(title ILIKE $${values.length} OR file_name ILIKE $${values.length} OR description ILIKE $${values.length})`);
+      conditions.push(`(title ILIKE $${values.length} OR file_name ILIKE $${values.length} OR description ILIKE $${values.length} OR folder_name ILIKE $${values.length})`);
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -1281,7 +1313,7 @@ export function createApp(db, config) {
     values.push(limit, offset);
     const rows = (
       await db.query(
-        `SELECT id, title, description, subject, grade, category, file_name, mime_type, file_size, views_count, downloads_count, status, author_name, created_at, updated_at
+        `SELECT id, title, description, folder_name, subject, grade, category, file_name, mime_type, file_size, views_count, downloads_count, status, author_name, created_at, updated_at
          FROM documents
          ${where}
          ORDER BY created_at DESC
@@ -1304,6 +1336,7 @@ export function createApp(db, config) {
       .object({
         title: z.string().trim().max(255).optional(),
         description: z.string().trim().max(2000).default(""),
+        folder_name: z.string().trim().max(255).optional().nullable(),
         subject: z.string().trim().min(1, "Vui lòng chọn môn"),
         grade: z.string().trim().min(1, "Vui lòng chọn khối lớp"),
         category: z.string().trim().default("theory"),
@@ -1319,12 +1352,13 @@ export function createApp(db, config) {
     const fileData = file.buffer;
 
     await db.query(
-      `INSERT INTO documents (id, title, description, subject, grade, category, file_name, mime_type, file_size, data, author_name, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      `INSERT INTO documents (id, title, description, folder_name, subject, grade, category, file_name, mime_type, file_size, data, author_name, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
       [
         id,
         title,
         parsed.description,
+        parsed.folder_name || null,
         parsed.subject,
         parsed.grade,
         parsed.category,
@@ -1354,6 +1388,7 @@ export function createApp(db, config) {
 
     const parsed = z
       .object({
+        folder_name: z.string().trim().max(255).optional(),
         subject: z.string().trim().min(1, "Vui lòng chọn môn học"),
         grade: z.string().trim().min(1, "Vui lòng chọn khối lớp"),
         category: z.string().trim().default("theory"),
@@ -1382,17 +1417,29 @@ export function createApp(db, config) {
         const fileName = file.originalname || `document_${i + 1}.pdf`;
         const meta = metaMap.get(fileName) || {};
 
+        let docFolder = (meta.folder_name && meta.folder_name.trim()) || null;
+        if (!docFolder && meta.relativePath) {
+          const parts = meta.relativePath.split("/").filter(Boolean);
+          if (parts.length > 1) {
+            docFolder = cleanDocumentTitle(parts[0]);
+          }
+        }
+        if (!docFolder && parsed.folder_name) {
+          docFolder = parsed.folder_name.trim();
+        }
+
         const title = (meta.title && meta.title.trim()) || cleanDocumentTitle(fileName);
-        const description = (meta.description && meta.description.trim()) || (meta.relativePath ? `Thư mục: ${meta.relativePath}` : "");
+        const description = (meta.description && meta.description.trim()) || "";
         const docId = randomUUID();
 
         await client.query(
-          `INSERT INTO documents (id, title, description, subject, grade, category, file_name, mime_type, file_size, data, author_name, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          `INSERT INTO documents (id, title, description, folder_name, subject, grade, category, file_name, mime_type, file_size, data, author_name, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
           [
             docId,
             title,
             description,
+            docFolder || null,
             parsed.subject,
             parsed.grade,
             parsed.category,
@@ -1408,6 +1455,7 @@ export function createApp(db, config) {
         insertedDocs.push({
           id: docId,
           title,
+          folder_name: docFolder || null,
           file_name: fileName,
           file_size: file.size,
         });
@@ -1517,6 +1565,7 @@ export function createApp(db, config) {
       .object({
         title: z.string().trim().min(2).max(255),
         description: z.string().trim().max(2000).default(""),
+        folder_name: z.string().trim().max(255).optional().nullable(),
         subject: z.string().trim().min(1),
         grade: z.string().trim().min(1),
         category: z.string().trim().default("theory"),
@@ -1529,11 +1578,12 @@ export function createApp(db, config) {
     if (file) {
       await db.query(
         `UPDATE documents
-         SET title=$1, description=$2, subject=$3, grade=$4, category=$5, author_name=$6, status=$7, file_name=$8, mime_type=$9, file_size=$10, data=$11, updated_at=now()
-         WHERE id=$12`,
+         SET title=$1, description=$2, folder_name=$3, subject=$4, grade=$5, category=$6, author_name=$7, status=$8, file_name=$9, mime_type=$10, file_size=$11, data=$12, updated_at=now()
+         WHERE id=$13`,
         [
           parsed.title,
           parsed.description,
+          parsed.folder_name || null,
           parsed.subject,
           parsed.grade,
           parsed.category,
@@ -1549,11 +1599,12 @@ export function createApp(db, config) {
     } else {
       await db.query(
         `UPDATE documents
-         SET title=$1, description=$2, subject=$3, grade=$4, category=$5, author_name=$6, status=$7, updated_at=now()
-         WHERE id=$8`,
+         SET title=$1, description=$2, folder_name=$3, subject=$4, grade=$5, category=$6, author_name=$7, status=$8, updated_at=now()
+         WHERE id=$9`,
         [
           parsed.title,
           parsed.description,
+          parsed.folder_name || null,
           parsed.subject,
           parsed.grade,
           parsed.category,

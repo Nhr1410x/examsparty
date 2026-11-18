@@ -97,6 +97,7 @@ export async function migrate(db) {
       id uuid PRIMARY KEY,
       title text NOT NULL,
       description text NOT NULL DEFAULT '',
+      folder_name text,
       subject text NOT NULL,
       grade text NOT NULL,
       category text NOT NULL DEFAULT 'theory',
@@ -113,6 +114,7 @@ export async function migrate(db) {
       updated_at timestamptz NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS documents_filter ON documents(status,subject,grade,category);
+    CREATE INDEX IF NOT EXISTS documents_folder ON documents(folder_name);
     CREATE TABLE IF NOT EXISTS settings (key text PRIMARY KEY, value jsonb NOT NULL);
   `);
   await db.query(
@@ -153,6 +155,14 @@ export async function migrate(db) {
     `);
   } catch (err) {
     console.warn("Reports migration notice:", err.message);
+  }
+  try {
+    await db.query(`
+      ALTER TABLE documents ADD COLUMN IF NOT EXISTS folder_name text;
+      CREATE INDEX IF NOT EXISTS documents_folder ON documents(folder_name);
+    `);
+  } catch (err) {
+    console.warn("Documents folder migration notice:", err.message);
   }
   try {
     await db.query(`

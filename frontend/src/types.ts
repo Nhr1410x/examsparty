@@ -622,6 +622,7 @@ export interface DocumentItem {
   id: string;
   title: string;
   description: string;
+  folder_name?: string | null;
   subject: string;
   grade: string;
   category: "theory" | "outline" | "mindmap" | "exercise" | string;
@@ -635,6 +636,25 @@ export interface DocumentItem {
   author_name: string;
   created_at: string;
   updated_at: string;
+}
+
+export const GRADE_OPTIONS = [
+  { label: "Tất cả khối lớp", value: "" },
+  { label: "Đại học", value: "dai_hoc" },
+  { label: "Lớp 12", value: "12" },
+  { label: "Lớp 11", value: "11" },
+  { label: "Lớp 10", value: "10" },
+  { label: "ĐGNL - ĐGTD", value: "dgnl" },
+  { label: "Tốt nghiệp THPT", value: "thpt_quoc_gia" },
+];
+
+export function formatGrade(grade?: string | null): string {
+  if (!grade) return "";
+  if (grade === "dai_hoc" || grade === "daihoc") return "Đại học";
+  if (grade === "dgnl") return "ĐGNL";
+  if (grade === "thpt_quoc_gia") return "THPT";
+  if (grade.startsWith("Lớp") || grade.startsWith("Đại")) return grade;
+  return `Lớp ${grade}`;
 }
 
 export const documentCategories: Record<string, string> = {
