@@ -29,6 +29,7 @@ import {
   Loading,
   Notice,
 } from "./components";
+import { QuestionReportButton, getPromptPlainText } from "./report-modal";
 import { Attempt, Response, typeLabels } from "./types";
 
 function readLocal<T>(key: string, fallback: T): T {
@@ -356,6 +357,15 @@ function PlayerSession({ initial }: { initial: Attempt }) {
               >
                 <Flag size={18} />
               </button>
+              <QuestionReportButton
+                context={{
+                  examId: attempt.exam_id,
+                  examTitle: attempt.snapshot.title,
+                  questionLabel: `Câu ${index + 1}`,
+                  questionPromptText: getPromptPlainText(q.prompt),
+                }}
+                compact
+              />
             </div>
           </div>
           <div className="question-content">
@@ -373,7 +383,21 @@ function PlayerSession({ initial }: { initial: Attempt }) {
             feedback={attempt.feedback[q.client_id]}
           />
           {attempt.feedback[q.client_id] && (
-            <Feedback q={attempt.feedback[q.client_id]} />
+            <div className="practice-feedback-wrap">
+              <Feedback q={attempt.feedback[q.client_id]} />
+              <div className="feedback-report-row">
+                <span className="small muted">Phát hiện đáp án hoặc lời giải chưa chuẩn?</span>
+                <QuestionReportButton
+                  context={{
+                    examId: attempt.exam_id,
+                    examTitle: attempt.snapshot.title,
+                    questionLabel: `Câu ${index + 1}`,
+                    questionPromptText: getPromptPlainText(q.prompt),
+                    currentAnswer: JSON.stringify(attempt.feedback[q.client_id].answer || ""),
+                  }}
+                />
+              </div>
+            </div>
           )}
           <div className="question-actions">
             <button
@@ -854,6 +878,15 @@ export function Results() {
                 <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
                   <span className="question-type-tag">{typeLabels[currentQ.type]}</span>
                   <span className="question-points-tag">{currentQ.points || 1} điểm</span>
+                  <QuestionReportButton
+                    context={{
+                      examId: data.exam_id,
+                      examTitle: data.snapshot.title,
+                      questionLabel: `Câu ${safeReviewIndex + 1}`,
+                      questionPromptText: getPromptPlainText(currentQ.prompt),
+                      currentAnswer: JSON.stringify(currentQ.answer || ""),
+                    }}
+                  />
                 </div>
               </div>
 
@@ -873,6 +906,19 @@ export function Results() {
 
               {/* Reveal answer and step-by-step solution */}
               <Feedback q={currentQ} />
+
+              <div className="review-report-action-bar">
+                <span className="small muted">Phát hiện đáp án hoặc lời giải câu này có sai sót?</span>
+                <QuestionReportButton
+                  context={{
+                    examId: data.exam_id,
+                    examTitle: data.snapshot.title,
+                    questionLabel: `Câu ${safeReviewIndex + 1}`,
+                    questionPromptText: getPromptPlainText(currentQ.prompt),
+                    currentAnswer: JSON.stringify(currentQ.answer || ""),
+                  }}
+                />
+              </div>
 
               <div className="question-actions" style={{ marginTop: 28 }}>
                 <button
@@ -1129,7 +1175,18 @@ export function Results() {
                           {q.points || 1} điểm
                         </span>
                       </div>
-                      <Badge status={q.status} />
+                      <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
+                        <Badge status={q.status} />
+                        <QuestionReportButton
+                          context={{
+                            examId: data.exam_id,
+                            examTitle: data.snapshot.title,
+                            questionLabel: `Câu ${origIdx + 1}`,
+                            questionPromptText: getPromptPlainText(q.prompt),
+                            currentAnswer: JSON.stringify(q.answer || ""),
+                          }}
+                        />
+                      </div>
                     </div>
                     <div className="review-question-prompt">
                       <Blocks blocks={q.prompt} />
@@ -1147,6 +1204,18 @@ export function Results() {
                       />
                     </div>
                     <Feedback q={q} />
+                    <div className="review-report-action-bar">
+                      <span className="small muted">Thấy đáp án hoặc lời giải câu này chưa chuẩn?</span>
+                      <QuestionReportButton
+                        context={{
+                          examId: data.exam_id,
+                          examTitle: data.snapshot.title,
+                          questionLabel: `Câu ${origIdx + 1}`,
+                          questionPromptText: getPromptPlainText(q.prompt),
+                          currentAnswer: JSON.stringify(q.answer || ""),
+                        }}
+                      />
+                    </div>
                   </article>
                 );
               })}

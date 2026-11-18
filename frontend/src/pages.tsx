@@ -47,6 +47,7 @@ import {
   AnswerInput,
   GeneratePersonalExamModal,
 } from "./components";
+import { QuestionReportButton, getPromptPlainText } from "./report-modal";
 import {
   ExamCard,
   ExamContent,
@@ -742,12 +743,23 @@ export function Detail() {
           <div className="panel preview-list">
             {exam.content.questions.map((q, i) => (
               <div key={q.client_id}>
-                <div className="row wrap" style={{ alignItems: "center", gap: 10, marginBottom: 12 }}>
-                  <span className="question-number-pill">
-                    CÂU {i + 1}
-                  </span>
-                  <span className="badge">{typeLabels[q.type]}</span>
-                  <span className="small muted">{q.points} điểm</span>
+                <div className="row between wrap" style={{ alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <div className="row wrap" style={{ alignItems: "center", gap: 10 }}>
+                    <span className="question-number-pill">
+                      CÂU {i + 1}
+                    </span>
+                    <span className="badge">{typeLabels[q.type]}</span>
+                    <span className="small muted">{q.points} điểm</span>
+                  </div>
+                  <QuestionReportButton
+                    context={{
+                      examId: exam.id,
+                      examTitle: exam.title,
+                      questionLabel: `Câu ${i + 1}`,
+                      questionPromptText: getPromptPlainText(q.prompt),
+                    }}
+                    compact
+                  />
                 </div>
                 <Blocks blocks={q.prompt} />
               </div>
@@ -1151,6 +1163,14 @@ export function Questions() {
                       </span>
                     )}
                     <span className="badge">{typeLabels[q.type]}</span>
+                    <QuestionReportButton
+                      context={{
+                        questionId: q.id,
+                        questionLabel: `Câu ${(page - 1) * 12 + i + 1}`,
+                        questionPromptText: getPromptPlainText(q.prompt),
+                      }}
+                      compact
+                    />
                   </div>
                 </div>
                 <Blocks blocks={q.prompt} />

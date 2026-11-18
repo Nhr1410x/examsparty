@@ -459,25 +459,90 @@ export function createApp(db, config) {
       limit,
     });
   });
-  app.post("/api/exams/:id/report", limiter(10), async (req, res) => {
-    uuid.parse(req.params.id);
-    const { message } = z
-      .object({ message: z.string().trim().min(10).max(2000) })
-      .parse(req.body);
-    if (
-      !(
-        await db.query(
-          "SELECT id FROM exams WHERE id=$1 AND status='published'",
-          [req.params.id],
-        )
-      ).rowCount
-    )
-      throw httpError(404, "Không tìm thấy đề.");
+  const submitReport = async (payload) => {
+    const parsed = z
+      .object({
+        exam_id: z.string().uuid().optional().nullable(),
+        question_id: z.string().uuid().optional().nullable(),
+        question_label: z.string().max(200).optional().default(""),
+        question_content: z.string().max(3000).optional().default(""),
+        reason: z.string().max(100).default("other"),
+        suggested_answer: z.string().max(2000).optional().default(""),
+        message: z.string().trim().max(3000).optional().default(""),
+        details: z.record(z.string(), z.any()).optional().default({}),
+      })
+      .parse(payload || {});
+
+    let examId = parsed.exam_id || null;
+    if (examId) {
+      const examCheck = await db.query(
+        "SELECT id FROM exams WHERE id=$1 AND status <> 'deleted'",
+        [examId],
+      );
+      if (!examCheck.rowCount) examId = null;
+    }
+
+    let questionId = parsed.question_id || null;
+    if (questionId) {
+      const qCheck = await db.query(
+        "SELECT id FROM questions WHERE id=$1 AND status <> 'deleted'",
+        [questionId],
+      );
+      if (!qCheck.rowCount) questionId = null;
+    }
+
+    let finalMessage = parsed.message.trim();
+    if (!finalMessage) {
+      if (parsed.suggested_answer.trim()) {
+        finalMessage = `Đề xuất đáp án: ${parsed.suggested_answer.trim()}`;
+      } else {
+        const reasonLabels = {
+          wrong_answer: "Báo lỗi: Sai đáp án",
+          unclear_explanation: "Báo lỗi: Lời giải/giải thích chưa hợp lý",
+          content_error: "Báo lỗi: Đề bài có sai sót/thiếu số liệu",
+          display_error: "Báo lỗi: Lỗi công thức hoặc hiển thị hình ảnh",
+          other: "Báo lỗi nội dung câu hỏi",
+        };
+        finalMessage = reasonLabels[parsed.reason] || `Báo lỗi: ${parsed.reason}`;
+      }
+    }
+
+    const reportId = randomUUID();
+    const details = {
+      question_label: parsed.question_label,
+      question_content: parsed.question_content,
+      ...parsed.details,
+    };
+
     await db.query(
-      "INSERT INTO reports (id,exam_id,message) VALUES ($1,$2,$3)",
-      [randomUUID(), req.params.id, message],
+      `INSERT INTO reports (id, exam_id, question_id, reason, suggested_answer, message, details, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'open')`,
+      [
+        reportId,
+        examId,
+        questionId,
+        parsed.reason,
+        parsed.suggested_answer.trim() || null,
+        finalMessage,
+        JSON.stringify(details),
+      ],
     );
-    res.status(201).json({ ok: true });
+
+    return { ok: true, id: reportId };
+  };
+
+  app.post("/api/reports", limiter(20), async (req, res) => {
+    const result = await submitReport(req.body);
+    res.status(201).json(result);
+  });
+
+  app.post("/api/exams/:id/report", limiter(20), async (req, res) => {
+    uuid.parse(req.params.id);
+    const result = await submitReport({
+      ...req.body,
+      exam_id: req.params.id,
+    });
+    res.status(201).json(result);
   });
 
   async function finish(client, row) {
@@ -1914,35 +1979,60 @@ export function createApp(db, config) {
   });
   app.get("/api/admin/reports", async (req, res) => {
     const { page, limit } = pagination(req);
-    res.json({
-      items: (
+    const filter = req.query.status;
+    const values = [];
+    let where = "";
+    if (filter === "open" || filter === "resolved") {
+      values.push(filter);
+      where = `WHERE r.status = $${values.length}`;
+    }
+    const total = Number(
+      (
         await db.query(
-          "SELECT r.*,e.title FROM reports r JOIN exams e ON r.exam_id=e.id ORDER BY r.created_at DESC LIMIT $1 OFFSET $2",
-          [limit, (page - 1) * limit],
+          `SELECT count(*) as count FROM reports r ${where}`,
+          values,
         )
-      ).rows,
+      ).rows[0]?.count || 0,
+    );
+    values.push(limit, (page - 1) * limit);
+    const rows = (
+      await db.query(
+        `SELECT r.*, e.title AS exam_title, (q.content->'prompt')::jsonb AS question_prompt
+         FROM reports r
+         LEFT JOIN exams e ON r.exam_id = e.id
+         LEFT JOIN questions q ON r.question_id = q.id
+         ${where}
+         ORDER BY (CASE WHEN r.status = 'open' THEN 0 ELSE 1 END), r.created_at DESC
+         LIMIT $${values.length - 1} OFFSET $${values.length}`,
+        values,
+      )
+    ).rows;
+    res.json({
+      items: rows,
+      total,
       page,
       limit,
     });
   });
   app.put("/api/admin/reports/:id", async (req, res) => {
     uuid.parse(req.params.id);
+    const targetStatus = req.body?.status === "open" ? "open" : "resolved";
     await transaction(db, async (client) => {
       const r = await client.query(
-        "UPDATE reports SET status='resolved' WHERE id=$1",
-        [req.params.id],
+        "UPDATE reports SET status=$1 WHERE id=$2",
+        [targetStatus, req.params.id],
       );
       if (!r.rowCount) throw httpError(404, "Không tìm thấy báo lỗi.");
       await audit(
         client,
         req,
-        "resolve",
+        targetStatus === "resolved" ? "resolve" : "reopen",
         "report",
         req.params.id,
-        "Đã xử lý báo lỗi",
+        targetStatus === "resolved" ? "Đã xử lý báo lỗi" : "Mở lại báo lỗi",
       );
     });
-    res.json({ ok: true });
+    res.json({ ok: true, status: targetStatus });
   });
   app.get("/api/admin/config", async (req, res) =>
     res.json({

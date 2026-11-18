@@ -27,6 +27,9 @@ import {
   Archive,
   BookMarked,
   Download,
+  CheckCircle2,
+  RotateCcw,
+  ExternalLink,
 } from "lucide-react";
 import { api, date, useLoad } from "./api";
 import { formatFileSize, DocumentViewerModal } from "./documents";
@@ -2633,54 +2636,201 @@ function Logs() {
     </>
   );
 }
+const REASON_MAP: Record<string, { label: string; tone: string }> = {
+  wrong_answer: { label: "Sai đáp án", tone: "danger" },
+  unclear_explanation: { label: "Giải thích chưa hợp lý", tone: "amber" },
+  content_error: { label: "Đề bài sai sót / thiếu số liệu", tone: "purple" },
+  display_error: { label: "Lỗi công thức / hình ảnh", tone: "blue" },
+  other: { label: "Vấn đề khác", tone: "default" },
+};
+
 function Reports() {
   const [page, setPage] = useState(1),
+    [filter, setFilter] = useState<"all" | "open" | "resolved">("all"),
     [revision, setRevision] = useState(0),
-    [issue, setIssue] = useState<unknown>(null);
+    [issue, setIssue] = useState<unknown>(null),
+    [busyId, setBusyId] = useState<string | null>(null);
+
+  const filterQuery = filter === "all" ? "" : `&status=${filter}`;
   const { data, error, loading } = useLoad<{
     items: {
       id: string;
-      title: string;
+      exam_id?: string | null;
+      question_id?: string | null;
+      reason: string;
+      suggested_answer?: string | null;
       message: string;
+      details?: {
+        question_label?: string;
+        question_content?: string;
+        client_id?: string;
+        current_answer?: string;
+      };
       status: string;
       created_at: string;
+      exam_title?: string;
+      title?: string;
     }[];
-  }>(`/admin/reports?page=${page}`, revision);
+    total?: number;
+  }>(`/admin/reports?page=${page}${filterQuery}`, revision);
+
+  async function toggleStatus(id: string, currentStatus: string) {
+    setBusyId(id);
+    setIssue(null);
+    try {
+      const nextStatus = currentStatus === "open" ? "resolved" : "open";
+      await api(`/admin/reports/${id}`, "PUT", { status: nextStatus });
+      setRevision((n) => n + 1);
+    } catch (e) {
+      setIssue(e);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <>
-      <h2>Báo lỗi từ người học</h2>
+      <div className="row between wrap" style={{ alignItems: "center", marginBottom: 16 }}>
+        <div>
+          <h2>Báo lỗi từ người học</h2>
+          <p className="muted small">
+            Tiếp nhận và xử lý các phản ánh về sai đáp án, giải thích chưa hợp lý hoặc sai sót nội dung câu hỏi.
+          </p>
+        </div>
+        <div className="segmented-control" role="tablist">
+          <button
+            type="button"
+            className={filter === "all" ? "active" : ""}
+            onClick={() => {
+              setFilter("all");
+              setPage(1);
+            }}
+          >
+            Tất cả {data?.total !== undefined ? `(${data.total})` : ""}
+          </button>
+          <button
+            type="button"
+            className={filter === "open" ? "active" : ""}
+            onClick={() => {
+              setFilter("open");
+              setPage(1);
+            }}
+          >
+            Chưa xử lý
+          </button>
+          <button
+            type="button"
+            className={filter === "resolved" ? "active" : ""}
+            onClick={() => {
+              setFilter("resolved");
+              setPage(1);
+            }}
+          >
+            Đã giải quyết
+          </button>
+        </div>
+      </div>
+
       <ErrorMessage error={error || issue} />
+
       {loading ? (
         <Loading />
       ) : data?.items.length ? (
         <>
-          <div className="admin-list">
-            {data.items.map((r) => (
-              <article className="panel" key={r.id}>
-                <div className="row between">
-                  <h3>{r.title}</h3>
-                  <Badge status={r.status} />
-                </div>
-                <p>{r.message}</p>
-                <p className="small muted">{date(r.created_at)}</p>
-                {r.status === "open" && (
-                  <button
-                    className="button small secondary"
-                    onClick={async () => {
-                      try {
-                        await api(`/admin/reports/${r.id}`, "PUT", {});
-                        setRevision((n) => n + 1);
-                      } catch (e) {
-                        setIssue(e);
-                      }
-                    }}
-                  >
-                    Đánh dấu đã xử lý
-                  </button>
-                )}
-              </article>
-            ))}
+          <div className="admin-list report-admin-list">
+            {data.items.map((r) => {
+              const reasonMeta = REASON_MAP[r.reason] || {
+                label: r.reason || "Báo lỗi",
+                tone: "default",
+              };
+              const questionLabel = r.details?.question_label || "Câu hỏi";
+              const examName = r.exam_title || r.title || "";
+
+              return (
+                <article
+                  className={`panel admin-report-card ${r.status === "open" ? "report-open" : "report-resolved"}`}
+                  key={r.id}
+                >
+                  <div className="admin-report-card-header">
+                    <div className="report-badges-group">
+                      <span className={`report-reason-pill tone-${reasonMeta.tone}`}>
+                        <Flag size={13} />
+                        {reasonMeta.label}
+                      </span>
+                      <span className="report-target-label">
+                        <strong>{questionLabel}</strong>
+                        {examName && <span className="report-exam-tag">• {examName}</span>}
+                      </span>
+                    </div>
+                    <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                      <span className="small muted">{date(r.created_at)}</span>
+                      <Badge status={r.status} />
+                    </div>
+                  </div>
+
+                  {/* Question snippet if available */}
+                  {r.details?.question_content && (
+                    <div className="admin-report-question-snippet">
+                      <span className="snippet-title">Nội dung câu hỏi:</span>
+                      <p className="snippet-body">{r.details.question_content}</p>
+                    </div>
+                  )}
+
+                  {/* Prominent suggested answer showcase */}
+                  {r.suggested_answer && (
+                    <div className="admin-report-suggested-box">
+                      <div className="suggested-box-label">
+                        <Check size={14} /> ĐÁP ÁN ĐÚNG ĐỀ XUẤT TỪ NGƯỜI HỌC:
+                      </div>
+                      <div className="suggested-box-val">{r.suggested_answer}</div>
+                    </div>
+                  )}
+
+                  {/* User message / explanation */}
+                  <div className="admin-report-message">
+                    <span className="message-label">Giải thích chi tiết từ người học:</span>
+                    <p className="message-text">{r.message}</p>
+                  </div>
+
+                  {/* Actions bar */}
+                  <div className="admin-report-actions">
+                    <button
+                      type="button"
+                      className={`button small button-step-press ${r.status === "open" ? "primary" : "secondary"}`}
+                      disabled={busyId === r.id}
+                      onClick={() => toggleStatus(r.id, r.status)}
+                    >
+                      {r.status === "open" ? (
+                        <>
+                          <CheckCircle2 size={15} />
+                          <span>{busyId === r.id ? "Đang xử lý…" : "Đánh dấu đã xử lý"}</span>
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw size={15} />
+                          <span>{busyId === r.id ? "Đang xử lý…" : "Mở lại báo lỗi"}</span>
+                        </>
+                      )}
+                    </button>
+
+                    {r.exam_id && (
+                      <Link
+                        to={`/exams/${r.exam_id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="button small secondary button-step-press"
+                        title="Mở đề thi để xem và kiểm tra câu hỏi"
+                      >
+                        <ExternalLink size={14} />
+                        <span>Xem đề thi</span>
+                      </Link>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
+
           <Pagination
             page={page}
             hasNext={data.items.length === 12}

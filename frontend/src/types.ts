@@ -144,6 +144,31 @@ export const statusLabels: Record<string, string> = {
   open: "Chưa xử lý",
   resolved: "Đã xử lý",
 };
+export interface ReportItem {
+  id: string;
+  exam_id?: string | null;
+  question_id?: string | null;
+  reason: string;
+  suggested_answer?: string | null;
+  message: string;
+  details?: {
+    question_label?: string;
+    question_content?: string;
+    client_id?: string;
+    current_answer?: string;
+    [key: string]: unknown;
+  };
+  status: "open" | "resolved";
+  created_at: string;
+  exam_title?: string;
+}
+export const REPORT_REASONS = [
+  { value: "wrong_answer", label: "Sai đáp án", desc: "Đáp án công bố bị sai hoặc hệ thống chấm sai kết quả" },
+  { value: "unclear_explanation", label: "Giải thích chưa hợp lý", desc: "Lời giải thiếu bước, khó hiểu hoặc mâu thuẫn" },
+  { value: "content_error", label: "Đề bài có sai sót / thiếu số liệu", desc: "Đề bị thiếu dữ kiện, sai chính tả hoặc nhầm đề" },
+  { value: "display_error", label: "Lỗi hiển thị công thức / hình ảnh", desc: "Công thức toán bị vỡ hoặc ảnh minh họa không tải được" },
+  { value: "other", label: "Vấn đề khác", desc: "Góp ý hoặc phản ánh các vấn đề khác về câu hỏi" },
+] as const;
 export const emptyQuestion = (n = 1): Question => ({
   client_id: `q${n}`,
   type: "single_choice",

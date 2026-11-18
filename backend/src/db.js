@@ -75,8 +75,9 @@ export async function migrate(db) {
       PRIMARY KEY(asset_id,session_id)
     );
     CREATE TABLE IF NOT EXISTS reports (
-      id uuid PRIMARY KEY, exam_id uuid NOT NULL REFERENCES exams(id), message text NOT NULL,
-      status text NOT NULL DEFAULT 'open', created_at timestamptz NOT NULL DEFAULT now()
+      id uuid PRIMARY KEY, exam_id uuid REFERENCES exams(id), question_id uuid REFERENCES questions(id),
+      reason text NOT NULL DEFAULT 'other', suggested_answer text, message text NOT NULL,
+      details jsonb NOT NULL DEFAULT '{}', status text NOT NULL DEFAULT 'open', created_at timestamptz NOT NULL DEFAULT now()
     );
     CREATE TABLE IF NOT EXISTS documents (
       id uuid PRIMARY KEY,
@@ -103,6 +104,17 @@ export async function migrate(db) {
   await db.query(
     "INSERT INTO settings (key,value) VALUES ('policy','{\"contributions_enabled\":true}') ON CONFLICT (key) DO NOTHING",
   );
+  try {
+    await db.query(`
+      ALTER TABLE reports ALTER COLUMN exam_id DROP NOT NULL;
+      ALTER TABLE reports ADD COLUMN IF NOT EXISTS question_id uuid REFERENCES questions(id);
+      ALTER TABLE reports ADD COLUMN IF NOT EXISTS reason text NOT NULL DEFAULT 'other';
+      ALTER TABLE reports ADD COLUMN IF NOT EXISTS suggested_answer text;
+      ALTER TABLE reports ADD COLUMN IF NOT EXISTS details jsonb NOT NULL DEFAULT '{}';
+    `);
+  } catch (err) {
+    console.warn("Reports migration notice:", err.message);
+  }
   try {
     await db.query(`
       DELETE FROM exam_questions WHERE question_id IN (SELECT id FROM questions WHERE status = 'deleted');
