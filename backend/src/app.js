@@ -1034,6 +1034,18 @@ export function createApp(db, config) {
   });
 
   // --- Public Documents API ---
+  async function safeDocQuery(sql, values = []) {
+    try {
+      return await db.query(sql, values);
+    } catch (err) {
+      if (err.message && err.message.includes("folder_name")) {
+        await db.query("ALTER TABLE documents ADD COLUMN IF NOT EXISTS folder_name text").catch(() => {});
+        return await db.query(sql, values);
+      }
+      throw err;
+    }
+  }
+
   app.get("/api/documents", async (req, res) => {
     const { page, limit } = pagination(req);
     const subject = req.query.subject ? String(req.query.subject).trim() : null;
@@ -1067,13 +1079,13 @@ export function createApp(db, config) {
     }
 
     const total = Number(
-      (await db.query(`SELECT count(*) AS count FROM documents WHERE ${where}`, values)).rows[0]?.count || 0
+      (await safeDocQuery(`SELECT count(*) AS count FROM documents WHERE ${where}`, values)).rows[0]?.count || 0
     );
 
     const offset = (page - 1) * limit;
     values.push(limit, offset);
     const rows = (
-      await db.query(
+      await safeDocQuery(
         `SELECT id, title, description, folder_name, subject, grade, category, file_name, mime_type, file_size, thumbnail_url, views_count, downloads_count, author_name, created_at, updated_at
          FROM documents
          WHERE ${where}
@@ -1306,13 +1318,13 @@ export function createApp(db, config) {
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const total = Number(
-      (await db.query(`SELECT count(*) AS count FROM documents ${where}`, values)).rows[0]?.count || 0
+      (await safeDocQuery(`SELECT count(*) AS count FROM documents ${where}`, values)).rows[0]?.count || 0
     );
 
     const offset = (page - 1) * limit;
     values.push(limit, offset);
     const rows = (
-      await db.query(
+      await safeDocQuery(
         `SELECT id, title, description, folder_name, subject, grade, category, file_name, mime_type, file_size, views_count, downloads_count, status, author_name, created_at, updated_at
          FROM documents
          ${where}

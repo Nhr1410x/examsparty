@@ -114,7 +114,6 @@ export async function migrate(db) {
       updated_at timestamptz NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS documents_filter ON documents(status,subject,grade,category);
-    CREATE INDEX IF NOT EXISTS documents_folder ON documents(folder_name);
     CREATE TABLE IF NOT EXISTS settings (key text PRIMARY KEY, value jsonb NOT NULL);
   `);
   await db.query(
@@ -157,10 +156,13 @@ export async function migrate(db) {
     console.warn("Reports migration notice:", err.message);
   }
   try {
-    await db.query(`
-      ALTER TABLE documents ADD COLUMN IF NOT EXISTS folder_name text;
-      CREATE INDEX IF NOT EXISTS documents_folder ON documents(folder_name);
-    `);
+    await db.query("ALTER TABLE documents ADD COLUMN IF NOT EXISTS folder_name text");
+    await db.query("ALTER TABLE documents ADD COLUMN IF NOT EXISTS author_name text NOT NULL DEFAULT 'Examsparty'");
+    await db.query("ALTER TABLE documents ADD COLUMN IF NOT EXISTS thumbnail_url text");
+    await db.query("ALTER TABLE documents ADD COLUMN IF NOT EXISTS views_count integer NOT NULL DEFAULT 0");
+    await db.query("ALTER TABLE documents ADD COLUMN IF NOT EXISTS downloads_count integer NOT NULL DEFAULT 0");
+    await db.query("ALTER TABLE documents ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'published'");
+    await db.query("CREATE INDEX IF NOT EXISTS documents_folder ON documents(folder_name)");
   } catch (err) {
     console.warn("Documents folder migration notice:", err.message);
   }
