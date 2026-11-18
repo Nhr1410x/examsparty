@@ -1078,58 +1078,77 @@ export function createApp(db, config) {
       where += ` AND (title ILIKE $${values.length} OR description ILIKE $${values.length} OR file_name ILIKE $${values.length} OR folder_name ILIKE $${values.length})`;
     }
 
-    const total = Number(
-      (await safeDocQuery(`SELECT count(*) AS count FROM documents WHERE ${where}`, values)).rows[0]?.count || 0
-    );
+    try {
+      const total = Number(
+        (await safeDocQuery(`SELECT count(*) AS count FROM documents WHERE ${where}`, values)).rows[0]?.count || 0
+      );
 
-    const offset = (page - 1) * limit;
-    values.push(limit, offset);
-    const rows = (
-      await safeDocQuery(
-        `SELECT id, title, description, folder_name, subject, grade, category, file_name, mime_type, file_size, thumbnail_url, views_count, downloads_count, author_name, created_at, updated_at
-         FROM documents
-         WHERE ${where}
-         ORDER BY created_at DESC
-         LIMIT $${values.length - 1} OFFSET $${values.length}`,
-        values
-      )
-    ).rows;
+      const offset = (page - 1) * limit;
+      values.push(limit, offset);
+      const rows = (
+        await safeDocQuery(
+          `SELECT id, title, description, folder_name, subject, grade, category, file_name, mime_type, file_size, thumbnail_url, views_count, downloads_count, author_name, created_at, updated_at
+           FROM documents
+           WHERE ${where}
+           ORDER BY created_at DESC
+           LIMIT $${values.length - 1} OFFSET $${values.length}`,
+          values
+        )
+      ).rows;
 
-    res.json({ items: rows, total, page, limit });
+      res.json({ items: rows, total, page, limit });
+    } catch (err) {
+      console.warn("Gracefully handled documents query error:", err.message);
+      res.json({ items: [], total: 0, page, limit });
+    }
   });
 
   app.get("/api/documents/subjects", async (req, res) => {
-    const countRows = (
-      await db.query(
-        "SELECT subject, count(*) as count FROM documents WHERE status='published' GROUP BY subject ORDER BY count DESC"
-      )
-    ).rows;
+    try {
+      let countRows = [];
+      try {
+        countRows = (
+          await safeDocQuery(
+            "SELECT subject, count(*) as count FROM documents WHERE status='published' GROUP BY subject ORDER BY count DESC"
+          )
+        ).rows;
+      } catch {}
 
-    const countsMap = new Map();
-    for (const r of countRows) {
-      countsMap.set((r.subject || "").toLowerCase().trim(), Number(r.count));
+      const countsMap = new Map();
+      for (const r of countRows) {
+        countsMap.set((r.subject || "").toLowerCase().trim(), Number(r.count));
+      }
+
+      let settingsRow = null;
+      try {
+        settingsRow = (
+          await db.query("SELECT value FROM settings WHERE key='document_subjects'")
+        ).rows[0];
+      } catch {}
+
+      const rawConfigured = Array.isArray(settingsRow?.value)
+        ? settingsRow.value
+        : defaultDocumentSubjects;
+
+      const configured = rawConfigured.map((s) => ({
+        ...s,
+        count: countsMap.get((s.name || "").toLowerCase().trim()) || 0,
+      }));
+
+      res.json({
+        configured,
+        subjects: countRows.map((r) => ({
+          subject: r.subject,
+          count: Number(r.count),
+        })),
+      });
+    } catch (err) {
+      console.warn("Gracefully handled document subjects error:", err.message);
+      res.json({
+        configured: defaultDocumentSubjects.map((s) => ({ ...s, count: 0 })),
+        subjects: [],
+      });
     }
-
-    const settingsRow = (
-      await db.query("SELECT value FROM settings WHERE key='document_subjects'")
-    ).rows[0];
-
-    const rawConfigured = Array.isArray(settingsRow?.value)
-      ? settingsRow.value
-      : defaultDocumentSubjects;
-
-    const configured = rawConfigured.map((s) => ({
-      ...s,
-      count: countsMap.get((s.name || "").toLowerCase().trim()) || 0,
-    }));
-
-    res.json({
-      configured,
-      subjects: countRows.map((r) => ({
-        subject: r.subject,
-        count: Number(r.count),
-      })),
-    });
   });
 
   app.get("/api/documents/:id", async (req, res) => {
@@ -1491,31 +1510,43 @@ export function createApp(db, config) {
   });
 
   app.get("/api/admin/documents/subjects", async (req, res) => {
-    const countsMap = new Map();
-    const countRows = (
-      await db.query(
-        "SELECT subject, count(*) as count FROM documents WHERE status <> 'deleted' GROUP BY subject"
-      )
-    ).rows;
-    for (const r of countRows) {
-      countsMap.set((r.subject || "").toLowerCase().trim(), Number(r.count));
+    try {
+      const countsMap = new Map();
+      try {
+        const countRows = (
+          await safeDocQuery(
+            "SELECT subject, count(*) as count FROM documents WHERE status <> 'deleted' GROUP BY subject"
+          )
+        ).rows;
+        for (const r of countRows) {
+          countsMap.set((r.subject || "").toLowerCase().trim(), Number(r.count));
+        }
+      } catch {}
+
+      let settingsRow = null;
+      try {
+        settingsRow = (
+          await db.query("SELECT value FROM settings WHERE key='document_subjects'")
+        ).rows[0];
+      } catch {}
+
+      let list = Array.isArray(settingsRow?.value) ? settingsRow.value : [];
+      if (list.length === 0) {
+        list = defaultDocumentSubjects;
+      }
+
+      const subjects = list.map((s) => ({
+        ...s,
+        count: countsMap.get((s.name || "").toLowerCase().trim()) || 0,
+      }));
+
+      res.json({ subjects });
+    } catch (err) {
+      console.warn("Gracefully handled admin document subjects error:", err.message);
+      res.json({
+        subjects: defaultDocumentSubjects.map((s) => ({ ...s, count: 0 })),
+      });
     }
-
-    const settingsRow = (
-      await db.query("SELECT value FROM settings WHERE key='document_subjects'")
-    ).rows[0];
-
-    let list = Array.isArray(settingsRow?.value) ? settingsRow.value : [];
-    if (list.length === 0) {
-      list = defaultDocumentSubjects;
-    }
-
-    const subjects = list.map((s) => ({
-      ...s,
-      count: countsMap.get((s.name || "").toLowerCase().trim()) || 0,
-    }));
-
-    res.json({ subjects });
   });
 
   app.put("/api/admin/documents/subjects", async (req, res) => {

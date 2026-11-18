@@ -6084,8 +6084,9 @@ td {
   animation: fadeIn 0.15s ease;
 }
 .modal-dialog,
-.modal-dialog.generate-exam-dialog {
-  background: var(--surface);
+.modal-dialog.generate-exam-dialog,
+.modal-dialog.delete-confirm-dialog {
+  background: var(--surface) !important;
   border: 1px solid var(--line);
   border-radius: 20px;
   max-width: 620px;
@@ -6104,8 +6105,9 @@ td {
   align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid var(--line);
-  background: var(--surface);
+  background: var(--surface) !important;
   gap: 14px;
+  flex-shrink: 0;
 }
 .modal-dialog-header h3 {
   margin: 0;
@@ -6131,7 +6133,9 @@ td {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  background: var(--surface);
+  background: var(--surface) !important;
+  flex: 1;
+  min-height: 0;
 }
 .modal-dialog-footer {
   display: flex;
@@ -6139,9 +6143,10 @@ td {
   align-items: center;
   padding: 16px 24px;
   border-top: 1px solid var(--line);
-  background: var(--subtle);
+  background: var(--subtle) !important;
   flex-wrap: wrap;
   gap: 12px;
+  flex-shrink: 0;
 }
 .modal-dialog-body .field {
   margin-bottom: 0;
@@ -6815,10 +6820,11 @@ td {
   word-break: break-word;
 }
 
-.delete-options-grid {
+.delete-options-grid,
+.delete-options-container {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .delete-option-card {
@@ -6903,12 +6909,14 @@ td {
   letter-spacing: 0.02em;
 }
 
-.delete-option-badge.archive {
+.delete-option-badge.archive,
+.delete-option-badge.safe {
   background: rgba(59, 130, 246, 0.12);
   color: #2563eb;
 }
 
-[data-theme="dark"] .delete-option-badge.archive {
+[data-theme="dark"] .delete-option-badge.archive,
+[data-theme="dark"] .delete-option-badge.safe {
   color: #60a5fa;
 }
 
@@ -8794,7 +8802,7 @@ td {
   justify-content: space-between;
   align-items: flex-start;
   gap: 20px;
-  margin: 12px 0 24px;
+  margin: 16px 0 24px;
   flex-wrap: wrap;
 }
 
@@ -8819,6 +8827,7 @@ td {
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  margin-top: 4px;
 }
 
 /* Admin Table Container & Styling */
@@ -8828,8 +8837,8 @@ td {
   border: 1px solid var(--line);
   background: var(--surface);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  margin-top: 20px;
-  margin-bottom: 24px;
+  margin-top: 24px;
+  margin-bottom: 28px;
 }
 
 .admin-table {

@@ -2080,86 +2080,88 @@ function ManageDocumentSubjects({
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="modal-dialog-body">
-              <div className="grid col-2">
+            <form onSubmit={handleSave} style={{ display: "contents" }}>
+              <div className="modal-dialog-body">
+                <div className="grid col-2">
+                  <label className="field">
+                    Tên môn học *
+                    <input
+                      type="text"
+                      required
+                      value={formName}
+                      onChange={(e) => {
+                        setFormName(e.target.value);
+                        if (editing === "new" && !formId) {
+                          setFormId(slugifySubject(e.target.value));
+                        }
+                      }}
+                      placeholder="VD: Khoa học Tự nhiên"
+                    />
+                  </label>
+
+                  <label className="field">
+                    Mã định danh (ID) *
+                    <input
+                      type="text"
+                      required
+                      value={formId}
+                      onChange={(e) => setFormId(e.target.value)}
+                      placeholder="VD: khtn"
+                      disabled={editing !== "new"}
+                    />
+                  </label>
+                </div>
+
                 <label className="field">
-                  Tên môn học *
-                  <input
-                    type="text"
-                    required
-                    value={formName}
-                    onChange={(e) => {
-                      setFormName(e.target.value);
-                      if (editing === "new" && !formId) {
-                        setFormId(slugifySubject(e.target.value));
-                      }
-                    }}
-                    placeholder="VD: Khoa học Tự nhiên"
+                  Mô tả tóm tắt (hiển thị trên thẻ chọn môn)
+                  <textarea
+                    rows={2}
+                    value={formDesc}
+                    onChange={(e) => setFormDesc(e.target.value)}
+                    placeholder="VD: Vật lý, Hóa học và Sinh học tích hợp theo CT GDPT mới..."
                   />
                 </label>
 
-                <label className="field">
-                  Mã định danh (ID) *
+                <div className="grid col-2">
+                  <label className="field">
+                    Biểu tượng (Icon)
+                    <select
+                      value={formIcon}
+                      onChange={(e) => setFormIcon(e.target.value)}
+                    >
+                      {SUBJECT_ICON_OPTIONS.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="field">
+                    Tone màu chủ đạo
+                    <select
+                      value={formTone}
+                      onChange={(e) => setFormTone(e.target.value)}
+                    >
+                      {SUBJECT_TONE_OPTIONS.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 10, cursor: "pointer" }}>
                   <input
-                    type="text"
-                    required
-                    value={formId}
-                    onChange={(e) => setFormId(e.target.value)}
-                    placeholder="VD: khtn"
-                    disabled={editing !== "new"}
+                    type="checkbox"
+                    checked={formActive}
+                    onChange={(e) => setFormActive(e.target.checked)}
+                    style={{ width: "auto" }}
                   />
+                  <span style={{ fontWeight: 600 }}>Hiển thị môn này trong kho tài liệu học tập của học sinh</span>
                 </label>
               </div>
-
-              <label className="field">
-                Mô tả tóm tắt (hiển thị trên thẻ chọn môn)
-                <textarea
-                  rows={2}
-                  value={formDesc}
-                  onChange={(e) => setFormDesc(e.target.value)}
-                  placeholder="VD: Vật lý, Hóa học và Sinh học tích hợp theo CT GDPT mới..."
-                />
-              </label>
-
-              <div className="grid col-2">
-                <label className="field">
-                  Biểu tượng (Icon)
-                  <select
-                    value={formIcon}
-                    onChange={(e) => setFormIcon(e.target.value)}
-                  >
-                    {SUBJECT_ICON_OPTIONS.map((opt) => (
-                      <option key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="field">
-                  Tone màu chủ đạo
-                  <select
-                    value={formTone}
-                    onChange={(e) => setFormTone(e.target.value)}
-                  >
-                    {SUBJECT_TONE_OPTIONS.map((opt) => (
-                      <option key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={formActive}
-                  onChange={(e) => setFormActive(e.target.checked)}
-                  style={{ width: "auto" }}
-                />
-                <span style={{ fontWeight: 600 }}>Hiển thị môn này trong kho tài liệu học tập của học sinh</span>
-              </label>
 
               <div className="modal-dialog-footer">
                 <button
@@ -2801,7 +2803,8 @@ function ManageDocuments() {
               </div>
             )}
 
-            <form onSubmit={handleSave} className="modal-dialog-body">
+            <form onSubmit={handleSave} style={{ display: "contents" }}>
+              <div className="modal-dialog-body">
               {editing === "new" && uploadMode === "folder" ? (
                 <>
                   {/* Folder dropzone */}
@@ -3040,6 +3043,7 @@ function ManageDocuments() {
                   />
                 </label>
               )}
+              </div>
 
               <div className="modal-dialog-footer">
                 <button
@@ -3300,7 +3304,7 @@ function ManageDocuments() {
             </div>
 
             <div className="modal-dialog-body">
-              <div className="delete-options-container">
+              <div className="delete-options-grid">
                 <div
                   className={`delete-option-card ${deleteMode === "permanent" ? "selected danger" : ""}`}
                   onClick={() => setDeleteMode("permanent")}
@@ -3340,7 +3344,7 @@ function ManageDocuments() {
                     </div>
                     <div className="delete-option-title-row">
                       <div className="delete-option-title">Chuyển vào kho lưu trữ</div>
-                      <span className="delete-option-badge safe">Tạm ẩn</span>
+                      <span className="delete-option-badge archive">Tạm ẩn</span>
                     </div>
                     <input
                       type="radio"
@@ -3355,26 +3359,26 @@ function ManageDocuments() {
                   </p>
                 </div>
               </div>
+            </div>
 
-              <div className="modal-dialog-footer">
-                <button
-                  type="button"
-                  className="button secondary"
-                  onClick={() => setDeleteDialog(null)}
-                  disabled={busy}
-                >
-                  Hủy
-                </button>
-                <button
-                  type="button"
-                  className={`button ${deleteMode === "permanent" ? "danger" : "secondary"}`}
-                  onClick={() => void executeDelete(deleteMode)}
-                  disabled={busy}
-                >
-                  {deleteMode === "permanent" ? <Trash2 size={15} /> : <Archive size={15} />}
-                  <span>{busy ? "Đang xử lý…" : deleteMode === "permanent" ? "Xác nhận xóa vĩnh viễn" : "Xác nhận chuyển vào lưu trữ"}</span>
-                </button>
-              </div>
+            <div className="modal-dialog-footer">
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setDeleteDialog(null)}
+                disabled={busy}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className={`button ${deleteMode === "permanent" ? "danger" : "secondary"}`}
+                onClick={() => void executeDelete(deleteMode)}
+                disabled={busy}
+              >
+                {deleteMode === "permanent" ? <Trash2 size={15} /> : <Archive size={15} />}
+                <span>{busy ? "Đang xử lý…" : deleteMode === "permanent" ? "Xác nhận xóa vĩnh viễn" : "Xác nhận chuyển vào lưu trữ"}</span>
+              </button>
             </div>
           </div>
         </div>
