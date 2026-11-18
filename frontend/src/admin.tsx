@@ -34,6 +34,9 @@ import {
   ArrowDown,
   SlidersHorizontal,
   BookOpen,
+  FolderUp,
+  Folder,
+  FileText,
 } from "lucide-react";
 import { api, date, useLoad } from "./api";
 import { formatFileSize, DocumentViewerModal, SUBJECT_ICON_MAP } from "./documents";
@@ -2287,6 +2290,13 @@ function ManageDocumentSubjects({
   );
 }
 
+export function cleanDocumentTitle(fileName: string): string {
+  if (!fileName) return "Tài liệu";
+  const withoutExt = fileName.replace(/\.[^/.]+$/, "").trim();
+  const formatted = withoutExt.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  return formatted || withoutExt || "Tài liệu";
+}
+
 function ManageDocuments() {
   const [docSubTab, setDocSubTab] = useState<"documents" | "subjects">("documents");
   const [subjRevision, setSubjRevision] = useState(0);
@@ -2313,6 +2323,14 @@ function ManageDocuments() {
     [issue, setIssue] = useState<unknown>(null),
     [message, setMessage] = useState<string | null>(null);
 
+  // Upload mode & batch folder files
+  const [uploadMode, setUploadMode] = useState<"single" | "folder">("single");
+  const [folderFiles, setFolderFiles] = useState<
+    { file: File; title: string; relativePath: string; size: number }[]
+  >([]);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const multiFileInputRef = useRef<HTMLInputElement>(null);
+
   // Form state
   const [formTitle, setFormTitle] = useState(""),
     [formDesc, setFormDesc] = useState(""),
@@ -2327,7 +2345,12 @@ function ManageDocuments() {
     `/admin/documents?page=${page}&q=${encodeURIComponent(search)}&subject=${encodeURIComponent(subject)}&grade=${encodeURIComponent(grade)}&category=${encodeURIComponent(category)}&status=${encodeURIComponent(status)}&r=${revision}`,
   );
 
-  const startEdit = (item: "new" | DocumentItem) => {
+  const startEdit = (
+    item: "new" | DocumentItem,
+    mode: "single" | "folder" = "single",
+  ) => {
+    setUploadMode(mode);
+    setFolderFiles([]);
     if (item === "new") {
       setFormTitle("");
       setFormDesc("");
@@ -2338,6 +2361,7 @@ function ManageDocuments() {
       setFormStatus("published");
       setFormFile(null);
     } else {
+      setUploadMode("single");
       setFormTitle(item.title);
       setFormDesc(item.description || "");
       setFormSubject(item.subject);
@@ -2351,9 +2375,95 @@ function ManageDocuments() {
     setIssue(null);
   };
 
+  const handleFilesChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFiles = Array.from(e.target.files || []);
+    if (!rawFiles.length) return;
+
+    const validFiles = rawFiles.filter((f) => {
+      const name = f.name.toLowerCase();
+      if (name.startsWith(".") || name === "thumbs.db" || name.endsWith(".tmp")) return false;
+      return true;
+    });
+
+    if (!validFiles.length) {
+      setIssue(new Error("Không tìm thấy tập tin tài liệu hợp lệ trong thư mục đã chọn."));
+      return;
+    }
+
+    const items = validFiles.map((file) => {
+      const relPath = (file as any).webkitRelativePath || file.name;
+      const detectedTitle = cleanDocumentTitle(file.name);
+      return {
+        file,
+        title: detectedTitle,
+        relativePath: relPath,
+        size: file.size,
+      };
+    });
+
+    setFolderFiles(items);
+    setIssue(null);
+    e.target.value = "";
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formTitle.trim()) {
+
+    // Folder / Batch upload mode
+    if (editing === "new" && uploadMode === "folder") {
+      if (!folderFiles.length) {
+        setIssue(new Error("Vui lòng chọn thư mục chứa các tập tin tài liệu cần tải lên."));
+        return;
+      }
+
+      setBusy(true);
+      setIssue(null);
+      try {
+        const formData = new FormData();
+        formData.append("subject", formSubject);
+        formData.append("grade", formGrade);
+        formData.append("category", formCategory);
+        formData.append("author_name", formAuthor.trim() || "Examsparty");
+        formData.append("status", formStatus);
+
+        const metadata = folderFiles.map((item) => ({
+          name: item.file.name,
+          title: item.title,
+          relativePath: item.relativePath,
+        }));
+        formData.append("metadata", JSON.stringify(metadata));
+
+        for (const item of folderFiles) {
+          formData.append("files", item.file);
+        }
+
+        const res = await fetch("/api/admin/documents/batch", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.error || "Không thể tải lên thư mục tài liệu.");
+        }
+
+        const json = await res.json();
+        setMessage(`Đã tải lên thành công cả thư mục với ${json.count || folderFiles.length} tài liệu!`);
+        setTimeout(() => setMessage(null), 4000);
+        setEditing(null);
+        setFolderFiles([]);
+        setRevision((r) => r + 1);
+      } catch (err: any) {
+        setIssue(err);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    // Single document upload or edit
+    const finalTitle = formTitle.trim() || (formFile ? cleanDocumentTitle(formFile.name) : "");
+    if (!finalTitle) {
       setIssue(new Error("Vui lòng nhập tiêu đề tài liệu."));
       return;
     }
@@ -2366,7 +2476,7 @@ function ManageDocuments() {
     setIssue(null);
     try {
       const formData = new FormData();
-      formData.append("title", formTitle.trim());
+      formData.append("title", finalTitle);
       formData.append("description", formDesc.trim());
       formData.append("subject", formSubject);
       formData.append("grade", formGrade);
@@ -2495,15 +2605,27 @@ function ManageDocuments() {
               <h2>Quản lý tài liệu học tập</h2>
               <p className="meta-text">Tải lên, biên soạn và quản lý các tài liệu ôn thi trực tuyến</p>
             </div>
-            <button
-              type="button"
-              className="button small"
-              onClick={() => startEdit("new")}
-              disabled={busy}
-            >
-              <Plus size={16} />
-              <span>Tải tài liệu mới</span>
-            </button>
+            <div className="row" style={{ gap: 8 }}>
+              <button
+                type="button"
+                className="button secondary small"
+                onClick={() => startEdit("new", "folder")}
+                disabled={busy}
+                title="Tải nguyên thư mục tài liệu từ máy tính"
+              >
+                <FolderUp size={16} />
+                <span>Tải cả thư mục</span>
+              </button>
+              <button
+                type="button"
+                className="button small"
+                onClick={() => startEdit("new", "single")}
+                disabled={busy}
+              >
+                <Plus size={16} />
+                <span>Tải tài liệu mới</span>
+              </button>
+            </div>
           </div>
 
           <div className="admin-filters-grid" style={{ marginBottom: 16 }}>
@@ -2599,7 +2721,7 @@ function ManageDocuments() {
       <ErrorMessage error={error || issue} />
       {message && <Notice>{message}</Notice>}
 
-      {/* Editing Dialog Modal */}
+      {/* Upload/Edit Modal */}
       {editing && (
         <div
           className="modal-backdrop"
@@ -2609,9 +2731,27 @@ function ManageDocuments() {
           role="dialog"
           aria-modal="true"
         >
-          <div className="modal-dialog" style={{ maxWidth: 620 }}>
+          <div
+            className="modal-dialog"
+            style={{ maxWidth: editing === "new" && uploadMode === "folder" ? 720 : 620 }}
+          >
             <div className="modal-dialog-header">
-              <h3>{editing === "new" ? "Tải lên tài liệu học tập mới" : "Chỉnh sửa thông tin tài liệu"}</h3>
+              <div>
+                <h3>
+                  {editing === "new"
+                    ? uploadMode === "folder"
+                      ? "Tải lên nguyên cả thư mục tài liệu"
+                      : "Tải lên tài liệu học tập mới"
+                    : "Chỉnh sửa thông tin tài liệu"}
+                </h3>
+                {editing === "new" && (
+                  <p className="meta-text" style={{ margin: "4px 0 0", fontSize: 12 }}>
+                    {uploadMode === "folder"
+                      ? "Chọn thư mục từ máy tính; tên bài học sẽ tự động được lấy làm tiêu đề tài liệu"
+                      : "Tải lên từng bài hoặc tài liệu riêng lẻ"}
+                  </p>
+                )}
+              </div>
               <button
                 type="button"
                 className="icon-button"
@@ -2622,31 +2762,163 @@ function ManageDocuments() {
               </button>
             </div>
 
+            {/* Mode switch pills if editing === "new" */}
+            {editing === "new" && (
+              <div className="admin-modal-mode-tabs">
+                <button
+                  type="button"
+                  className={`admin-modal-mode-tab ${uploadMode === "folder" ? "active" : ""}`}
+                  onClick={() => setUploadMode("folder")}
+                >
+                  <FolderUp size={15} />
+                  <span>Tải nguyên cả thư mục (Nhiều bài)</span>
+                </button>
+                <button
+                  type="button"
+                  className={`admin-modal-mode-tab ${uploadMode === "single" ? "active" : ""}`}
+                  onClick={() => setUploadMode("single")}
+                >
+                  <FileText size={15} />
+                  <span>Tập tin đơn lẻ</span>
+                </button>
+              </div>
+            )}
+
             <form onSubmit={handleSave} className="modal-dialog-body">
-              <label className="field">
-                Tiêu đề tài liệu *
-                <input
-                  type="text"
-                  required
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="VD: Sổ tay tóm tắt công thức Vật lý 12..."
-                />
-              </label>
+              {editing === "new" && uploadMode === "folder" ? (
+                <>
+                  {/* Folder dropzone */}
+                  <div className="folder-dropzone">
+                    <input
+                      type="file"
+                      ref={folderInputRef}
+                      // @ts-expect-error webkitdirectory is standard for folder picking
+                      webkitdirectory=""
+                      directory=""
+                      multiple
+                      onChange={handleFilesChosen}
+                      style={{ display: "none" }}
+                    />
+                    <input
+                      type="file"
+                      ref={multiFileInputRef}
+                      multiple
+                      accept=".pdf,.docx,.doc,.pptx"
+                      onChange={handleFilesChosen}
+                      style={{ display: "none" }}
+                    />
 
-              <label className="field">
-                Mô tả ngắn gọn
-                <textarea
-                  rows={2}
-                  value={formDesc}
-                  onChange={(e) => setFormDesc(e.target.value)}
-                  placeholder="Nội dung chính hoặc ghi chú dành cho học sinh..."
-                />
-              </label>
+                    <div className="folder-dropzone-inner">
+                      <div className="folder-dropzone-icon">
+                        <FolderUp size={32} />
+                      </div>
+                      <div className="folder-dropzone-text">
+                        <strong>Chọn thư mục bài học từ máy tính</strong>
+                        <p>
+                          Hệ thống sẽ tự động quét toàn bộ bài học trong thư mục và lấy tên file làm tên bài
+                        </p>
+                      </div>
+                      <div className="row" style={{ gap: 8, marginTop: 4 }}>
+                        <button
+                          type="button"
+                          className="button small"
+                          onClick={() => folderInputRef.current?.click()}
+                        >
+                          <Folder size={15} />
+                          <span>Chọn thư mục</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="button secondary small"
+                          onClick={() => multiFileInputRef.current?.click()}
+                        >
+                          <span>Chọn nhiều file</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
+                  {/* Discovered files preview list */}
+                  {folderFiles.length > 0 && (
+                    <div className="folder-files-preview">
+                      <div className="folder-files-header">
+                        <span className="folder-files-count">
+                          Đã tìm thấy <strong>{folderFiles.length}</strong> bài học ({formatFileSize(folderFiles.reduce((acc, f) => acc + f.size, 0))})
+                        </span>
+                        <button
+                          type="button"
+                          className="admin-clear-link"
+                          onClick={() => setFolderFiles([])}
+                        >
+                          Xóa tất cả
+                        </button>
+                      </div>
+
+                      <div className="folder-files-list">
+                        {folderFiles.map((item, idx) => (
+                          <div key={idx} className="folder-file-item">
+                            <div className="folder-file-info">
+                              <input
+                                type="text"
+                                className="folder-file-title-input"
+                                value={item.title}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setFolderFiles((prev) =>
+                                    prev.map((f, i) => (i === idx ? { ...f, title: val } : f))
+                                  );
+                                }}
+                                placeholder="Tên bài học..."
+                                title="Tên tài liệu hiển thị (mặc định lấy theo tên bài/file, có thể sửa tại đây)"
+                              />
+                              <small className="muted folder-file-path" title={item.relativePath}>
+                                {item.relativePath} • {formatFileSize(item.size)}
+                              </small>
+                            </div>
+                            <button
+                              type="button"
+                              className="icon-button"
+                              onClick={() => setFolderFiles((prev) => prev.filter((_, i) => i !== idx))}
+                              title="Bỏ file này"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Single document inputs */
+                <>
+                  <label className="field">
+                    Tiêu đề tài liệu *
+                    <input
+                      type="text"
+                      required
+                      value={formTitle}
+                      onChange={(e) => setFormTitle(e.target.value)}
+                      placeholder="VD: Sổ tay tóm tắt công thức Vật lý 12... (để trống tự lấy tên file)"
+                    />
+                  </label>
+
+                  <label className="field">
+                    Mô tả ngắn gọn
+                    <textarea
+                      rows={2}
+                      value={formDesc}
+                      onChange={(e) => setFormDesc(e.target.value)}
+                      placeholder="Nội dung chính hoặc ghi chú dành cho học sinh..."
+                    />
+                  </label>
+                </>
+              )}
+
+              {/* Shared Properties */}
               <div className="grid col-2">
                 <label className="field">
-                  Môn học *
+                  Môn học áp dụng *
                   <select
                     value={formSubject}
                     onChange={(e) => setFormSubject(e.target.value)}
@@ -2712,15 +2984,34 @@ function ManageDocuments() {
                 />
               </label>
 
-              <label className="field">
-                {editing === "new" ? "Chọn tập tin (PDF, DOCX, tối đa 35MB) *" : "Thay thế tập tin (để trống nếu giữ nguyên)"}
-                <input
-                  type="file"
-                  accept=".pdf,.docx,.doc,.pptx"
-                  required={editing === "new"}
-                  onChange={(e) => setFormFile(e.target.files?.[0] || null)}
-                />
-              </label>
+              {editing === "new" && uploadMode === "single" && (
+                <label className="field">
+                  Chọn tập tin (PDF, DOCX, tối đa 35MB) *
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.doc,.pptx"
+                    required
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setFormFile(file);
+                      if (file && !formTitle.trim()) {
+                        setFormTitle(cleanDocumentTitle(file.name));
+                      }
+                    }}
+                  />
+                </label>
+              )}
+
+              {editing !== "new" && (
+                <label className="field">
+                  Thay thế tập tin (để trống nếu giữ nguyên)
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.doc,.pptx"
+                    onChange={(e) => setFormFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+              )}
 
               <div className="modal-dialog-footer">
                 <button
@@ -2731,9 +3022,21 @@ function ManageDocuments() {
                 >
                   Hủy
                 </button>
-                <button type="submit" className="button" disabled={busy}>
+                <button
+                  type="submit"
+                  className="button"
+                  disabled={busy || (editing === "new" && uploadMode === "folder" && !folderFiles.length)}
+                >
                   <Save size={16} />
-                  <span>{busy ? "Đang xử lý…" : editing === "new" ? "Tải lên ngay" : "Lưu thay đổi"}</span>
+                  <span>
+                    {busy
+                      ? "Đang tải lên…"
+                      : editing === "new"
+                        ? uploadMode === "folder"
+                          ? `Tải lên ${folderFiles.length ? `${folderFiles.length} tài liệu` : "thư mục"}`
+                          : "Tải lên ngay"
+                        : "Lưu thay đổi"}
+                  </span>
                 </button>
               </div>
             </form>

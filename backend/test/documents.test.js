@@ -200,4 +200,32 @@ test("study hub documents: upload, list, filters, preview, single download, batc
   const resetSubjRes = await post(adminAgent, "/api/admin/documents/subjects/reset").send({});
   assert.equal(resetSubjRes.status, 200);
   assert.equal(resetSubjRes.body.subjects[0].name, "Toán học");
+
+  // 19. Admin uploads an entire folder of documents in batch
+  const file1 = Buffer.from("%PDF-1.4 Lesson 1 content");
+  const file2 = Buffer.from("%PDF-1.4 Lesson 2 content");
+  const batchFolderRes = await adminAgent
+    .post("/api/admin/documents/batch")
+    .set("Origin", config.frontendOrigin)
+    .field("subject", "Toán học")
+    .field("grade", "12")
+    .field("category", "theory")
+    .field(
+      "metadata",
+      JSON.stringify([
+        { name: "Bai_1_Ham_So.pdf", relativePath: "Chuong_1/Bai_1_Ham_So.pdf" },
+        { name: "Bai_2_Cuc_Tri.pdf", relativePath: "Chuong_1/Bai_2_Cuc_Tri.pdf" },
+      ])
+    )
+    .attach("files", file1, "Bai_1_Ham_So.pdf")
+    .attach("files", file2, "Bai_2_Cuc_Tri.pdf");
+
+  assert.equal(batchFolderRes.status, 201);
+  assert.equal(batchFolderRes.body.count, 2);
+  assert.equal(batchFolderRes.body.documents[0].title, "Bai 1 Ham So");
+  assert.equal(batchFolderRes.body.documents[1].title, "Bai 2 Cuc Tri");
+
+  const listAfterBatch = await publicAgent.get("/api/documents?subject=Toán học");
+  assert(listAfterBatch.body.items.some((d) => d.title === "Bai 1 Ham So"));
+  assert(listAfterBatch.body.items.some((d) => d.title === "Bai 2 Cuc Tri"));
 });

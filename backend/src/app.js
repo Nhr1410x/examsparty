@@ -1219,6 +1219,18 @@ export function createApp(db, config) {
     limits: { fileSize: 35 * 1024 * 1024, files: 1 },
   });
 
+  const docBatchUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024, files: 100 },
+  });
+
+  function cleanDocumentTitle(fileName) {
+    if (!fileName) return "Tài liệu";
+    const withoutExt = fileName.replace(/\.[^/.]+$/, "").trim();
+    const formatted = withoutExt.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+    return formatted || withoutExt || "Tài liệu";
+  }
+
   app.get("/api/admin/documents", async (req, res) => {
     const { page, limit } = pagination(req);
     const subject = req.query.subject ? String(req.query.subject).trim() : null;
@@ -1279,9 +1291,12 @@ export function createApp(db, config) {
     const file = req.file;
     if (!file) throw httpError(400, "Vui lòng đính kèm tập tin tài liệu.");
 
+    const fileName = file.originalname || "document.pdf";
+    const defaultTitle = cleanDocumentTitle(fileName);
+
     const parsed = z
       .object({
-        title: z.string().trim().min(2, "Tiêu đề quá ngắn").max(255),
+        title: z.string().trim().max(255).optional(),
         description: z.string().trim().max(2000).default(""),
         subject: z.string().trim().min(1, "Vui lòng chọn môn"),
         grade: z.string().trim().min(1, "Vui lòng chọn khối lớp"),
@@ -1291,8 +1306,8 @@ export function createApp(db, config) {
       })
       .parse(req.body);
 
+    const title = (parsed.title && parsed.title.trim()) || defaultTitle;
     const id = randomUUID();
-    const fileName = file.originalname || "document.pdf";
     const mimeType = file.mimetype || "application/pdf";
     const fileSize = file.size;
     const fileData = file.buffer;
@@ -1302,7 +1317,7 @@ export function createApp(db, config) {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [
         id,
-        parsed.title,
+        title,
         parsed.description,
         parsed.subject,
         parsed.grade,
@@ -1318,10 +1333,94 @@ export function createApp(db, config) {
 
     res.status(201).json({
       id,
-      title: parsed.title,
+      title,
       file_name: fileName,
       file_size: fileSize,
       status: parsed.status,
+    });
+  });
+
+  app.post("/api/admin/documents/batch", docBatchUpload.array("files", 100), async (req, res) => {
+    const files = req.files;
+    if (!files || files.length === 0) {
+      throw httpError(400, "Vui lòng chọn ít nhất một tập tin tài liệu.");
+    }
+
+    const parsed = z
+      .object({
+        subject: z.string().trim().min(1, "Vui lòng chọn môn học"),
+        grade: z.string().trim().min(1, "Vui lòng chọn khối lớp"),
+        category: z.string().trim().default("theory"),
+        author_name: z.string().trim().default("Examsparty"),
+        status: z.enum(["published", "draft", "archived"]).default("published"),
+        metadata: z.string().optional(),
+      })
+      .parse(req.body);
+
+    let metaMap = new Map();
+    if (parsed.metadata) {
+      try {
+        const list = JSON.parse(parsed.metadata);
+        if (Array.isArray(list)) {
+          for (const item of list) {
+            if (item?.name) metaMap.set(item.name, item);
+          }
+        }
+      } catch {}
+    }
+
+    const insertedDocs = [];
+    await transaction(db, async (client) => {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileName = file.originalname || `document_${i + 1}.pdf`;
+        const meta = metaMap.get(fileName) || {};
+
+        const title = (meta.title && meta.title.trim()) || cleanDocumentTitle(fileName);
+        const description = (meta.description && meta.description.trim()) || (meta.relativePath ? `Thư mục: ${meta.relativePath}` : "");
+        const docId = randomUUID();
+
+        await client.query(
+          `INSERT INTO documents (id, title, description, subject, grade, category, file_name, mime_type, file_size, data, author_name, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          [
+            docId,
+            title,
+            description,
+            parsed.subject,
+            parsed.grade,
+            parsed.category,
+            fileName,
+            file.mimetype || "application/octet-stream",
+            file.size,
+            file.buffer,
+            parsed.author_name,
+            parsed.status,
+          ]
+        );
+
+        insertedDocs.push({
+          id: docId,
+          title,
+          file_name: fileName,
+          file_size: file.size,
+        });
+      }
+
+      await audit(
+        client,
+        req,
+        "create",
+        "documents",
+        null,
+        `Tải lên hàng loạt ${files.length} tài liệu từ thư mục`,
+      );
+    });
+
+    res.status(201).json({
+      ok: true,
+      count: insertedDocs.length,
+      documents: insertedDocs,
     });
   });
 
