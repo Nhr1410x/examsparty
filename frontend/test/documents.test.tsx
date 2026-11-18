@@ -388,8 +388,10 @@ test("documents page: groups documents into folders and supports Đại học gr
     const nestedRows = folderCard.querySelectorAll(".doc-horizontal-row.nested");
     assert.equal(nestedRows.length, 2, "Folder should expand to show its 2 lessons");
 
-    // Check that grade shows "Đại học"
-    assert(nestedRows[0].textContent?.includes("Đại học"));
+    // Check that folder card shows "Đại học" and nested rows cleanly display title & source
+    assert(folderCard.textContent?.includes("Đại học"));
+    assert(nestedRows[0].textContent?.includes("Bài 1: Tính đơn điệu"));
+    assert(nestedRows[0].textContent?.includes("Examsparty"));
 
     // Standalone document should also be rendered separately
     const standaloneRow = rootEl.querySelector(".doc-horizontal-row:not(.nested)");

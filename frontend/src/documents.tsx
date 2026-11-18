@@ -485,29 +485,30 @@ export function DocumentsPage() {
               >
                 {doc.title}
               </h3>
-              <div className="doc-row-tags">
-                <span className={`subject-pill subject-${getSubjectTone(doc.subject)}`}>
-                  <span className="subject-dot" />
-                  {doc.subject}
-                </span>
-                <span className="doc-grade-tag">
-                  {formatGrade(doc.grade)}
-                </span>
-                <span className="doc-category-tag">
-                  {documentCategories[doc.category] || doc.category}
-                </span>
-                {!isNested && doc.folder_name && (
-                  <span className="doc-folder-tag-pill" title={`Thuộc thư mục: ${doc.folder_name}`}>
-                    <Folder size={11} /> {doc.folder_name}
+              {!isNested && (
+                <div className="doc-row-tags">
+                  <span className={`subject-pill subject-${getSubjectTone(doc.subject)}`}>
+                    <span className="subject-dot" />
+                    {doc.subject}
                   </span>
-                )}
-              </div>
+                  <span className="doc-grade-tag">
+                    {formatGrade(doc.grade)}
+                  </span>
+                  <span className="doc-category-tag">
+                    {documentCategories[doc.category] || doc.category}
+                  </span>
+                  {doc.folder_name && (
+                    <span className="doc-folder-tag-pill" title={`Thuộc thư mục: ${doc.folder_name}`}>
+                      <Folder size={11} /> {doc.folder_name}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
-            <p className="doc-row-desc">
-              {doc.description ||
-                `Tài liệu ${doc.subject} khối ${formatGrade(doc.grade)} tổng hợp đầy đủ kiến thức ôn thi trọng tâm.`}
-            </p>
+            {!isNested && doc.description ? (
+              <p className="doc-row-desc">{doc.description}</p>
+            ) : null}
 
             <div className="doc-row-submeta">
               <span className="doc-author-name">
