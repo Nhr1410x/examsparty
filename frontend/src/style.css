@@ -8505,6 +8505,136 @@ td {
   color: var(--green);
 }
 
+/* Admin Section Header & Spacing */
+.admin-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin: 12px 0 24px;
+  flex-wrap: wrap;
+}
+
+.admin-section-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.5px;
+  color: var(--text-heading);
+}
+
+.admin-section-header .meta-text {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 6px 0 0;
+  line-height: 1.5;
+  max-width: 680px;
+}
+
+.admin-section-header .row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Admin Table Container & Styling */
+.admin-table-container {
+  overflow-x: auto;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  margin-top: 20px;
+  margin-bottom: 24px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.admin-table thead th {
+  background: var(--subtle);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.admin-table tbody td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  transition: background 0.15s ease;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tbody tr:hover td {
+  background: var(--subtle);
+}
+
+/* Admin Document Filters Grid */
+.admin-filters-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 14px;
+  align-items: flex-end;
+  margin: 8px 0 20px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.admin-filters-grid .search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-filters-grid .field {
+  margin-bottom: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-filters-grid input,
+.admin-filters-grid select {
+  font-size: 12.5px;
+  padding: 8px 12px;
+}
+
+@media (max-width: 1100px) {
+  .admin-filters-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .admin-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .admin-filters-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
 
 
 

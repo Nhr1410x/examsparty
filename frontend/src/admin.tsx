@@ -1919,7 +1919,7 @@ function ManageDocumentSubjects({
       {message && <Notice>{message}</Notice>}
       <ErrorMessage error={issue} />
 
-      <fieldset className="admin-table-container">
+      <div className="admin-table-container">
         <table className="admin-table">
           <thead>
             <tr>
@@ -2051,7 +2051,7 @@ function ManageDocumentSubjects({
             })}
           </tbody>
         </table>
-      </fieldset>
+      </div>
 
       {/* Subject Edit / Add Modal */}
       {editing && (
