@@ -29,7 +29,7 @@ const pagination = (req) =>
   z
     .object({
       page: z.coerce.number().int().min(1).max(100000).default(1),
-      limit: z.coerce.number().int().min(1).max(50).default(12),
+      limit: z.coerce.number().int().min(1).max(1000).default(12),
     })
     .parse(req.query);
 const assetIds = (content) => {
@@ -1047,7 +1047,10 @@ export function createApp(db, config) {
   }
 
   app.get("/api/documents", async (req, res) => {
-    const { page, limit } = pagination(req);
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = req.query.limit
+      ? Math.min(1000, Math.max(1, Number(req.query.limit) || 12))
+      : 500;
     const subject = req.query.subject ? String(req.query.subject).trim() : null;
     const grade = req.query.grade ? String(req.query.grade).trim() : null;
     const category = req.query.category ? String(req.query.category).trim() : null;

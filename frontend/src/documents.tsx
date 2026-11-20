@@ -14,7 +14,6 @@ import {
   Archive,
   Layers,
   Sparkles,
-  ChevronLeft,
   ChevronRight,
   ChevronDown,
   ChevronUp,
@@ -219,7 +218,7 @@ export function DocumentsPage() {
 
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -271,8 +270,7 @@ export function DocumentsPage() {
     setError(null);
 
     const params = new URLSearchParams();
-    params.set("page", String(page));
-    params.set("limit", "12");
+    params.set("limit", "500");
     params.set("subject", subject);
     if (grade) params.set("grade", grade);
     if (category) params.set("category", category);
@@ -294,12 +292,11 @@ export function DocumentsPage() {
     return () => {
       ignore = true;
     };
-  }, [subject, page, grade, category, searchQuery]);
+  }, [subject, grade, category, searchQuery, reloadKey]);
 
   const handleSelectSubject = (subName: string) => {
     startTransition(() => {
       setSubject(subName);
-      setPage(1);
       setSelectedIds([]);
       if (subName) {
         setSearchParams({ subject: subName });
@@ -315,15 +312,15 @@ export function DocumentsPage() {
     );
   };
 
-  const isAllPageSelected =
+  const isAllDocsSelected =
     documents.length > 0 && documents.every((d) => selectedIds.includes(d.id));
 
-  const toggleSelectAllPage = () => {
-    const pageIds = documents.map((d) => d.id);
-    if (isAllPageSelected) {
-      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+  const toggleSelectAllDocs = () => {
+    const allIds = documents.map((d) => d.id);
+    if (isAllDocsSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !allIds.includes(id)));
     } else {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...allIds])));
     }
   };
 
@@ -556,7 +553,6 @@ export function DocumentsPage() {
     );
   };
 
-  const totalPages = Math.ceil(total / 12) || 1;
   const activeSubjects = subjectConfigs.filter((s) => s.active !== false);
 
   return (
@@ -677,10 +673,7 @@ export function DocumentsPage() {
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setPage(1);
-                  }}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={`Tìm tài liệu trong môn ${subject}...`}
                   aria-label="Tìm tài liệu"
                 />
@@ -704,7 +697,6 @@ export function DocumentsPage() {
                     onChange={(e) => {
                       startTransition(() => {
                         setCategory(e.target.value);
-                        setPage(1);
                       });
                     }}
                     aria-label="Chọn dạng tài liệu"
@@ -730,7 +722,6 @@ export function DocumentsPage() {
                   onClick={() => {
                     startTransition(() => {
                       setGrade(g.value);
-                      setPage(1);
                     });
                   }}
                   role="tab"
@@ -749,10 +740,10 @@ export function DocumentsPage() {
                 <button
                   type="button"
                   className="doc-batch-check-all"
-                  onClick={toggleSelectAllPage}
+                  onClick={toggleSelectAllDocs}
                 >
-                  {isAllPageSelected ? <CheckSquare size={16} /> : <Square size={16} />}
-                  <span>{isAllPageSelected ? "Bỏ chọn trang này" : "Chọn hết trang"}</span>
+                  {isAllDocsSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                  <span>{isAllDocsSelected ? "Bỏ chọn tất cả" : "Chọn tất cả tài liệu"}</span>
                 </button>
                 <span className="doc-batch-count">
                   Đã chọn <strong>{selectedIds.length}</strong> tài liệu
@@ -793,7 +784,7 @@ export function DocumentsPage() {
                 <button
                   type="button"
                   className="button secondary small"
-                  onClick={() => setPage(1)}
+                  onClick={() => setReloadKey((k) => k + 1)}
                 >
                   Thử lại
                 </button>
@@ -814,7 +805,6 @@ export function DocumentsPage() {
                     setGrade("");
                     setCategory("");
                     setSearchQuery("");
-                    setPage(1);
                   }}
                 >
                   Xóa bộ lọc
@@ -940,33 +930,6 @@ export function DocumentsPage() {
                   {/* Standalone Documents (Tài liệu không nằm trong thư mục) */}
                   {standaloneDocs.map((doc) => renderDocumentRow(doc, false))}
                 </div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <nav className="pagination-bar" aria-label="Phân trang tài liệu">
-                    <button
-                      type="button"
-                      className="button secondary small"
-                      disabled={page <= 1}
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      aria-label="Trang trước"
-                    >
-                      <ChevronLeft size={16} /> Trang trước
-                    </button>
-                    <span className="page-indicator">
-                      Trang <strong>{page}</strong> / {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      className="button secondary small"
-                      disabled={page >= totalPages}
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      aria-label="Trang sau"
-                    >
-                      Trang sau <ChevronRight size={16} />
-                    </button>
-                  </nav>
-                )}
               </>
             )}
           </main>
